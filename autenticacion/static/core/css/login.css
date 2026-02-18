@@ -1,0 +1,14 @@
+/* Configuración de colores personalizados para coincidir con la imagen */
+:root {
+    --primary-color: #008B9E; /* Color verde azulado/petróleo del botón */
+    --primary-hover: #007282;
+    --bg-page: #EBF3F9; /* Fondo azul muy claro de la página */
+    --input-bg: #F0F6FA; /* Fondo de los inputs */
+}
+
+.bg-primary { background-color: var(--primary-color); }
+.hover-bg-primary:hover { background-color: var(--primary-hover); }
+.text-primary { color: var(--primary-color); }
+.border-primary { border-color: var(--primary-color); }
+.bg-page { background-color: var(--bg-page); }
+.bg-input { background-color: var(--input-bg); }
