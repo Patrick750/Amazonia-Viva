@@ -1,0 +1,53 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TurismoApp - Registro Dinámico</title>
+    <script src="https://cdn.tailwindcss.com"></script>   
+    <link rel="stylesheet" href="{% static 'core/css/signup.css' %}">
+</head>
+<body class="bg-page font-sans text-gray-800 min-h-screen flex flex-col items-center justify-center py-10 px-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-8 md:p-10">
+        
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Crear Cuenta</h1>
+            <p class="text-gray-500 text-sm" id="form-description">Complete el formulario para registrarse como Turista.</p>
+        </div>
+
+        <div class="bg-gray-100 p-1 rounded-xl flex justify-between mb-8">
+            <button onclick="setForm('turista')" id="btn-turista" class="flex-1 flex items-center justify-center gap-2 bg-white text-gray-900 shadow-sm py-2 px-4 rounded-lg font-semibold text-sm transition-all border border-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                Turista
+            </button>
+            
+            <button onclick="setForm('agencia')" id="btn-agencia" class="flex-1 flex items-center justify-center gap-2 text-gray-500 hover:text-gray-700 py-2 px-4 rounded-lg font-medium text-sm transition-all hover:bg-gray-50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                Agencia
+            </button>
+
+            <button onclick="setForm('proveedor')" id="btn-proveedor" class="flex-1 flex items-center justify-center gap-2 text-gray-500 hover:text-gray-700 py-2 px-4 rounded-lg font-medium text-sm transition-all hover:bg-gray-50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                Proveedor
+            </button>
+        </div>
+
+        <form id="dynamic-form" class="space-y-4 fade-in">
+            </form>
+
+        <button class="w-full py-3 bg-primary text-white rounded-lg font-bold text-lg hover-bg-primary transition shadow-md mt-6">
+            Registrarse
+        </button>
+
+        <p class="mt-6 text-center text-sm text-gray-500">
+            ¿Ya tienes una cuenta? <a href="/auth/login" class="text-blue-600 font-semibold hover:underline">Inicia sesión aquí</a>
+        </p>
+    </div>
+    <script src="{% static 'core/js/signup.js' %}"></script>
+
+    
+</body>
+</html>

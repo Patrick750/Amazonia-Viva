@@ -1,3 +1,4 @@
+
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
@@ -10,26 +11,6 @@
 </head>
 <body class="bg-page font-sans text-gray-800 min-h-screen flex flex-col">
 
-    <nav class="bg-white py-4 px-6 shadow-sm flex justify-between items-center">
-        <div class="flex items-center gap-2">
-            <div class="bg-primary w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-lg">T</div>
-            <span class="text-xl font-bold tracking-tight">TurismoApp</span>
-        </div>
-
-        <div class="hidden md:flex gap-8 text-gray-600 font-medium">
-            <a href="#" class="hover:text-black">Inicio</a>
-            <a href="#" class="hover:text-black">Catálogo</a>
-        </div>
-
-        <div class="flex gap-3">
-            <button class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition">
-                Iniciar Sesión
-            </button>
-            <button class="px-4 py-2 bg-primary text-white rounded-lg font-medium hover-bg-primary transition shadow-md">
-                Registrarse
-            </button>
-        </div>
-    </nav>
 
     <main class="flex-grow flex items-center justify-center py-12 px-4">
         
@@ -62,21 +43,10 @@
                 </button>
             </form>
 
-            <div class="mt-6 bg-blue-50 border border-blue-100 rounded-xl p-4 text-left">
-                <p class="text-xs font-semibold text-gray-600 mb-2 text-center">Credenciales de demostración:</p>
-                <div class="space-y-1 text-xs text-gray-700">
-                    <p><span class="font-bold text-gray-900">Turista:</span> turista@test.com / 123456</p>
-                    <p><span class="font-bold text-gray-900">Agencia:</span> agencia@test.com / 123456</p>
-                    <p><span class="font-bold text-gray-900">Proveedor:</span> proveedor@test.com / 123456</p>
-                </div>
-            </div>
-
             <p class="mt-6 text-sm text-gray-500">
-                ¿No tienes una cuenta? <a href="#" class="text-blue-600 font-semibold hover:underline">Regístrate aquí</a>
+                ¿No tienes una cuenta? <a href="/auth/signup" class="text-blue-600 font-semibold hover:underline">Regístrate aquí</a>
             </p>
         </div>
-
     </main>
-
 </body>
 </html>
