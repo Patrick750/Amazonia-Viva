@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Usuario,Agencia,Proveedor
+from .models import Usuario,Agencia,Proveedor, Turista
 from django.contrib.auth.models import Group
 
 class UsuarioSerializer(serializers.ModelSerializer):
@@ -38,7 +38,23 @@ class ProveedorSerializers(serializers.ModelSerializer):
         except Group.DoesNotExist:
             print("El grupo 'Proveedor' no existe. Por favor, créalo en el admin de Django.")
         return proveedor
+    
+class TuristaSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Turista
+        fields = ['id','first_name', 'last_name','fecha_nacimiento','numero_identidad','password']
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        turista = Turista(**validated_data)
+        turista.set_password(password)
+        turista.save()
 
+        try:
+            group_turista = Group.objects.get(name='Turista')
+            turista.groups.add(group_turista)
+        except Group.DoesNotExist:
+            print("El grupo 'Turista' no existe. Por favor, créalo en el admin de Django.")
+        return turista
 
 
         

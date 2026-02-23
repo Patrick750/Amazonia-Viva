@@ -30,7 +30,6 @@
     nombre_empresa: '',
     group:''
     })
-
     
     const enviarRegistroAgencia = async (rol) => {
         try{
@@ -38,32 +37,49 @@
             console.log('Formulari enviado')
             formulario.value = ''
         }catch (error){
-            console.error("Hubo un error")
+            console.error("Hubo un error: ", error)
         }
     }
-   
-    const existeEmail = false
-    const VerificacionEmail = async () => {
+
+    const VerificacionDatos = async () => {
+        let existeEmail = false 
         try{
             const response = await axios.post('http://127.0.0.1:8000/api/verificaremail/',{
                 email: formulario.value.email
             })
-            if(respuesta.data.existe){
-                existeEmail = true
-            }
+              existeEmail = response.data.email
         }catch(error){
             console.error("Error al conectar con el servidor", error)
         }
+        return existeEmail
+    }
+
+    const VerificacionUsername = async () => {
+        let existeUsername = false 
+        try{
+            const response = await axios.post('http://127.0.0.1:8000/api/verificaremail/',{
+                username: formulario.value.username
+            })
+
+            existeUsername = response.data.username
+
+        }catch(error){
+            console.error("Error al conectar con el servidor", error)
+        }
+        console.log(existeUsername)
+        return existeUsername
     }
 
     const MensajeErrorContraseña = ref("")
     const MensajeErrorTelefono = ref("")
     const MensejeErrorEmail = ref("")
+    const MensejeErrorUsername = ref("")
 
-    const secValidacion = () => {
+    const secValidacion = async () => {
         MensajeErrorTelefono.value = ""
         MensajeErrorContraseña.value = ""
         MensejeErrorEmail.value = ""
+        MensejeErrorUsername.value = ""
         let valido = true
 
         if(formulario.value.numero_telefonico.length != 10){
@@ -74,14 +90,23 @@
             MensajeErrorContraseña.value = "Las contraseñas deben conincidir"
             valido = false
         } 
-        if(existeEmail){
-            MensejeErrorEmail.value = "No se pudo completar el registro. Por favor, verifica que los datos sean correctos o intenta iniciar sesión."
-            valido = false
+
+        const emailExite = await VerificacionDatos() 
+        if(emailExite){
+          MensejeErrorEmail.value = "No se pudo completar el registro. Por favor, verifica tus credenciales sean correctas o intenta iniciar sesión."
+          valido = false
+        }
+
+        const usernameExiste = await VerificacionUsername()
+        if(usernameExiste){
+          MensejeErrorUsername.value = "El nombre de empresa ya existe, intenta iniciar sesion"
+          valido = false
         }
         return valido
     }
-    const pack = (rol) => {
-        if(secValidacion()){
+    const pack = async (rol) => {
+      const esValido = await secValidacion()
+        if(esValido){
             enviarRegistroAgencia(rol)
         }
     }
@@ -97,9 +122,9 @@
             formulario.value.username = formulario.value.nombre_agencia 
             pack('agencia')
 
-        }else{
+        }else if(tabActiva.value == 'proveedor'){
             formulario.value.group = 3
-            formulario.value.username = formulario.value.nombre_empresa 
+            formulario.value.username = formulario.value.nombre_empresa
             pack('proveedor')
         }
     }
@@ -182,11 +207,12 @@
           <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">Nombre de la Agencia *</label>
             <input v-model="formulario.nombre_agencia" type="text" placeholder="Aventuras Colombia Tours" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
+            <p v-if="MensejeErrorUsername" class="errores">{{ MensejeErrorUsername }}</p>
           </div>
           <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">Correo Electrónico *</label>
             <input v-model="formulario.email" type="email" placeholder="agencia@ejemplo.com" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
-            <p class="errores">{{ MensejeErrorEmail }}</p>
+            <p v-if="MensejeErrorEmail" class="errores">{{ MensejeErrorEmail }}</p>
           </div>
           <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">Telefóno *</label>
@@ -210,11 +236,13 @@
             <div class="mb-4">
                 <label class="block text-xs font-bold text-gray-700 mb-1">Nombre de Empresa *</label>
                 <input v-model="formulario.nombre_empresa" type="text" placeholder="Equipos de Aventura SA" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
+                
             </div>
             <div class="mb-4">
                 <label class="block text-xs font-bold text-gray-700 mb-1">Correo Electrónico *</label>
                 <input v-model="formulario.email" type="email" placeholder="proveedor@ejemplo.com" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
-            </div>
+                <p v-if="MensejeErrorEmail" class="errores">{{ MensejeErrorEmail }}</p>
+              </div>
             <div class="mb-4">
                 <label class="block text-xs font-bold text-gray-700 mb-1">Teléfono *</label>
                 <input v-model="formulario.numero_telefonico" type="tel" placeholder="+57 300 987 6543" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
@@ -247,7 +275,6 @@
 <style>
     .errores{
         color: rgb(248, 80, 80);
-        text-shadow: 0px 0px 3px red;
         text-align: left;
         margin: auto;
         font-size: 14px;
