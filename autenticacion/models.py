@@ -14,31 +14,30 @@ class Usuario(AbstractUser):
         related_query_name="usuario",
     )
 
-class Agencia(models.Model):
-    usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, null=True, blank=False)
+class Agencia(Usuario):
+
     nombre_agencia = models.CharField(max_length=50, null=False, blank=False)
-    latitud = models.DecimalField(max_digits=10,decimal_places=10, null=False, blank=False)
-    logitud = models.DecimalField(max_digits=10,decimal_places=10, null=False, blank=False)
+    latitud = models.DecimalField(max_digits=10,decimal_places=10, blank=True,null=True)
+    logitud = models.DecimalField(max_digits=10,decimal_places=10, blank=True,null=True)
     numero_telefonico = models.CharField(max_length=20, null=False, blank=False)
-    logotipo = models.CharField(max_length=255, null=False, blank=False)
-    descripcion = models.CharField(max_length=255, null=False, blank=False)
-    red_social = models.URLField(max_length=200, null=False, blank=False)
-    nit = models.CharField(max_length=20, null=False, blank=False)
-    rnt = models.CharField(max_length=20, null=False, blank=False)
-    rut = models.CharField(max_length=20, null=False, blank=False)
-    horario_atencion = models.CharField(max_length=100, null=False, blank=False)
+    logotipo = models.CharField(max_length=255, blank=True,null=True)
+    descripcion = models.CharField(max_length=255, blank=True,null=True)
+    red_social = models.URLField(max_length=200, blank=True,null=True)
+    nit = models.CharField(max_length=20, blank=True,null=True)
+    rnt = models.CharField(max_length=20, blank=True,null=True)
+    rut = models.CharField(max_length=20, blank=True,null=True)
+    horario_atencion = models.CharField(max_length=100, blank=True,null=True)
 
 
     def __str__(self):
         return f'{self.nombre_agencia}'
     
-class Proveedor(models.Model):
-    usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, null=True, blank=False)
+class Proveedor(Usuario):
     nombre_empresa = models.CharField(max_length=50, null=False, blank=False)
-    nit = models.CharField(max_length=20, null=False, blank=False)
-    rut = models.CharField(max_length=20, null=False, blank=False)
-    latitud = models.DecimalField(max_digits=10,decimal_places=10, null=False, blank=False)
-    logitid = models.DecimalField(max_digits=10,decimal_places=10, null=False, blank=False)
+    nit = models.CharField(max_length=20, blank=True,null=True)
+    rut = models.CharField(max_length=20, blank=True,null=True)
+    latitud = models.DecimalField(max_digits=10,decimal_places=10, blank=True, null=True)
+    logitid = models.DecimalField(max_digits=10,decimal_places=10, blank=True, null=True)
     numero_telefonico = models.CharField(max_length=20, null=False, blank=False)
 
     def __str__(self):

@@ -5,3 +5,4 @@ class signup_agencia(forms.ModelForm):
     class Meta:
         model = Agencia
         fields = 'nombre_agencia,email,numero_telefonico,password'
+    confirmacion_de_contraseña = forms.CharField()
