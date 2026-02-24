@@ -16,11 +16,11 @@
 
     // Objeto para almacenar todos los datos del formulario
     const formulario = ref({
-    nombres: '',
-    apellidos: '',
+    first_name: '',
+    last_name: '',
     username:'',
-    edad: '',
-    identidad: '',
+    fecha_nacimiento: '',
+    numero_identidad: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -35,7 +35,6 @@
         try{
             const respuesta = await axios.post(`http://127.0.0.1:8000/api/signup/${rol}/`, formulario.value);
             console.log('Formulari enviado')
-            formulario.value = ''
         }catch (error){
             console.error("Hubo un error: ", error)
         }
@@ -53,7 +52,6 @@
         }
         return existeEmail
     }
-
     const VerificacionUsername = async () => {
         let existeUsername = false 
         try{
@@ -66,46 +64,87 @@
         }catch(error){
             console.error("Error al conectar con el servidor", error)
         }
-        console.log(existeUsername)
         return existeUsername
     }
+    const VerificacionIdentidad = async () => {
+      let identidadExiste = false
+      try{
+        const respuesta = await axios.post('http://127.0.0.1:8000/api/verificaremail/',{
+          identidad: formulario.value.numero_identidad
+        })
+          identidadExiste = respuesta.data.identidad
+      }catch (error){
+        console.error('Error al consultar Identidad:', error)
+      }
+      return identidadExiste
+    } 
 
     const MensajeErrorContraseña = ref("")
     const MensajeErrorTelefono = ref("")
     const MensejeErrorEmail = ref("")
     const MensejeErrorUsername = ref("")
+    const MensajeErrorIdentidad = ref("")
 
-    const secValidacion = async () => {
+    const validaciones = async () => {
         MensajeErrorTelefono.value = ""
         MensajeErrorContraseña.value = ""
         MensejeErrorEmail.value = ""
         MensejeErrorUsername.value = ""
+        MensajeErrorIdentidad.value = ""
         let valido = true
 
-        if(formulario.value.numero_telefonico.length != 10){
-            MensajeErrorTelefono.value = "El largo de tu telefono debe de ser de 10 digitos"
-            valido = false 
-        }
         if(formulario.value.password != formulario.value.confirmPassword){
-            MensajeErrorContraseña.value = "Las contraseñas deben conincidir"
+            MensajeErrorContraseña.value = "Las contraseñas deben coincidir"
             valido = false
-        } 
+        }else if(formulario.value.password.length < 8){
+            MensajeErrorContraseña.value = "La contraseña debe ser de almenos 8 digitos"
+            valido = false
+        }
 
         const emailExite = await VerificacionDatos() 
         if(emailExite){
           MensejeErrorEmail.value = "No se pudo completar el registro. Por favor, verifica tus credenciales sean correctas o intenta iniciar sesión."
           valido = false
         }
-
         const usernameExiste = await VerificacionUsername()
         if(usernameExiste){
           MensejeErrorUsername.value = "El nombre de empresa ya existe, intenta iniciar sesion"
           valido = false
         }
+    }
+
+
+    const secValidacion = async (rol) => {
+        MensajeErrorIdentidad.value = ""
+        let valido = true
+
+        const ver = await validaciones()
+        if(ver){
+          const identidadExiste = await VerificacionIdentidad()
+          if(identidadExiste){
+            MensajeErrorIdentidad.value = "Este numero de  documento ya se encuentra registrado"
+            valido = false
+          }else if(formulario.value.numero_identidad.length < 10){
+            MensajeErrorIdentidad.value = "El numero de documento DEBE contener 10 digitos"
+            valido = false
+          }else if(formulario.value.numero_identidad.length > 10){
+            MensajeErrorIdentidad.value = "El numero de documento NO DEBE de contener más de 10 digitos"
+          }
+
+        }
+
+        if(rol.includes(['proveedor','agencia'])){
+          if(ver){
+            if(formulario.value.numero_telefonico.length != 10){
+                MensajeErrorTelefono.value = "El largo de tu telefono debe de ser de 10 digitos"
+                valido = false 
+            }
+          }
+        }
         return valido
     }
     const pack = async (rol) => {
-      const esValido = await secValidacion()
+      const esValido = await secValidacion(rol)
         if(esValido){
             enviarRegistroAgencia(rol)
         }
@@ -114,8 +153,12 @@
     const Validacion = () => {
         console.log("¡El botón fue presionado!");
         if(tabActiva.value == 'turista'){
+            const nombre = formulario.value.first_name
+            const apellido = formulario.value.last_name
+            let nombre_completo = `${nombre}${apellido}` 
+            formulario.value.username = nombre_completo
             formulario.value.group = 1
-            enviarRegistroAgencia('turista')
+            pack('turista')
 
         }else if(tabActiva.value == 'agencia'){
             formulario.value.group = 2
@@ -169,27 +212,33 @@
       </div>
 
       <form @submit.prevent="Validacion">
-        
         <template v-if="tabActiva === 'turista'">
           <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">Nombres *</label>
-            <input v-model="formulario.nombres" type="text" placeholder="Juan" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
+            <input v-model="formulario.first_name" type="text" placeholder="Juan" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
           </div>
           <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">Apellidos *</label>
-            <input v-model="formulario.apellidos" type="text" placeholder="Pérez" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
+            <input v-model="formulario.last_name" type="text" placeholder="Pérez" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
           </div>
           <div class="mb-4">
-            <label class="block text-xs font-bold text-gray-700 mb-1">Edad *</label>
-            <input v-model="formulario.edad" type="number" placeholder="25" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
+            <label class="block text-xs font-bold text-gray-700 mb-1">Fecha de Nacimiento *</label>
+            <input 
+              v-model="formulario.fecha_nacimiento" 
+              type="date" 
+              class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" 
+              required 
+            />
           </div>
           <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">N° Identidad *</label>
-            <input v-model="formulario.identidad" type="text" placeholder="1234567890" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
+            <input v-model="formulario.numero_identidad" type="text" placeholder="1234567890" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
+            <p v-if="MensajeErrorIdentidad" class="errores">{{ MensajeErrorIdentidad }}</p>
           </div>
           <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">Correo Electrónico *</label>
             <input v-model="formulario.email" type="email" placeholder="usuario@ejemplo.com" class="w-full bg-[#f4f7f9] border-none text-gray-900 text-sm rounded-md focus:ring-2 focus:ring-teal-500 block p-3 outline-none" required />
+            <p v-if="MensejeErrorEmail" class="errores">{{ MensejeErrorEmail }}</p>
           </div>
           <div class="mb-4">
             <label class="block text-xs font-bold text-gray-700 mb-1">Contraseña *</label>

@@ -51,23 +51,26 @@ class VerificarEmail(APIView):
     def post(self, request):
         formEmail = request.data.get('email')
         formUsername = request.data.get('username')
+        formIdentidad = request.data.get('identidad')
         
         if formEmail:
             emailExiste = Usuario.objects.filter(email=formEmail).exists()
-            print(emailExiste)
             return Response({
                 'email': emailExiste
             })
         elif formUsername:
             usernameExiste = Usuario.objects.filter(username=formUsername).exists()
-            print(usernameExiste)
             return Response({
                 'username': usernameExiste
             })
-        return Response({
-            'error':'No se validaron los datos',
-            status: 400
-        })
+        elif formIdentidad:
+            identidadExiste = Turista.objects.filter(numero_identidad=formIdentidad).exists()
+            return Response({
+                'identidad': identidadExiste
+            })
+        return Response(
+            {'error':'No se validaron los datos'},status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 def login(request):

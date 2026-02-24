@@ -42,7 +42,7 @@ class ProveedorSerializers(serializers.ModelSerializer):
 class TuristaSerializers(serializers.ModelSerializer):
     class Meta:
         model = Turista
-        fields = ['id','first_name', 'last_name','fecha_nacimiento','numero_identidad','password']
+        fields = ['id','first_name', 'last_name','username','fecha_nacimiento','numero_identidad','email','password']
     def create(self, validated_data):
         password = validated_data.pop('password')
         turista = Turista(**validated_data)
