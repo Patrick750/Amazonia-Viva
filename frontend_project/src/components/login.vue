@@ -63,18 +63,9 @@ const procesarLogin = async () => {
         </button>
       </form>
 
-      <div class="mt-6 bg-[#f4f8ff] border border-[#dce6f5] rounded-md p-4">
-        <p class="text-center text-xs text-gray-500 mb-2">Credenciales de demostración:</p>
-        <ul class="text-xs text-gray-700 space-y-1">
-          <li><strong>Turista:</strong> turista@test.com / 123456</li>
-          <li><strong>Agencia:</strong> agencia@test.com / 123456</li>
-          <li><strong>Proveedor:</strong> proveedor@test.com / 123456</li>
-        </ul>
-      </div>
-
       <div class="text-center mt-6 text-sm text-gray-600">
         <p>¿No tienes una cuenta? 
-          <router-link to="/registro" class="text-[#1a73e8] font-medium hover:underline">Regístrate aquí</router-link>
+          <router-link to="/auth/signup" class="text-[#1a73e8] font-medium hover:underline">Regístrate aquí</router-link>
         </p>
       </div>
 

@@ -68,6 +68,7 @@ class VerificarEmail(APIView):
             return Response({
                 'identidad': identidadExiste
             })
+   
         return Response(
             {'error':'No se validaron los datos'},status=status.HTTP_400_BAD_REQUEST
             )
