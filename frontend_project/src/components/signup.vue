@@ -1,6 +1,9 @@
 <script setup>
     import { ref, computed } from 'vue'
     import axios from 'axios'
+    import { useRouter } from 'vue-router';
+
+    const router = useRouter()
 
     // Estado para controlar qué pestaña está activa
     const tabActiva = ref('turista')
@@ -32,12 +35,16 @@
     })
     
     const enviarRegistroAgencia = async (rol) => {
+      let registrado = false
         try{
             const respuesta = await axios.post(`http://127.0.0.1:8000/api/signup/${rol}/`, formulario.value);
-            console.log('Formulari enviado')
+            registrado = respuesta.data.exito
+
+            console.log('Formulari enviado: ' + respuesta.data.mensaje)
         }catch (error){
-            console.error("Hubo un error: ", error)
+            console.error("Hubo un error: " + error)
         }
+      return registrado
     }
     const VerificacionDatos = async () => {
         let existeEmail = false 
@@ -123,7 +130,7 @@
 
         const soloNumero = /^[0-9]+$/
 
-        const valido = await validaciones(rol)
+        let valido = await validaciones(rol)
         if(rol == 'turista'){
           if(valido){
             const identidadExiste = await VerificacionIdentidad()
@@ -158,31 +165,47 @@
     }
     const pack = async (rol) => {
       const esValido = await secValidacion(rol)
-        if(esValido){
-            enviarRegistroAgencia(rol)
-        }
+      if(esValido){
+        let h = await enviarRegistroAgencia(rol)          
+        return h
+      }
+      return false
     }
     
-    const Validacion = () => {
+    const Validacion = async () => {
         console.log("¡El botón fue presionado!");
+
         if(tabActiva.value == 'turista'){
             const nombre = formulario.value.first_name.replace(/\s+/g,'_')
             const apellido = formulario.value.last_name.replace(/\s+/g,'_')
             let nombre_completo = `${nombre}${apellido}_${Date.now()}`.toLowerCase()
             formulario.value.username = nombre_completo
             formulario.value.group = 1
-            pack('turista')
+            
+            const registroExitoso = await pack('turista')
+
+            if(registroExitoso){
+              router.push('/panel/turista')
+            }
 
         }else if(tabActiva.value == 'agencia'){
             formulario.value.group = 2
             formulario.value.username = formulario.value.nombre_agencia.replace(/\s+/g,'_')
             formulario.value.numero_telefonico = formulario.value.numero_telefonico.replaceAll(' ','')
-            pack('agencia')
+
+            const registroExitoso = await pack('agencia')
+            if(registroExitoso){
+              router.push('/panel/agencia')
+            }
 
         }else if(tabActiva.value == 'proveedor'){
             formulario.value.group = 3
             formulario.value.username = formulario.value.nombre_empresa.replace(/\s+/g,'_')
-            pack('proveedor')
+
+            const registroExitoso = await pack('proveedor')
+            if(registroExitoso){
+              router.push('/panel/proveedor')
+            }
         }
     }
 </script>

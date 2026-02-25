@@ -12,10 +12,10 @@ class RegistroAgencia(APIView):
     def post(self, request):
         serializers = UsuarioSerializer(data=request.data)
         if serializers.is_valid():
-            serializers.save()  
-        
+            serializers.save()
+
             return Response(
-                {"mensaje":"Agencia registrada existosamente"},
+                {"mensaje":"Agencia registrada existosamente","exito":True},
                 status=status.HTTP_201_CREATED
             )
         return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -28,7 +28,7 @@ class RegistroProveedor(APIView):
             selrializers.save()  
         
             return Response(
-                {"mensaje":"Proveedor registrado existosamente"},
+                {"mensaje":"Proveedor registrado existosamente","exito":True},
                 status=status.HTTP_201_CREATED
             )
         return Response(selrializers.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -41,7 +41,7 @@ class RegistroTurista(APIView):
             serializers.save()
         
             return Response(
-                {"mensaje":"Turista registrada existosamente"},
+                {"mensaje":"Turista registrada existosamente","exito":True},
                 status=status.HTTP_201_CREATED
             )
         return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
