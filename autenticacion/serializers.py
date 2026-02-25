@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Usuario,Agencia,Proveedor, Turista
 from django.contrib.auth.models import Group
 
@@ -55,6 +56,19 @@ class TuristaSerializers(serializers.ModelSerializer):
         except Group.DoesNotExist:
             print("El grupo 'Turista' no existe. Por favor, créalo en el admin de Django.")
         return turista
+    
+#Serializador del login
+class SerializersLogin(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+    
+        data['usuario'] = {
+            'username': self.user.username,
+            'email': self.user.email,
+            'group': self.user.groups.first().id if self.user.groups.exists() else None
+        }
+        print(data)
+        return data
 
 
         

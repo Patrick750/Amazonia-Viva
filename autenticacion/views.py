@@ -2,7 +2,8 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status 
-from .serializers import UsuarioSerializer, ProveedorSerializers, TuristaSerializers
+from .serializers import UsuarioSerializer, ProveedorSerializers, TuristaSerializers, SerializersLogin
+from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import *
 
 # Create your views here.
@@ -73,6 +74,9 @@ class VerificarEmail(APIView):
             {'error':'No se validaron los datos'},status=status.HTTP_400_BAD_REQUEST
             )
 
+class Login(TokenObtainPairView):
+    serializer_class = SerializersLogin
 
-def login(request):
-    return render(request, 'core/login.html')
+
+
+

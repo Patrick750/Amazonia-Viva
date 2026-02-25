@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import axios from 'axios'
 
 const formulario = ref({
   email: '',
@@ -7,8 +8,16 @@ const formulario = ref({
 });
 
 const procesarLogin = async () => {
-  console.log("Intentando iniciar sesión con:", formulario.value);
-  // Aquí va tu lógica con axios
+  try{
+    const response = await axios.post('http://127.0.0.1:8000/api/login/',{
+      username: formulario.value.email,
+      password: formulario.value.password
+    })
+
+    console.log(response.data)
+  }catch(error){
+    console.error('Hubo un error' + error)
+  }
 };
 </script>
 
