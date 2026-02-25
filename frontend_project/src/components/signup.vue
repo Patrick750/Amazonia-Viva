@@ -106,9 +106,6 @@
           valido = false
         }
 
-
-
-
         if(['agencia','proveedor'].includes(rol)){
           const usernameExiste = await VerificacionUsername()
           if(usernameExiste){
@@ -178,13 +175,13 @@
 
         }else if(tabActiva.value == 'agencia'){
             formulario.value.group = 2
-            formulario.value.username = formulario.value.nombre_agencia
+            formulario.value.username = formulario.value.nombre_agencia.replace(/\s+/g,'_')
             formulario.value.numero_telefonico = formulario.value.numero_telefonico.replaceAll(' ','')
             pack('agencia')
 
         }else if(tabActiva.value == 'proveedor'){
             formulario.value.group = 3
-            formulario.value.username = formulario.value.nombre_empresa
+            formulario.value.username = formulario.value.nombre_empresa.replace(/\s+/g,'_')
             pack('proveedor')
         }
     }
