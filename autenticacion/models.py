@@ -15,6 +15,10 @@ class Usuario(AbstractUser):
         blank=True,
         related_query_name="usuario",
     )
+    email = models.EmailField(unique=True)
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
 class Agencia(Usuario):
 

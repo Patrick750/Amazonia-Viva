@@ -3,7 +3,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Usuario,Agencia,Proveedor, Turista
 from django.contrib.auth.models import Group
 
-class UsuarioSerializer(serializers.ModelSerializer):
+class AgenciaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agencia
         fields = ['id','nombre_agencia', 'username','email','numero_telefonico','password']
@@ -15,7 +15,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
         agencia.save()
 
         try:
-            grupo_agencia = Group.objects.get(name='Agencia')   
+            grupo_agencia = Group.objects.get(name='agencia')   
             agencia.groups.add(grupo_agencia)
         except Group.DoesNotExist:
             print("El grupo 'Agencia' no existe. Por favor, créalo en el admin de Django.")
@@ -34,7 +34,7 @@ class ProveedorSerializers(serializers.ModelSerializer):
         proveedor.save()
 
         try:
-            grupo_proveedor = Group.objects.get(name='Proveedor')   
+            grupo_proveedor = Group.objects.get(name='proveedor')   
             proveedor.groups.add(grupo_proveedor)
         except Group.DoesNotExist:
             print("El grupo 'Proveedor' no existe. Por favor, créalo en el admin de Django.")
@@ -51,7 +51,7 @@ class TuristaSerializers(serializers.ModelSerializer):
         turista.save()
 
         try:
-            group_turista = Group.objects.get(name='Turista')
+            group_turista = Group.objects.get(name='turista')
             turista.groups.add(group_turista)
         except Group.DoesNotExist:
             print("El grupo 'Turista' no existe. Por favor, créalo en el admin de Django.")
@@ -65,9 +65,8 @@ class SerializersLogin(TokenObtainPairSerializer):
         data['usuario'] = {
             'username': self.user.username,
             'email': self.user.email,
-            'group': self.user.groups.first().id if self.user.groups.exists() else None
+            'group': self.user.groups.first().name if self.user.groups.exists() else None
         }
-        print(data)
         return data
 
 

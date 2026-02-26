@@ -33,8 +33,9 @@
     nombre_empresa: '',
     group:''
     })
-    
+    const cargando = ref(false)
     const enviarRegistroAgencia = async (rol) => {
+      cargando.value = true
       let registrado = false
         try{
             const respuesta = await axios.post(`http://127.0.0.1:8000/api/signup/${rol}/`, formulario.value);
@@ -43,6 +44,8 @@
             console.log('Formulari enviado: ' + respuesta.data.mensaje)
         }catch (error){
             console.error("Hubo un error: " + error)
+        }finally{
+          cargando.value = false
         }
       return registrado
     }
@@ -120,7 +123,6 @@
             valido = false
           }
         }
-
         return valido
     }
 
@@ -171,6 +173,31 @@
       }
       return false
     }
+    const Redirigir = (rol) => {
+      router.push(`/panel/${rol}`)
+    } 
+    
+    const saveTokens = async (pack, rol) => {
+      if(pack){
+        try{
+          const response = await axios.post('http://127.0.0.1:8000/api/login/',{
+            email: formulario.value.email,
+            password: formulario.value.password
+          })
+
+
+          localStorage.setItem('token', response.data.access)
+          localStorage.setItem('nombre_usuario', response.data.usuario.username)
+          localStorage.setItem('rol', response.data.usuario.group)
+
+          Redirigir(rol)
+
+        }catch(error){
+          router.push('/auth/signup')
+        }
+      }
+    }
+
     
     const Validacion = async () => {
         console.log("¡El botón fue presionado!");
@@ -184,9 +211,7 @@
             
             const registroExitoso = await pack('turista')
 
-            if(registroExitoso){
-              router.push('/panel/turista')
-            }
+            saveTokens(registroExitoso, 'turista')
 
         }else if(tabActiva.value == 'agencia'){
             formulario.value.group = 2
@@ -194,18 +219,14 @@
             formulario.value.numero_telefonico = formulario.value.numero_telefonico.replaceAll(' ','')
 
             const registroExitoso = await pack('agencia')
-            if(registroExitoso){
-              router.push('/panel/agencia')
-            }
+            saveTokens(registroExitoso, 'agencia')
 
         }else if(tabActiva.value == 'proveedor'){
             formulario.value.group = 3
             formulario.value.username = formulario.value.nombre_empresa.replace(/\s+/g,'_')
 
             const registroExitoso = await pack('proveedor')
-            if(registroExitoso){
-              router.push('/panel/proveedor')
-            }
+            saveTokens(registroExitoso, 'proveedor')
         }
     }
 </script>
@@ -347,9 +368,24 @@
                 <p v-if="MensajeErrorContraseña" class="errores">{{ MensajeErrorContraseña }}</p>
             </div>
         </template>
-        <button type="submit" class="w-full bg-[#008b8b] hover:bg-teal-700 text-white font-medium rounded-md text-sm px-5 py-3 text-center transition-colors">
+<button
+        type="submit"
+        :disabled="cargando"
+        class="w-full py-3 bg-[#008c9e] hover:bg-[#007a8a] text-white rounded-md text-base font-medium transition-all mt-2 flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
+      >
+        <template v-if="!cargando">
           Registrarse
-        </button>
+        </template>
+
+        <template v-else>
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Procesando...
+        </template>
+
+      </button>
       </form>
     
       <div class="mt-6 text-center text-xs text-gray-500">

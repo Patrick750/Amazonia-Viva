@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status 
-from .serializers import UsuarioSerializer, ProveedorSerializers, TuristaSerializers, SerializersLogin
+from .serializers import AgenciaSerializer, ProveedorSerializers, TuristaSerializers, SerializersLogin
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import *
 
@@ -11,7 +11,7 @@ from .models import *
 #Registro de nueva agencia
 class RegistroAgencia(APIView):
     def post(self, request):
-        serializers = UsuarioSerializer(data=request.data)
+        serializers = AgenciaSerializer(data=request.data)
         if serializers.is_valid():
             serializers.save()
 

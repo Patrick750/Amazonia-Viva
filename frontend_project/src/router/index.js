@@ -41,4 +41,21 @@ const router = createRouter({
   ],
 })
 
+
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token')
+  const rol = localStorage.getItem('rol')
+
+  if (to.path === '/auth/login' || to.path === '/auth/signup') {
+    
+    if (token && rol) {
+      next(`/panel/${rol}`)
+    } else {
+      next()
+    }
+  } else {
+    next()
+  }
+})
+
 export default router
