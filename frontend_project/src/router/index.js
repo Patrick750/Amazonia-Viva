@@ -2,9 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import signup from '@/components/signup.vue'
 import login from '@/components/login.vue'
-import turista from '@/components/panelturista.vue'
-import agencia from '@/components/panelagencia.vue'
-import proveedor from '@/components/panelproveedor.vue'
+import paneles from '@/components/paneles.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -24,20 +22,10 @@ const router = createRouter({
       component: login,
     },
     {
-      path:'/panel/turista',
-      name:'pane_turista',
-      component: turista,
+      path:'/panel',
+      name:'panel',
+      component: paneles,
     },
-    {
-      path:'/panel/agencia',
-      name:'pane_agencia',
-      component: agencia,
-    },
-    {
-      path:'/panel/proveedor',
-      name:'pane_proveedor',
-      component: proveedor,
-    }
   ],
 })
 

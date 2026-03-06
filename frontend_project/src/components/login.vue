@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import axios from 'axios'
+import axios from 'axios';
 import { useRouter } from 'vue-router';
 
 const router = useRouter()
@@ -11,8 +11,8 @@ const formulario = ref({
   password: ''
 });
 
-const Redirigir = (rol) => {
-  router.push(`/panel/${rol}`)
+const Redirigir = () => {
+  router.push(`/panel`)
 } 
 
 const errorCredenciales = ref('') 
@@ -26,11 +26,12 @@ const procesarLogin = async () => {
     })
 
     localStorage.setItem('token', response.data.access)
+    localStorage.setItem('nombre', response.data.usuario.nombre)
+    localStorage.setItem('apellido', response.data.usuario.apellido)
     localStorage.setItem('nombre_usuario', response.data.usuario.username)
     localStorage.setItem('rol', response.data.usuario.group)
 
-    const rol = response.data.usuario.group
-    Redirigir(rol)
+    Redirigir()
     
   }catch(error){
     errorCredenciales.value = 'Correo o contraseña incorrectas'

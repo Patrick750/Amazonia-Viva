@@ -170,11 +170,11 @@
       }
       return false
     }
-    const Redirigir = (rol) => {
-      router.push(`/panel/${rol}`)
+    const Redirigir = () => {
+      router.push(`/panel`)
     } 
     
-    const saveTokens = async (pack, rol) => {
+    const saveTokens = async (pack) => {
       if(pack){
         try{
           const response = await axios.post('http://127.0.0.1:8000/api/login/',{
@@ -182,12 +182,13 @@
             password: formulario.value.password
           })
 
-
           localStorage.setItem('token', response.data.access)
+          localStorage.setItem('nombre',response.data.usuario.nombre)
+          localStorage.setItem('apellido', response.data.usuario.apellido)
           localStorage.setItem('nombre_usuario', response.data.usuario.username)
           localStorage.setItem('rol', response.data.usuario.group)
 
-          Redirigir(rol)
+          Redirigir()
 
         }catch(error){
           router.push('/auth/signup')

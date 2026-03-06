@@ -64,6 +64,8 @@ class SerializersLogin(TokenObtainPairSerializer):
     
         data['usuario'] = {
             'username': self.user.username,
+            'nombre':self.user.first_name,
+            'apellido': self.user.last_name,
             'email': self.user.email,
             'group': self.user.groups.first().name if self.user.groups.exists() else None
         }
