@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
+import Header from './header.vue';
 
 const router = useRouter()
 const cargando = ref(false)
@@ -29,6 +30,8 @@ const procesarLogin = async () => {
     localStorage.setItem('nombre', response.data.usuario.nombre)
     localStorage.setItem('apellido', response.data.usuario.apellido)
     localStorage.setItem('nombre_usuario', response.data.usuario.username)
+    localStorage.setItem('nombre_empresa', response.data.usuario.nombre_empresa)
+    localStorage.setItem('nombre_agencia', response.data.usuario.nombre_agencia)
     localStorage.setItem('rol', response.data.usuario.group)
 
     Redirigir()
@@ -43,6 +46,7 @@ const procesarLogin = async () => {
 </script>
 
 <template>
+  <Header></Header>
   <div 
     class="min-h-screen flex items-center justify-center p-4 font-sans relative bg-cover bg-center bg-no-repeat"
     style="background-image: url('https://images.unsplash.com/photo-1499678329028-101435549a4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');"

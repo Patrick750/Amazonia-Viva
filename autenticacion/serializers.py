@@ -61,8 +61,17 @@ class TuristaSerializers(serializers.ModelSerializer):
 class SerializersLogin(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
-    
+
+        nombre_agencia = None
+        nombre_proveedor = None
+        if hasattr(self.user, 'agencia'):
+            nombre_agencia = self.user.agencia.nombre_agencia
+        if hasattr(self.user, 'proveedor'):
+            nombre_proveedor = self.user.proveedor.nombre_empresa
+
         data['usuario'] = {
+            'nombre_empresa': nombre_proveedor,
+            'nombre_agencia': nombre_agencia,
             'username': self.user.username,
             'nombre':self.user.first_name,
             'apellido': self.user.last_name,

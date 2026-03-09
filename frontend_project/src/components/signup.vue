@@ -2,6 +2,7 @@
     import { ref, computed } from 'vue'
     import axios from 'axios'
     import { useRouter } from 'vue-router';
+    import Header from './header.vue';
 
     const router = useRouter()
 
@@ -186,6 +187,8 @@
           localStorage.setItem('nombre',response.data.usuario.nombre)
           localStorage.setItem('apellido', response.data.usuario.apellido)
           localStorage.setItem('nombre_usuario', response.data.usuario.username)
+          localStorage.setItem('nombre_empresa', response.data.usuario.nombre_empresa)
+          localStorage.setItem('nombre_agencia', response.data.usuario.nombre_agencia)
           localStorage.setItem('rol', response.data.usuario.group)
 
           Redirigir()
@@ -214,6 +217,7 @@
         }else if(tabActiva.value == 'agencia'){
             formulario.value.group = 2
             formulario.value.username = formulario.value.nombre_agencia.replace(/\s+/g,'_')
+            formulario.value.nombre_agencia = formulario.value.nombre_agencia.toLowerCase()
             formulario.value.numero_telefonico = formulario.value.numero_telefonico.replaceAll(' ','')
 
             const registroExitoso = await pack('agencia')
@@ -222,6 +226,7 @@
         }else if(tabActiva.value == 'proveedor'){
             formulario.value.group = 3
             formulario.value.username = formulario.value.nombre_empresa.replace(/\s+/g,'_')
+            formulario.value.nombre_empresa = formulario.value.nombre_empresa.toLowerCase()
 
             const registroExitoso = await pack('proveedor')
             saveTokens(registroExitoso, 'proveedor')
@@ -229,7 +234,8 @@
     }
 </script>
 
-<<template>
+<template>
+  <Header></Header>
   <div class="min-h-screen bg-slate-50 flex items-center justify-center p-0 md:p-6 font-sans relative overflow-hidden">
     
     <div class="absolute -top-40 -left-40 w-80 h-80 bg-teal-100 rounded-full opacity-50 blur-3xl"></div>
