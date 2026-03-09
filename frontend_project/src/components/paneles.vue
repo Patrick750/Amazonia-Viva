@@ -3,11 +3,6 @@
     import axios from 'axios';
     import Header from './header.vue';
 
-    const acc = localStorage.getItem('rol')
-    console.log(acc)
-
-
-
 </script>
 <template>
     <Header></Header>
