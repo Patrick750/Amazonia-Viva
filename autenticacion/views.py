@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status 
 from .serializers import AgenciaSerializer, ProveedorSerializers, TuristaSerializers, SerializersLogin
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
 
 # Create your views here.
@@ -76,6 +77,17 @@ class VerificarEmail(APIView):
 
 class Login(TokenObtainPairView):
     serializer_class = SerializersLogin
+
+class Logout(APIView):
+    def post(self, request):
+        try:
+            refresh_token = request.data.get('refresh_token')
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            print('Logout exitoso')
+            return Response ({'mensaje': 'Sesion cerrada exitosamente'}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({'mensaje': f'Hubo un error{e}'},status=status.HTTP_400_BAD_REQUEST)
 
 
 

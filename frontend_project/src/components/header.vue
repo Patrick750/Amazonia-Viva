@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { navegacion } from '@/config/navigation';
-import axios from 'axios';
+import axios from '@/api/axios';
 // Si usas Vue Router, asegúrate de tenerlo instalado. 
 // Aquí definimos el nombre de usuario de forma reactiva para que luego lo puedas 
 // conectar con tu localStorage (como hicimos en el login).
@@ -16,6 +16,24 @@ const nombre_usuario = computed(() => {
   return 'invitado'
 })
 const menu = computed(() => navegacion[rol])
+
+
+const cerrarSesion = async () => {
+  try{
+    const refresh_token = localStorage.getItem('refresh_token')
+    if(refresh_token){
+      await axios.post('api/logout/',{
+        refresh_token: refresh_token
+      })
+    }
+    window.location.href = '/panel'
+  }catch(error){
+    console.error(error)
+  }finally{
+    localStorage.clear()
+    window.location.href = '/panel'
+  }
+}
 
 </script>
 
