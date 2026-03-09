@@ -1,20 +1,24 @@
 // src/config/navigation.js
-export const navigationRoutes = {
+export const navegacion = {
   turista: [
-    { label: 'Inicio', path: '/' },
-    { label: 'Catálogo', path: '/tours' },
-    { label: 'Mis Reservas', path: '/reservas' },
-    { label: 'Mis Experiencias', path: '/experiencias' }
+    { label: 'Inicio', path: '/panel' },
+    { label: 'Catálogo', path: '/panel/tours' },
+    { label: 'Mis Reservas', path: '/panel/reservas' },
+    { label: 'Mis Experiencias', path: '/panel/experiencias' }
   ],
   agencia: [
     { label: 'Inicio', path: '/' },
-    { label: 'Catálogo', path: '/tours' },
-    { label: 'Mis compras', path: '/compras' },
-    { label: 'Dashboard', path: '/dashboard' }
+    { label: 'Catálogo', path: '/panel/tours' },
+    { label: 'Mis compras', path: '/panel/compras' },
+    { label: 'Dashboard', path: '/panel/dashboard' }
   ],
   proveedor: [
-    { label: 'Inicio', path: '/' },
-    { label: 'Catálogo', path: '/tours' },
-    { label: 'Dashboard', path: '/dashboard' }
+    { label: 'Inicio', path: '/panel' },
+    { label: 'Catálogo', path: '/panel/tours' },
+    { label: 'Dashboard', path: '/panel/dashboard' }
+  ],
+  invitado: [
+    { label: 'Inicio', path: '/panel'},
+    { label: 'Catalogo', path: '/panel'}
   ]
 }
