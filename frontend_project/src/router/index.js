@@ -3,7 +3,6 @@ import HomeView from '../views/HomeView.vue'
 import signup from '@/components/signup.vue'
 import login from '@/components/login.vue'
 import paneles from '@/components/paneles.vue'
-import visitante from '@/components/visitante.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -27,11 +26,6 @@ const router = createRouter({
       name:'panel',
       component: paneles,
     },
-    {
-      path:'/visitante',
-      name:'visitante',
-      component: visitante,
-    },
   ],
 })
 
@@ -39,16 +33,6 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   const rol = localStorage.getItem('rol')
-
-  if(to.path === '/panel'){
-    if(!token){
-      next('/visitante')
-    }
-  }else if(to.path === '/visitante'){
-    if(token){
-      next('/panel')
-    }
-  }
 
   if (to.path === '/auth/login' || to.path === '/auth/signup') {
     
