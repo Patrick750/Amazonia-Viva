@@ -85,7 +85,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'amazoniaviva',       # La que creaste en el paso 4.3
         'USER': 'postgres',    # El que creaste en el paso 4.2
-        'PASSWORD': 'pac',
+        'PASSWORD': 'pac131pap',
         'HOST': 'localhost',
         'PORT': '5432',
     }

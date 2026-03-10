@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import signup from '@/components/signup.vue'
 import login from '@/components/login.vue'
 import paneles from '@/components/paneles.vue'
+import dashboard from '@/components/dashboard.vue'
 import visitante from '@/components/visitante.vue'
 
 const router = createRouter({
@@ -26,6 +27,11 @@ const router = createRouter({
       path:'/panel',
       name:'panel',
       component: paneles,
+    },
+    {
+      path:'/panel/dashboard',
+      name:'dashboard',
+      component: dashboard,
     },
     {
       path:'/visitante',

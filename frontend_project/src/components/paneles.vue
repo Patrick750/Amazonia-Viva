@@ -5,6 +5,5 @@
 
 </script>
 <template>
-    <Header></Header>
-    <h1>{{ acc }}</h1>
+    <RouterView />
 </template>
