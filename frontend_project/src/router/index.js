@@ -4,7 +4,6 @@ import signup from '@/components/signup.vue'
 import login from '@/components/login.vue'
 import paneles from '@/components/paneles.vue'
 import dashboard from '@/components/dashboard.vue'
-import visitante from '@/components/visitante.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -33,11 +32,6 @@ const router = createRouter({
       name:'dashboard',
       component: dashboard,
     },
-    {
-      path:'/visitante',
-      name:'visitante',
-      component: visitante,
-    },
   ],
 })
 
@@ -48,10 +42,6 @@ router.beforeEach((to, from, next) => {
 
   if(to.path === '/panel'){
     if(!token){
-      next('/visitante')
-    }
-  }else if(to.path === '/visitante'){
-    if(token){
       next('/panel')
     }
   }

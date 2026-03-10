@@ -2,7 +2,7 @@
     import { ref, computed } from 'vue'
     import axios from 'axios'
     import { useRouter } from 'vue-router';
-    import Header from './header.vue';
+    
 
     const router = useRouter()
 
@@ -235,7 +235,6 @@
 </script>
 
 <template>
-  <Header></Header>
   <div class="min-h-screen bg-slate-50 flex items-center justify-center p-0 md:p-6 font-sans relative overflow-hidden">
     
     <div class="absolute -top-40 -left-40 w-80 h-80 bg-teal-100 rounded-full opacity-50 blur-3xl"></div>

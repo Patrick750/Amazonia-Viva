@@ -26,7 +26,6 @@ const cerrarSesion = async () => {
         refresh_token: refresh_token
       })
     }
-    window.location.href = '/panel'
   }catch(error){
     console.error(error)
   }finally{
