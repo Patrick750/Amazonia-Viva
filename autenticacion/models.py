@@ -52,3 +52,31 @@ class Proveedor(Usuario):
 class Turista(Usuario):
     fecha_nacimiento = models.DateField(blank=False, null=False)
     numero_identidad = models.CharField(max_length=15, blank=False, null=False)
+
+class Paquetes(models.Model):
+    nombre = models.CharField(max_length=40, null=False, blank=False)
+    duracion_horas = models.IntegerField(null=False, blank=False)
+    precio = models.DecimalField(max_digits=10000000000000,decimal_places=100, null=False, blank=False)
+    descripcion = models.CharField(max_length=255, blank=True, null=True)
+    nivel_riesgo = models.IntegerField(null=False, blank=False)
+    caracteristicas = models.JSONField(default=dict, blank=True, null=True)
+    imagenes = models.JSONField(default=dict,null=True)
+    agencia = models.ForeignKey(Agencia, on_delete=models.CASCADE, related_name='paquetes')
+
+class Categorias(models.Model):
+    nombre = models.CharField(max_length=30, null=False, blank=False)
+    caracteristicas = models.JSONField(default=dict, null=True)
+
+class Productos(models.Model):
+    nombre = models.CharField(max_length=40,null=False,blank=False)
+    sku = models.CharField(max_length=150, null=False, blank=False)
+    caracterisitcas = models.JSONField(default=dict, blank=True)
+    imagenes = models.JSONField(default=dict, null=True)
+    stock = models.IntegerField(null=False, blank=False)
+    precio = models.DecimalField(decimal_places=1000,max_digits=10000, null=False, blank=False)
+    disponible = models.BooleanField(null=False, blank=False)
+    categorias = models.ForeignKey(Categorias, on_delete=models.CASCADE, related_name='categorias')
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='proveedor')
+    
+
+
