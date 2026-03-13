@@ -52,3 +52,12 @@ class Proveedor(Usuario):
 class Turista(Usuario):
     fecha_nacimiento = models.DateField(blank=False, null=False)
     numero_identidad = models.CharField(max_length=15, blank=False, null=False)
+
+class Paquetes(models.Model):
+    nombre = models.CharField(max_length=40, null=False, blank=False)
+    duracion_horas = models.IntegerField(max_length=5, null=False, blank=False)
+    precio = models.DecimalField(max_digits=10, decimal_places=100, null=False, blank=False)
+    descripcion = models.CharField(max_length=255, blank=True, null=True)
+    nivel_riesgo = models.IntegerField(max_length=5, null=False, blank=False)
+    caracteristicas = models.JSONField(blank=True, null=True)
+    agencia = models.ForeignKey(Agencia, on_delete=models.CASCADE, related_name='paquetes')
