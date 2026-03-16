@@ -83,11 +83,14 @@ WSGI_APPLICATION = 'amazoniaviva.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'amazoniaviva',       # La que creaste en el paso 4.3
-        'USER': 'postgres',    # El que creaste en el paso 4.2
-        'PASSWORD': 'pac131pap',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': 'amazoniaviva', # <--- Cambia esto aquí
+        'USER': 'avnadmin',
+        'PASSWORD': 'AVNS_V9xwFp8wlQhb2bZlf7X',
+        'HOST': 'pg-3426d5f3-ortizpatrick750-3da9.g.aivencloud.com',
+        'PORT': '26933',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
 }
 
