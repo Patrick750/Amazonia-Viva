@@ -1,8 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import signup from '@/components/signup.vue'
-import login from '@/components/login.vue'
+import signup from '@/views/signup.vue'
+import login from '@/views/login.vue'
 import paneles from '@/components/paneles.vue'
 import dashboard from '@/components/dashboard.vue'
+import paquetes from '@/components/paquetes.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,6 +31,11 @@ const router = createRouter({
       path:'/panel/dashboard',
       name:'dashboard',
       component: dashboard,
+    },
+    {
+      path:'/panel/gestionpaqutes',
+      name:'gestionpaqutes',
+      component: paquetes,
     },
   ],
 })
