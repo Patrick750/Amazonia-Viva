@@ -161,7 +161,7 @@
         if (estaAbierto) {
             if (typeof google === 'undefined') {
                 const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&libraries=places&callback=iniciarMapaGlobal`;
+                script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDaDxKnE-8fzSc58TS-sMCm3UiP9cY577U&libraries=places&callback=iniciarMapaGlobal`;
                 script.async = true;
                 script.defer = true;
                 document.head.appendChild(script);

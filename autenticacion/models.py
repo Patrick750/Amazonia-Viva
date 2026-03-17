@@ -52,15 +52,85 @@ class Turista(Usuario):
     fecha_nacimiento = models.DateField(blank=False, null=False)
     numero_identidad = models.CharField(max_length=15, blank=False, null=False)
 
-class Paquetes(models.Model):
-    nombre = models.CharField(max_length=40, null=False, blank=False)
-    duracion_horas = models.IntegerField(null=False, blank=False)
-    precio = models.DecimalField(max_digits=100,decimal_places=100, null=False, blank=False)
-    descripcion = models.CharField(max_length=255, blank=True, null=True)
-    nivel_riesgo = models.IntegerField(null=False, blank=False)
-    caracteristicas = models.JSONField(default=dict, blank=True, null=True)
-    imagenes = models.JSONField(default=dict,null=True)
-    agencia = models.ForeignKey(Agencia, on_delete=models.CASCADE, related_name='agencia_paquete')
+class Categoria(models.Model):
+    nombre = models.CharField(
+        max_length=100, 
+        unique=True, 
+        verbose_name="Nombre de la Categoría"
+    )
+
+    class Meta:
+        verbose_name = "Categoría"
+        verbose_name_plural = "Categorías"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
+
+
+class Actividad(models.Model):
+    nombre = models.CharField(
+        max_length=150, 
+        verbose_name="Nombre de la Actividad"
+    )
+    nivel_riesgo = models.PositiveSmallIntegerField(
+        verbose_name="Nivel de Riesgo (1-10)",
+        help_text="Escala del 1 (Mínimo) al 10 (Extremo)"
+    )
+    categoria = models.ForeignKey(
+        Categoria, 
+        on_delete=models.CASCADE, 
+        related_name="actividades", # Esto es clave para la API
+        verbose_name="Categoría"
+    )
+
+    class Meta:
+        verbose_name = "Actividad"
+        verbose_name_plural = "Actividades"
+        ordering = ['categoria', 'nombre']
+
+    def __str__(self):
+        return f"{self.nombre} (Nivel {self.nivel_riesgo})"
+
+class PaqueteTuristico(models.Model):
+    # --- Datos Básicos ---
+    nombre = models.CharField(max_length=200, verbose_name="Nombre del Tour")
+    descripcion = models.TextField(verbose_name="Descripción")
+    precio = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio (COP)")
+    duracion = models.CharField(max_length=100, verbose_name="Duración")
+    capacidad = models.PositiveIntegerField(verbose_name="Capacidad Máxima")
+    
+    # --- Ubicación y Mapas ---
+    ubicacion = models.CharField(max_length=255, verbose_name="Ubicación (Texto)")
+    latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+
+    # --- LA RELACIÓN CON TUS CATEGORÍAS/ACTIVIDADES ---
+    actividades = models.ManyToManyField(
+        Actividad, 
+        related_name='paquetes',
+        verbose_name="Actividades Incluidas"
+    )
+
+    # --- LOS CAMPOS DINÁMICOS DE VUE ---
+    # JSONField es perfecto para guardar exactamente los arrays que generamos en el frontend
+    itinerario = models.JSONField(
+        default=list, 
+        verbose_name="Itinerario Detallado",
+        help_text="Formato esperado: [{'time': '08:00', 'activity': 'Salida'}]"
+    )
+    incluido = models.JSONField(
+        default=list, 
+        verbose_name="Qué incluye",
+        help_text="Formato esperado: [{'item': 'Transporte'}]"
+    )
+
+    class Meta:
+        verbose_name = "Paquete Turístico"
+        verbose_name_plural = "Paquetes Turísticos"
+
+    def __str__(self):
+        return self.nombre
 
 class Categorias(models.Model):
     nombre = models.CharField(max_length=30, null=False, blank=False)
@@ -87,13 +157,13 @@ class Carrito(models.Model):
 class Items(models.Model):
     carrito = models.ForeignKey(Carrito, on_delete=models.CASCADE,  related_name='item_carrito')
     producto = models.ForeignKey(Productos, on_delete=models.CASCADE,  related_name='item_productos')
-    paquetes = models.ForeignKey(Paquetes, on_delete=models.CASCADE,  related_name='item_paquetes')
+    paquetes = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE,  related_name='item_paquetes')
     precio = models.DecimalField(decimal_places=1000,max_digits=1000, null=False, blank=False)
 
 class Favoritos(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='favorito_usuario')
     producto = models.ForeignKey(Productos, on_delete=models.CASCADE,  related_name='favorito_productos')
-    paquetes = models.ForeignKey(Paquetes, on_delete=models.CASCADE,  related_name='favorito_paquetes')
+    paquetes = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE,  related_name='favorito_paquetes')
 
 class Venta(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
@@ -108,3 +178,5 @@ class Detalles_Venta(models.Model):
     paquete = models.IntegerField(null=False, blank=False)
     cantidad = models.IntegerField(null=False, blank=False)
     precio_unitario = models.DecimalField(decimal_places=1000, max_digits=1000, null=False, blank=False)
+
+
