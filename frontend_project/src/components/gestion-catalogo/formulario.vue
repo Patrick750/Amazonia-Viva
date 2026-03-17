@@ -4,6 +4,52 @@
     const props = defineProps(['abrir', 'datos'])
     const emit = defineEmits(['cerrar', 'guardar'])
 
+    // --- Actividades desde el Backend ---
+    const availableActivities = ref([
+        // --- 1. Ecoturismo y Naturaleza ---
+        { id: 1, category: 'Ecoturismo y Naturaleza', name: 'Avistamiento de aves', risk: 2 },
+        { id: 2, category: 'Ecoturismo y Naturaleza', name: 'Avistamiento de fauna silvestre', risk: 3 },
+        { id: 3, category: 'Ecoturismo y Naturaleza', name: 'Senderismo interpretativo', risk: 3 },
+        { id: 4, category: 'Ecoturismo y Naturaleza', name: 'Safaris fotográficos', risk: 2 },
+        { id: 5, category: 'Ecoturismo y Naturaleza', name: 'Caminatas nocturnas', risk: 4 },
+        { id: 6, category: 'Ecoturismo y Naturaleza', name: 'Visitas a reservas naturales', risk: 2 },
+
+        // --- 2. Turismo Fluvial y Acuático ---
+        { id: 7, category: 'Fluvial y Acuático', name: 'Navegación tradicional en bote', risk: 2 },
+        { id: 8, category: 'Fluvial y Acuático', name: 'Kayak de travesía', risk: 4 },
+        { id: 9, category: 'Fluvial y Acuático', name: 'Rafting / Canotaje', risk: 7 },
+        { id: 10, category: 'Fluvial y Acuático', name: 'Tubing (descenso en neumáticos)', risk: 5 },
+        { id: 11, category: 'Fluvial y Acuático', name: 'Pesca deportiva (Catch & Release)', risk: 3 },
+        { id: 12, category: 'Fluvial y Acuático', name: 'Nado en cascadas y pozos naturales', risk: 4 },
+
+        // --- 3. Aventura y Reto Físico ---
+        { id: 13, category: 'Aventura y Reto Físico', name: 'Trekking de alta exigencia', risk: 6 },
+        { id: 14, category: 'Aventura y Reto Físico', name: 'Canopy / Tirolesa', risk: 6 },
+        { id: 15, category: 'Aventura y Reto Físico', name: 'Escalada en árboles (Tree climbing)', risk: 6 },
+        { id: 16, category: 'Aventura y Reto Físico', name: 'Espeleología (Exploración de cuevas)', risk: 7 },
+        { id: 17, category: 'Aventura y Reto Físico', name: 'Ciclomontañismo (MTB)', risk: 5 },
+        { id: 18, category: 'Aventura y Reto Físico', name: 'Cursos de supervivencia', risk: 8 },
+        { id: 19, category: 'Aventura y Reto Físico', name: 'Rappel en cascadas', risk: 7 },
+
+        // --- 4. Cultura, Identidad y Comunidad ---
+        { id: 20, category: 'Cultura y Comunidad', name: 'Convivencia con comunidades locales', risk: 1 },
+        { id: 21, category: 'Cultura y Comunidad', name: 'Talleres de artesanías locales', risk: 1 },
+        { id: 22, category: 'Cultura y Comunidad', name: 'Medicina tradicional y saberes', risk: 1 },
+        { id: 23, category: 'Cultura y Comunidad', name: 'Agroturismo (Rutas productivas)', risk: 2 },
+        { id: 24, category: 'Cultura y Comunidad', name: 'Gastronomía y clases de cocina', risk: 1 },
+        { id: 25, category: 'Cultura y Comunidad', name: 'Muestras folclóricas y mitos', risk: 1 },
+
+        // --- 5. Bienestar y Retiro ---
+        { id: 26, category: 'Bienestar y Retiro', name: 'Retiros de yoga y meditación', risk: 1 },
+        { id: 27, category: 'Bienestar y Retiro', name: 'Terapias de bosque (Shinrin-yoku)', risk: 1 },
+        { id: 28, category: 'Bienestar y Retiro', name: 'Baños termales o lodoterapias', risk: 2 },
+
+        // --- 6. Turismo Urbano y Logístico ---
+        { id: 29, category: 'Urbano y Logístico', name: 'City tours históricos', risk: 1 },
+        { id: 30, category: 'Urbano y Logístico', name: 'Visitas a museos y centros de memoria', risk: 1 },
+        { id: 31, category: 'Urbano y Logístico', name: 'Recorridos de compras y mercados', risk: 1 }
+    ]);
+
     // Referencias para el Drag & Drop
     const isDragging = ref(false);
     const fileInput = ref(null);
@@ -15,40 +61,64 @@
     let marker = null;
     let autocomplete = null;
 
-    // Estado del formulario (Añadidos lat y lng)
+    // Estado del formulario
     const newTour = reactive({
         name: '',
         description: '',
         price: '',
         duration: '',
         location: '',
-        lat: null, // Nueva propiedad
-        lng: null, // Nueva propiedad
+        lat: null, 
+        lng: null, 
         capacity: '',
-        category: '',
-        itinerary: '',
-        included: '',
+        activities: [], 
+        // Inicializados con un elemento vacío para mostrar al menos un input
+        itinerary: [{ time: '', activity: '' }],
+        included: [{ item: '' }],
         images: [] 
     });
 
-    const inicial = reactive({ ...newTour})
+    // Copia profunda inicial para resetear correctamente
+    const inicial = JSON.parse(JSON.stringify(newTour));
 
     watch(() => props.datos, (nuevosdatos) => {
         if(nuevosdatos){
-            Object.assign(newTour, nuevosdatos)
-            // Si editas un tour con lat/lng previo, aquí podrías actualizar el marcador del mapa
+            Object.assign(newTour, JSON.parse(JSON.stringify(nuevosdatos)));
+            // Asegurar que siempre haya al menos una fila si vienen vacíos
+            if (!newTour.itinerary || newTour.itinerary.length === 0) newTour.itinerary = [{ time: '', activity: '' }];
+            if (!newTour.included || newTour.included.length === 0) newTour.included = [{ item: '' }];
         }else{
-            Object.assign(newTour, inicial)
+            Object.assign(newTour, JSON.parse(JSON.stringify(inicial)));
         }
     }, {immediate: true})
 
+    // --- FUNCIONES ITINERARIO DINÁMICO ---
+    const addItineraryItem = () => {
+        newTour.itinerary.push({ time: '', activity: '' });
+    };
+
+    const removeItineraryItem = (index) => {
+        if (newTour.itinerary.length > 1) {
+            newTour.itinerary.splice(index, 1);
+        }
+    };
+
+    // --- FUNCIONES INCLUIDO DINÁMICO ---
+    const addIncludedItem = () => {
+        newTour.included.push({ item: '' });
+    };
+
+    const removeIncludedItem = (index) => {
+        if (newTour.included.length > 1) {
+            newTour.included.splice(index, 1);
+        }
+    };
+
     // --- LÓGICA DE GOOGLE MAPS ---
     const initMap = () => {
-        // Asegurarnos de que el objeto de google exista y el modal esté abierto
         if (typeof google === 'undefined' || !mapContainer.value || !locationInput.value) return;
 
-        // Coordenadas por defecto (ejemplo: un punto central o dejar un zoom alejado)
-        const defaultPos = { lat: 4.6097, lng: -74.0817 }; // Bogotá por defecto
+        const defaultPos = { lat: 4.6097, lng: -74.0817 }; 
 
         map = new google.maps.Map(mapContainer.value, {
             center: defaultPos,
@@ -58,27 +128,19 @@
         });
 
         marker = new google.maps.Marker({
-            map,
-            position: defaultPos,
-            visible: false // Oculto hasta que seleccionen un lugar
+            map, position: defaultPos, visible: false 
         });
 
-        // Inicializar Autocompletado
         autocomplete = new google.maps.places.Autocomplete(locationInput.value, {
             fields: ["geometry", "name", "formatted_address"],
         });
 
         autocomplete.bindTo("bounds", map);
 
-        // Escuchar cuando el usuario selecciona un lugar
         autocomplete.addListener("place_changed", () => {
             const place = autocomplete.getPlace();
-            
-            if (!place.geometry || !place.geometry.location) {
-                return; // El usuario no seleccionó una sugerencia válida
-            }
+            if (!place.geometry || !place.geometry.location) return; 
 
-            // Centrar el mapa en el lugar seleccionado
             if (place.geometry.viewport) {
                 map.fitBounds(place.geometry.viewport);
             } else {
@@ -86,42 +148,29 @@
                 map.setZoom(17);
             }
             
-            // Mover y mostrar el marcador
             marker.setPosition(place.geometry.location);
             marker.setVisible(true);
 
-            // Actualizar nuestro estado reactivo con los datos exactos
             newTour.location = place.formatted_address || place.name;
             newTour.lat = place.geometry.location.lat();
             newTour.lng = place.geometry.location.lng();
         });
     };
 
-// Vigilar cuando se abre el modal para cargar el script e inicializar el mapa
     watch(() => props.abrir, (estaAbierto) => {
         if (estaAbierto) {
-            // Verificamos si el script ya se cargó antes para no cargarlo dos veces
             if (typeof google === 'undefined') {
                 const script = document.createElement('script');
-                
-                // AQUÍ VA TU API KEY 👇
-                script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDaDxKnE-8fzSc58TS-sMCm3UiP9cY577U&libraries=places&callback=iniciarMapaGlobal`;
-                
+                script.src = `https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&libraries=places&callback=iniciarMapaGlobal`;
                 script.async = true;
                 script.defer = true;
                 document.head.appendChild(script);
 
-                // Función global que Google Maps llama cuando termina de cargar
                 window.iniciarMapaGlobal = () => {
-                    setTimeout(() => {
-                        initMap();
-                    }, 100);
+                    setTimeout(() => initMap(), 100);
                 };
             } else {
-                // Si el script ya estaba cargado (ej. abrieron y cerraron el modal), solo iniciamos el mapa
-                setTimeout(() => {
-                    initMap();
-                }, 100);
+                setTimeout(() => initMap(), 100);
             }
         }
     });
@@ -149,10 +198,16 @@
         URL.revokeObjectURL(newTour.images[index].url);
         newTour.images.splice(index, 1);
     };
-    // --- FIN LÓGICA DRAG & DROP ---
 
     const enviar = () => {
-        emit('guardar', { ...newTour }) 
+        // Opcional: Filtrar filas vacías del itinerario o incluido antes de enviar
+        const dataToSend = {
+            ...newTour,
+            itinerary: newTour.itinerary.filter(i => i.time.trim() !== '' && i.activity.trim() !== ''),
+            included: newTour.included.filter(i => i.item.trim() !== '')
+        };
+        console.log("Datos a enviar:", dataToSend);
+        emit('guardar', dataToSend); 
     }
 
 </script>
@@ -174,7 +229,7 @@
           </div>
 
           <div class="p-6 overflow-y-auto form-scroll">
-            <form @submit.prevent="enviar" class="space-y-5">
+            <form @submit.prevent="enviar" class="space-y-6">
               
               <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1">Nombre del Tour <span class="text-emerald-600">*</span></label>
@@ -214,29 +269,80 @@
                 </div>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label class="block text-sm font-semibold text-slate-700 mb-1">Capacidad Máxima <span class="text-emerald-600">*</span></label>
-                  <input v-model="newTour.capacity" type="number" placeholder="20" 
-                         class="w-full bg-[#f4fcf9] border border-[#d1ebe1] rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all placeholder:text-slate-400" required>
+              <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Capacidad Máxima <span class="text-emerald-600">*</span></label>
+                <input v-model="newTour.capacity" type="number" placeholder="20" 
+                       class="w-full bg-[#f4fcf9] border border-[#d1ebe1] rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all placeholder:text-slate-400" required>
+              </div>
+
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <label class="block text-sm font-semibold text-slate-700 mb-3">Actividades del Paquete <span class="text-emerald-600">*</span></label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2 form-scroll">
+                  
+                  <label v-for="actividad in availableActivities" :key="actividad.id" 
+                         class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all group">
+                    <input 
+                      type="checkbox" 
+                      :value="actividad.id" 
+                      v-model="newTour.activities"
+                      class="mt-0.5 w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500/50"
+                    >
+                    <div class="flex flex-col">
+                      <span class="text-sm font-medium text-slate-700 group-hover:text-emerald-800 transition-colors">
+                        {{ actividad.name }}
+                      </span>
+                      <span class="text-xs text-slate-500">Riesgo: Nivel {{ actividad.risk }}</span>
+                    </div>
+                  </label>
+
                 </div>
-                <div>
-                  <label class="block text-sm font-semibold text-slate-700 mb-1">Categoría <span class="text-emerald-600">*</span></label>
-                  <input v-model="newTour.category" type="text" placeholder="Ej: Aventura, Playa" 
-                         class="w-full bg-[#f4fcf9] border border-[#d1ebe1] rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all placeholder:text-slate-400" required>
+                <p v-if="newTour.activities.length === 0" class="text-xs text-red-500 mt-2">Por favor, selecciona al menos una actividad.</p>
+              </div>
+
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div class="flex items-center justify-between mb-3">
+                  <label class="block text-sm font-semibold text-slate-700">Itinerario Detallado</label>
+                  <button @click.prevent="addItineraryItem" type="button" class="text-xs flex items-center gap-1 text-emerald-600 font-semibold hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors border border-emerald-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Agregar Horario
+                  </button>
+                </div>
+                <div class="space-y-3">
+                  <div v-for="(item, index) in newTour.itinerary" :key="'iti-'+index" class="flex gap-3 items-start relative group">
+                    <div class="w-1/3 sm:w-1/4">
+                      <input v-model="item.time" type="time" placeholder="Hora"
+                             class="w-full bg-white border border-[#d1ebe1] rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-sm">
+                    </div>
+                    <div class="w-full relative">
+                      <input v-model="item.activity" type="text" placeholder="Ej: Llegada y charla técnica"
+                             class="w-full bg-white border border-[#d1ebe1] rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all placeholder:text-slate-400 text-sm">
+                      <button v-if="newTour.itinerary.length > 1" @click.prevent="removeItineraryItem(index)" type="button" 
+                              class="absolute -right-2 -top-2 bg-white text-slate-400 hover:text-red-500 border border-slate-200 hover:border-red-200 rounded-full p-1 shadow-sm transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" title="Eliminar">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1">Itinerario <span class="text-slate-400 font-normal">(una línea por actividad)</span></label>
-                <textarea v-model="newTour.itinerary" rows="3" placeholder="8:00 AM - Recogida en hotel&#10;9:00 AM - Inicio del tour" 
-                          class="w-full bg-[#f4fcf9] border border-[#d1ebe1] rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all resize-none placeholder:text-slate-400"></textarea>
-              </div>
-
-              <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1">Incluido <span class="text-slate-400 font-normal">(una línea por ítem)</span></label>
-                <textarea v-model="newTour.included" rows="3" placeholder="Transporte&#10;Guía profesional" 
-                          class="w-full bg-[#f4fcf9] border border-[#d1ebe1] rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all resize-none placeholder:text-slate-400"></textarea>
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div class="flex items-center justify-between mb-3">
+                  <label class="block text-sm font-semibold text-slate-700">¿Qué incluye el paquete?</label>
+                  <button @click.prevent="addIncludedItem" type="button" class="text-xs flex items-center gap-1 text-emerald-600 font-semibold hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-colors border border-emerald-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Agregar Ítem
+                  </button>
+                </div>
+                <div class="space-y-3">
+                  <div v-for="(item, index) in newTour.included" :key="'inc-'+index" class="relative group">
+                    <input v-model="item.item" type="text" placeholder="Ej: Transporte ida y vuelta desde el hotel"
+                           class="w-full bg-white border border-[#d1ebe1] rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all placeholder:text-slate-400 text-sm pr-8">
+                    <button v-if="newTour.included.length > 1" @click.prevent="removeIncludedItem(index)" type="button" 
+                            class="absolute right-2 top-2 text-slate-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" title="Eliminar">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -271,14 +377,14 @@
                 </div>
 
               </div>
-              </form>
+            </form>
           </div>
 
           <div class="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex justify-end gap-3">
             <button @click="emit('cerrar')" type="button" class="px-5 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-200 transition-colors">
               Cancelar
             </button>
-            <button @click="enviar" type="submit" class="px-5 py-2.5 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all hover:-translate-y-0.5">
+            <button @click="enviar" type="submit" class="px-5 py-2.5 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all hover:-translate-y-0.5" :disabled="newTour.activities.length === 0">
               Crear Tour
             </button>
           </div>
