@@ -31,7 +31,7 @@
     <Formulario
       :abrir="isModalOpen"
       @cerrar="isModalOpen = false"
-      @guardar="guardado"
+      @enviar="guardado"
     ></Formulario>
   </div>
 </template>
