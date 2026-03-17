@@ -3,7 +3,7 @@ import signup from '@/views/signup.vue'
 import login from '@/views/login.vue'
 import paneles from '@/components/paneles.vue'
 import dashboard from '@/components/dashboard.vue'
-import paquetes from '@/components/paquetes.vue'
+import paquetes from '@/views/paquetes.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -33,7 +33,7 @@ const router = createRouter({
       component: dashboard,
     },
     {
-      path:'/panel/gestionpaqutes',
+      path:'/panel/gestion-paquetes',
       name:'gestionpaqutes',
       component: paquetes,
     },
