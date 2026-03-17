@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status 
-from .serializers import AgenciaSerializer, ProveedorSerializers, TuristaSerializers, SerializersLogin
+from .serializers import *
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
@@ -89,6 +89,13 @@ class Logout(APIView):
         except Exception as e:
             return Response({'mensaje': f'Hubo un error{e}'},status=status.HTTP_400_BAD_REQUEST)
 
-
+class Actividades(APIView):
+    def get(self, request):
+        try:
+            actividades = Actividad.objects.all()
+            serializer = SerializersActividades(actividades, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'mensaje':'Hubo un error con la DB'})
 
 

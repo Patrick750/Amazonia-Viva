@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Usuario,Agencia,Proveedor, Turista
+from .models import *
 from django.contrib.auth.models import Group
 
 class AgenciaSerializer(serializers.ModelSerializer):
@@ -80,5 +80,21 @@ class SerializersLogin(TokenObtainPairSerializer):
         }
         return data
 
+class SerializersActividades(serializers.ModelSerializer):
+    class Meta:
+        model = Actividad
+        fields = '__all__'
 
-        
+class SerializersImages(serializers.ModelSerializer):
+    url = serializers.ImageField(source='archivo')
+    class Meta:
+        models = DestinoTuristico
+        field = ['id', 'paquete', 'es_portada']
+
+class SerializersCreateNewPack(serializers.ModelSerializer):
+    imagen_paquete = SerializersImages(many=True, read_only=True)
+    class Meta:
+        model = PaqueteTuristico
+        fields = ['id', 'nombre', 'descripcion', 'precio', 'duracion', 'ubicacion','latitud','longitud','capacidad','actividades','itinerario','incluido','imagenes']
+
+    

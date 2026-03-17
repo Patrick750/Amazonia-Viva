@@ -38,10 +38,18 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
+    'cloudinary',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist'
 ]
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'dv4oizzf1',
+    'API_KEY': '281574654467419',
+    'API_SECRET': 'JQVTkO9f3Fg71-fAaJowIevx2hc'
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db.models.signals import post_migrate
 from django.dispatch import receiver
+from cloudinary.models import CloudinaryField
 
 # Create your models here.
 class Usuario(AbstractUser):
@@ -128,6 +129,14 @@ class PaqueteTuristico(models.Model):
     class Meta:
         verbose_name = "Paquete Turístico"
         verbose_name_plural = "Paquetes Turísticos"
+
+    def __str__(self):
+        return self.nombre
+    
+class DestinoTuristico(models.Model):
+    imagen = CloudinaryField('image', folder='amazonia_viva/destinos')
+    paquete = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE, related_name='imagen_paquete')
+    es_portada = models.BooleanField(default=False)
 
     def __str__(self):
         return self.nombre
