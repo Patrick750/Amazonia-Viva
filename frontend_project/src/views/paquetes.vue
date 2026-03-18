@@ -48,7 +48,7 @@
       :abrir="isModalOpen"
       @cerrar="isModalOpen = false"
       :datos="listado"
-      @guardar="enviarDatos"
+      @enviar="enviarDatos"
     ></Formulario>
   </div>
 </template>

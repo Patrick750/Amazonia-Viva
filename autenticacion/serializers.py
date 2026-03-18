@@ -86,15 +86,46 @@ class SerializersActividades(serializers.ModelSerializer):
         fields = '__all__'
 
 class SerializersImages(serializers.ModelSerializer):
-    url = serializers.ImageField(source='archivo')
+    url = serializers.ImageField(source='archivo') # Esto está perfecto
+    
     class Meta:
-        models = DestinoTuristico
-        field = ['id', 'paquete', 'es_portada']
+        model = DestinoTuristico # Antes decía models
+        fields = ['id', 'url', 'es_portada'] # Antes decía field y faltaba 'url'
 
 class SerializersCreateNewPack(serializers.ModelSerializer):
     imagen_paquete = SerializersImages(many=True, read_only=True)
+    archivos_subidos = serializers.ListField(
+        child=serializers.ImageField(), 
+        write_only=True, 
+        required=False
+    )
+
     class Meta:
         model = PaqueteTuristico
-        fields = ['id', 'nombre', 'descripcion', 'precio', 'duracion', 'ubicacion','latitud','longitud','capacidad','actividades','itinerario','incluido','imagenes']
+        fields = [
+            'id', 'nombre', 'descripcion', 'precio', 'duracion', 
+            'ubicacion', 'latitud', 'longitud', 'capacidad', 
+            'actividades', 'itinerario', 'incluido', 
+            'imagen_paquete', 'archivos_subidos'
+        ]
 
-    
+    def create(self, validated_data):
+        # A. Extraemos las imágenes
+        archivos = validated_data.pop('archivos_subidos', [])
+        
+        # B. Extraemos las actividades (ManyToMany) para que no falle el .create()
+        actividades_data = validated_data.pop('actividades', [])
+        
+        # C. Creamos el paquete con datos simples
+        paquete = PaqueteTuristico.objects.create(**validated_data)
+
+        # D. Asignamos las actividades (Ahora que el paquete tiene ID)
+        if actividades_data:
+            paquete.actividades.set(actividades_data)
+
+        # E. Guardamos las imágenes en la tabla relacionada
+        if archivos:
+            for archivo in archivos:
+                DestinoTuristico.objects.create(paquete=paquete, archivo=archivo)
+
+        return paquete
