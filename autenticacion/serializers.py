@@ -86,7 +86,7 @@ class SerializersActividades(serializers.ModelSerializer):
         fields = '__all__'
 
 class SerializersImages(serializers.ModelSerializer):
-    url = serializers.ImageField(source='archivo') # Esto está perfecto
+    url = serializers.ImageField(source='imagen') # Esto está perfecto
     
     class Meta:
         model = DestinoTuristico # Antes decía models
@@ -110,22 +110,30 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        # A. Extraemos las imágenes
+        # A. SACAMOS LOS DATOS PROBLEMÁTICOS ANTES DE CREAR EL PAQUETE
+        # 1. Sacamos los archivos
         archivos = validated_data.pop('archivos_subidos', [])
+        print("📁 ARCHIVOS DETECTADOS:", archivos) 
         
-        # B. Extraemos las actividades (ManyToMany) para que no falle el .create()
+        # 2. Sacamos las actividades (ESTO SOLUCIONA EL ERROR FATAL 500)
         actividades_data = validated_data.pop('actividades', [])
         
-        # C. Creamos el paquete con datos simples
+        # B. CREAMOS EL PAQUETE
+        # Como ya sacamos 'actividades' y 'archivos_subidos', esto ya no fallará
         paquete = PaqueteTuristico.objects.create(**validated_data)
 
-        # D. Asignamos las actividades (Ahora que el paquete tiene ID)
+        # C. GUARDAMOS LAS RELACIONES (Ahora que el paquete ya tiene un ID)
+        
+        # 1. Guardamos la relación ManyToMany de las actividades
         if actividades_data:
             paquete.actividades.set(actividades_data)
 
-        # E. Guardamos las imágenes en la tabla relacionada
+        # 2. Guardamos las imágenes
         if archivos:
+            print("🚀 ¡Archivos recibidos! Guardando imágenes...")
             for archivo in archivos:
-                DestinoTuristico.objects.create(paquete=paquete, archivo=archivo)
+                DestinoTuristico.objects.create(paquete=paquete, imagen=archivo)
+        else:
+            print("⚠️ No se guardó imagen porque la lista llegó vacía.") 
 
         return paquete

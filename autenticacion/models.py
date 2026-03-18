@@ -138,8 +138,6 @@ class DestinoTuristico(models.Model):
     paquete = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE, related_name='imagen_paquete')
     es_portada = models.BooleanField(default=False)
 
-    def __str__(self):
-        return self.nombre
 
 class Categorias(models.Model):
     nombre = models.CharField(max_length=30, null=False, blank=False)

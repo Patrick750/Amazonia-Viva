@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,12 +47,14 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist'
 ]
+cloudinary.config( 
+  cloud_name = "dv4oizzf1", 
+  api_key = "281574654467419", 
+  api_secret = "JQVTkO9f3Fg71-fAaJowIevx2hc",
+  secure = True
+)
 
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'dv4oizzf1',
-    'API_KEY': '281574654467419',
-    'API_SECRET': 'JQVTkO9f3Fg71-fAaJowIevx2hc'
-}
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

@@ -7,6 +7,43 @@
     // --- ESTADOS DE CARGA Y VALIDACIÓN ---
     const isLoading = ref(false);
     const errores = reactive({});
+    // --- ESTADO DE LA NOTIFICACIÓN ---
+const notificacion = reactive({
+    mostrar: false,
+    mensaje: '',
+    tipo: 'exito' // Puede ser 'exito' o 'error'
+});
+
+const mostrarNotificacion = (mensaje, tipo = 'exito') => {
+    notificacion.mensaje = mensaje;
+    notificacion.tipo = tipo;
+    notificacion.mostrar = true;
+    // Se oculta automáticamente después de 4 segundos
+    setTimeout(() => { notificacion.mostrar = false; }, 4000);
+};
+
+// --- LIMPIEZA TOTAL DEL FORMULARIO ---
+const limpiarFormulario = () => {
+    // 1. Limpiar URLs de memoria para evitar fugas (muy importante con imágenes)
+    if (newTour.imagen && newTour.imagen.length > 0) {
+        newTour.imagen.forEach(img => URL.revokeObjectURL(img.url));
+    }
+    
+    // 2. Restaurar el objeto principal a su estado inicial
+    Object.assign(newTour, JSON.parse(JSON.stringify(inicial)));
+    newTour.itinerario = [{ time: '', activity: '' }];
+    newTour.incluido = [{ item: '' }];
+    newTour.imagen = [];
+    newTour.actividades = [];
+    
+    // 3. Limpiar los inputs físicos (Mapas y Archivos)
+    if (locationInput.value) locationInput.value.value = '';
+    if (fileInput.value) fileInput.value.value = '';
+    if (marker) marker.setVisible(false);
+    
+    // 4. Limpiar errores visuales
+    Object.keys(errores).forEach(key => delete errores[key]);
+};
 
     // --- REFERENCIAS ---
     const isDragging = ref(false);
@@ -134,35 +171,91 @@
     };
 
     const handleDrop = (e) => { isDragging.value = false; if (e.dataTransfer.files) procesarArchivos(e.dataTransfer.files); };
-    const handleSelect = (e) => { if (e.target.files) procesarArchivos(e.target.files); e.target.value = ''; };
+    const handleSelect = (event) => {
+    const archivos = event.target.files;
+    
+    for (let i = 0; i < archivos.length; i++) {
+        const file = archivos[i];
+        
+        // Creamos el objeto para la previsualización y GUARDAMOS el archivo físico
+        newTour.imagen.push({
+            name: file.name,
+            url: URL.createObjectURL(file), // Esto es para que el <img> funcione
+            file: file // <-- ¡ESTE ES EL ARCHIVO REAL QUE NECESITA DJANGO!
+        });
+    }
+};
     const removeImage = (index) => { URL.revokeObjectURL(newTour.imagen[index].url); newTour.imagen.splice(index, 1); };
 
     // --- ENVÍO DE DATOS ---
     const Enviar = async () => {
-        // Asegurarnos de capturar el texto que el usuario haya escrito en el input aunque no haya seleccionado una opción de Google
-        if (locationInput.value && locationInput.value.value) {
-             newTour.ubicacion = locationInput.value.value;
-        }
-
-        if (!validarFormulario()) return;
-
-        isLoading.value = true;
-        
-        try {
-            const dataToSend = {
-                ...newTour,
-                itinerario: newTour.itinerario.filter(i => i.time.trim() !== '' && i.activity.trim() !== ''),
-                incluido: newTour.incluido.filter(i => i.item.trim() !== '')
-            };
-            
-            emit('enviar', dataToSend); 
-            
-            setTimeout(() => { isLoading.value = false; }, 1000);
-        } catch (error) {
-            console.error("Error al enviar", error);
-            isLoading.value = false;
-        }
+    // Asegurarnos de capturar el texto de ubicación
+    if (locationInput.value && locationInput.value.value) {
+        newTour.ubicacion = locationInput.value.value;
     }
+
+    if (!validarFormulario()) return;
+
+    isLoading.value = true;
+    
+    try {
+        // 1. CREAMOS EL FORM DATA (El transporte especial para archivos)
+        const formData = new FormData();
+
+        // 2. AGREGAMOS LOS CAMPOS SIMPLES
+        // Recorremos las propiedades de newTour para no escribirlas una por una
+        for (const key in newTour) {
+            // Excluimos las que necesitan un trato especial
+            if (!['itinerario', 'incluido', 'actividades', 'archivos_subidos'].includes(key)) {
+                // Solo enviamos si el valor no es nulo o indefinido
+                if (newTour[key] !== null && newTour[key] !== undefined) {
+                    formData.append(key, newTour[key]);
+                }
+            }
+        }
+
+        // 3. ARRAYS DE OBJETOS (Itinerario e Incluido)
+        // Como FormData solo acepta strings o archivos, convertimos estos a JSON string
+        const itinerarioFiltrado = newTour.itinerario.filter(i => i.time.trim() !== '' && i.activity.trim() !== '');
+        formData.append('itinerario', JSON.stringify(itinerarioFiltrado));
+
+        const incluidoFiltrado = newTour.incluido.filter(i => i.item.trim() !== '');
+        formData.append('incluido', JSON.stringify(incluidoFiltrado));
+
+        // 4. MANY-TO-MANY (Actividades)
+        // Se debe agregar cada ID con la MISMA llave ('actividades')
+        if (newTour.actividades && newTour.actividades.length > 0) {
+            newTour.actividades.forEach(id => {
+                formData.append('actividades', id);
+            });
+        }
+
+        // 5. ¡LAS IMÁGENES! (El paso más importante)
+        // Asumiendo que guardaste los archivos en newTour.archivos_subidos
+      // 5. ¡LAS IMÁGENES! (El ajuste clave)
+        // Ahora buscamos en la variable correcta de tu formulario: newTour.imagen
+        if (newTour.imagen && newTour.imagen.length > 0) {
+            newTour.imagen.forEach(imgObj => {
+                // IMPORTANTE: Aquí debes extraer el archivo físico.
+                // Dependiendo de cómo programaste 'handleSelect', el archivo real
+                // podría estar guardado como imgObj.file, imgObj.raw, o el objeto mismo.
+                
+                const archivoReal = imgObj.file; // Ajusta '.file' al nombre que le hayas dado
+                
+                // Lo enviamos con la llave 'archivos_subidos' que es la que pide tu Serializer
+                formData.append('archivos_subidos', archivoReal); 
+            });
+        }
+
+        // 6. Emitimos el FormData (ya no el objeto plano)
+        emit('enviar', formData); 
+        
+        setTimeout(() => { isLoading.value = false; }, 1000);
+    } catch (error) {
+        console.error("Error al enviar", error);
+        isLoading.value = false;
+    }
+}
 </script>
 
 <template>
@@ -347,4 +440,25 @@
         </div>
       </div>
     </Teleport>
+    <div 
+        class="fixed top-6 right-6 z-[100] flex items-center p-4 text-slate-700 bg-white rounded-xl shadow-2xl border-l-4 transition-all duration-500 ease-in-out transform" 
+        :class="[
+            notificacion.tipo === 'exito' ? 'border-emerald-500' : 'border-red-500',
+            notificacion.mostrar ? 'translate-y-0 opacity-100 visible' : '-translate-y-5 opacity-0 invisible pointer-events-none'
+        ]" 
+        role="alert">
+      
+      <div class="inline-flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-lg" 
+           :class="notificacion.tipo === 'exito' ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'">
+        <svg v-if="notificacion.tipo === 'exito'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </div>
+      
+      <div class="ms-4 mr-8 text-sm font-semibold tracking-wide">{{ notificacion.mensaje }}</div>
+      
+      <button @click="notificacion.mostrar = false" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white text-slate-400 hover:text-slate-900 rounded-lg focus:ring-2 focus:ring-slate-300 p-1.5 hover:bg-slate-100 inline-flex items-center justify-center h-8 w-8">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+      
+    </div>
 </template>
