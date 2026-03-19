@@ -111,5 +111,13 @@ class NewPack(APIView):
             print('Error en los serializers: ', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-
-
+class PaquetesTuristicos(APIView):
+    def get(self, request):
+        try:
+            paquetes = PaqueteTuristico.objects.all()
+            serializers = SerializersPaquetes(paquetes, many=True)
+            return Response(serializers.data)
+        except Exception as e:
+            return Response({'mensaje':'Hubo un error'})
+        
+        

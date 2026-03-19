@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegistroAgencia, RegistroProveedor, VerificarEmail, RegistroTurista, Login, Logout, Actividades, NewPack
+from .views import RegistroAgencia, RegistroProveedor, VerificarEmail, RegistroTurista, Login, Logout, Actividades, NewPack, PaquetesTuristicos
 
 
 urlpatterns = [
@@ -10,5 +10,6 @@ urlpatterns = [
     path('login/', Login.as_view(), name='auth_login'),
     path("logout/", Logout.as_view(), name="logout"),
     path("actividades/", Actividades.as_view(), name="actividades"),
-    path("createnewpack/", NewPack.as_view(), name="createnewpack")
+    path("createnewpack/", NewPack.as_view(), name="createnewpack"),
+    path("pack/", PaquetesTuristicos.as_view(), name="packs")
 ]   

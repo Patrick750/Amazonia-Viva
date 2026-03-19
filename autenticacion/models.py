@@ -125,6 +125,8 @@ class PaqueteTuristico(models.Model):
         verbose_name="Qué incluye",
         help_text="Formato esperado: [{'item': 'Transporte'}]"
     )
+    
+    rating = models.DecimalField(decimal_places=100, max_digits=100, null=False)
 
     class Meta:
         verbose_name = "Paquete Turístico"

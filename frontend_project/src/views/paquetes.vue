@@ -4,6 +4,7 @@
     import Formulario from '@/components/gestion-catalogo/formulario.vue';
     import { pedirActividades } from '@/composables/gestion-tours/actividades';
     import { GuardarRegistro } from '@/composables/gestion-tours/create-pack';
+    import { paquetes } from '@/composables/gestion-tours/paquetes';
 
     const isModalOpen = ref(false);
     const openModal = () => isModalOpen.value = true;
@@ -17,13 +18,17 @@
     const { guardarDatos } = GuardarRegistro()
     const enviarDatos = async (datos) => {
       try{
-        await guardarDatos(datos)
+        const datas = await guardarDatos(datos)
+        console.log(datas)
       }catch (error){
         console.error("Hubo un error al guardar el paquete: ",error)
       }
     }
 
-
+    const paquetesTraidos = ref([])
+    onMounted(async () => {
+      paquetesTraidos.value = await paquetes()
+    })
 
 </script>
 
@@ -42,7 +47,9 @@
           Nuevo Tour
         </button>
       </header>
-      <Tours></Tours>
+      <Tours
+        :datos="paquetesTraidos"
+      ></Tours>
     </main>
     <Formulario
       :abrir="isModalOpen"

@@ -126,3 +126,12 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
 
         return paquete
 
+class SerializersImagenes(serializers.ModelSerializer):
+    class Meta:
+        model = DestinoTuristico
+        fields = '__all__'
+
+class SerializersPaquetes(serializers.ModelSerializer):
+    class Meta:
+        model = PaqueteTuristico
+        fields = '__all__'
