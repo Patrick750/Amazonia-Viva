@@ -97,13 +97,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'amazoniaviva', # <--- Cambia esto aquí
-        'USER': 'avnadmin',
-        'PASSWORD': 'AVNS_V9xwFp8wlQhb2bZlf7X',
-        'HOST': 'pg-3426d5f3-ortizpatrick750-3da9.g.aivencloud.com',
-        'PORT': '26933',
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
+        'USER': 'postgres',
+        'PASSWORD': 'pac131pap',
+        'HOST': 'localhost',
+        'PORT': '5432'
     }
 }
 
