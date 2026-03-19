@@ -187,5 +187,5 @@ class Detalles_Venta(models.Model):
     paquete = models.IntegerField(null=False, blank=False)
     cantidad = models.IntegerField(null=False, blank=False)
     precio_unitario = models.DecimalField(decimal_places=1000, max_digits=1000, null=False, blank=False)
-
+    
 

@@ -4,20 +4,6 @@
 
     const props = defineProps(['datos'])    
 
-    const tours = ref([
-        {
-            id: 1,
-            name: 'Playa Paraíso - Tour Todo Incluido',
-            category: 'Playa',
-            location: 'Cartagena, Colombia',
-            duration: '8 horas',
-            price: '$250.000',
-            capacity: 20,
-            rating: 4.8,
-            reviews: 124,
-            image: 'https://images.unsplash.com/photo-1512813195386-6cb8edc04fe5?auto=format&fit=crop&w=150&q=80'
-        }
-    ]);
 </script>
 
 <template>
