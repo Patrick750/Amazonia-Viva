@@ -100,16 +100,12 @@ class Actividades(APIView):
 
 class NewPack(APIView):
     def post(self, request):
-        print('dentro')
         serializer = SerializersCreateNewPack(data=request.data)
         if serializer.is_valid():
-            print('validacion exitosa')
             try:
                 serializer.save()
-                print("💾 4. ¡GUARDADO EN LA BASE DE DATOS!")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             except Exception as e:
-                print("❌ 4. ERROR FATAL AL GUARDAR:", str(e))
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:   
             print('Error en los serializers: ', serializer.errors)

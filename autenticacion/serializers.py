@@ -86,7 +86,7 @@ class SerializersActividades(serializers.ModelSerializer):
         fields = '__all__'
 
 class SerializersImages(serializers.ModelSerializer):
-    url = serializers.ImageField(source='imagen') # Esto está perfecto
+    url = serializers.ImageField(source='imagen') 
     
     class Meta:
         model = DestinoTuristico # Antes decía models
@@ -110,30 +110,19 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        # A. SACAMOS LOS DATOS PROBLEMÁTICOS ANTES DE CREAR EL PAQUETE
-        # 1. Sacamos los archivos
         archivos = validated_data.pop('archivos_subidos', [])
-        print("📁 ARCHIVOS DETECTADOS:", archivos) 
         
-        # 2. Sacamos las actividades (ESTO SOLUCIONA EL ERROR FATAL 500)
         actividades_data = validated_data.pop('actividades', [])
         
-        # B. CREAMOS EL PAQUETE
-        # Como ya sacamos 'actividades' y 'archivos_subidos', esto ya no fallará
         paquete = PaqueteTuristico.objects.create(**validated_data)
 
-        # C. GUARDAMOS LAS RELACIONES (Ahora que el paquete ya tiene un ID)
-        
-        # 1. Guardamos la relación ManyToMany de las actividades
         if actividades_data:
             paquete.actividades.set(actividades_data)
 
         # 2. Guardamos las imágenes
         if archivos:
-            print("🚀 ¡Archivos recibidos! Guardando imágenes...")
             for archivo in archivos:
                 DestinoTuristico.objects.create(paquete=paquete, imagen=archivo)
-        else:
-            print("⚠️ No se guardó imagen porque la lista llegó vacía.") 
 
         return paquete
+

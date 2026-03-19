@@ -50,14 +50,18 @@ router.beforeEach((to, from, next) => {
       next('/panel')
     }
   }
+  const urlAuth = ['/auth/login','/auth/signup'] 
+  const urlMenus = ['/panel/inicio  ']
 
-  if (to.path === '/auth/login' || to.path === '/auth/signup') {
+  if (urlAuth.includes(to.path)) {
     
     if (token && rol) {
       next(`/panel`)
     } else {
       next()
     }
+  }else if(urlMenus.includes(to.path)){
+
   } else {
     next()
   }

@@ -1,13 +1,20 @@
 <script setup>
-    import { reactive, watch, ref } from 'vue';
-     
-    const props = defineProps(['abrir', 'datos'])
-    const emit = defineEmits(['cerrar', 'enviar'])
+import { reactive, watch, ref } from 'vue';
+// IMPORTANTE: Asegúrate de colocar la ruta correcta hacia el archivo de tu composable
+import { GuardarRegistro } from '@/composables/gestion-tours/create-pack'; // <-- Ajusta esta ruta
 
-    // --- ESTADOS DE CARGA Y VALIDACIÓN ---
-    const isLoading = ref(false);
-    const errores = reactive({});
-    // --- ESTADO DE LA NOTIFICACIÓN ---
+const props = defineProps(['abrir', 'datos']);
+// Cambiamos 'enviar' por 'guardadoExitoso' para avisarle al padre cuando termine
+const emit = defineEmits(['cerrar', 'guardadoExitoso']); 
+
+// --- INSTANCIA DEL COMPOSABLE ---
+const { guardarDatos } = GuardarRegistro();
+
+// --- ESTADOS DE CARGA Y VALIDACIÓN ---
+const isLoading = ref(false);
+const errores = reactive({});
+
+// --- ESTADO DE LA NOTIFICACIÓN ---
 const notificacion = reactive({
     mostrar: false,
     mensaje: '',
@@ -45,151 +52,145 @@ const limpiarFormulario = () => {
     Object.keys(errores).forEach(key => delete errores[key]);
 };
 
-    // --- REFERENCIAS ---
-    const isDragging = ref(false);
-    const fileInput = ref(null);
-    const locationInput = ref(null);
-    const mapContainer = ref(null);
-    
-    let map = null;
-    let marker = null;
-    let autocomplete = null;
+// --- REFERENCIAS ---
+const isDragging = ref(false);
+const fileInput = ref(null);
+const locationInput = ref(null);
+const mapContainer = ref(null);
 
-    // --- ESTADO DEL FORMULARIO ---
-    const newTour = reactive({
-        nombre: '',
-        descripcion: '',
-        precio: '',
-        duracion: '',
-        ubicacion: 'default',
-        latitud: null, 
-        longitud: null, 
-        capacidad: '',
-        actividades: [], 
-        itinerario: [{ time: '', activity: '' }],
-        incluido: [{ item: '' }],
-        imagen: [] 
+let map = null;
+let marker = null;
+let autocomplete = null;
+
+// --- ESTADO DEL FORMULARIO ---
+const newTour = reactive({
+    nombre: '',
+    descripcion: '',
+    precio: '',
+    duracion: '',
+    ubicacion: 'default',
+    latitud: null, 
+    longitud: null, 
+    capacidad: '',
+    actividades: [], 
+    itinerario: [{ time: '', activity: '' }],
+    incluido: [{ item: '' }],
+    imagen: [] 
+});
+
+const inicial = JSON.parse(JSON.stringify(newTour));
+
+watch(() => props.datos, (nuevosdatos) => {
+    if(nuevosdatos){
+        Object.assign(newTour, JSON.parse(JSON.stringify(nuevosdatos)));
+        if (!newTour.itinerario || newTour.itinerario.length === 0) newTour.itinerario = [{ time: '', activity: '' }];
+        if (!newTour.incluido || newTour.incluido.length === 0) newTour.incluido = [{ item: '' }];
+    } else {
+        Object.assign(newTour, JSON.parse(JSON.stringify(inicial)));
+    }
+    Object.keys(errores).forEach(key => delete errores[key]);
+}, {immediate: true})
+
+// --- VALIDACIÓN DEL FORMULARIO ---
+const validarFormulario = () => {
+    Object.keys(errores).forEach(key => delete errores[key]); 
+    let valido = true;
+
+    if (!newTour.nombre.trim()) { errores.nombre = "El nombre es obligatorio."; valido = false; }
+    if (!newTour.descripcion.trim()) { errores.descripcion = "La descripción es obligatoria."; valido = false; }
+    if (!newTour.precio || newTour.precio <= 0) { errores.precio = "Ingresa un precio válido mayor a 0."; valido = false; }
+    if (!newTour.duracion.trim()) { errores.duracion = "La duración es obligatoria."; valido = false; }
+    if (!newTour.capacidad || newTour.capacidad <= 0) { errores.capacidad = "Ingresa una capacidad válida mayor a 0."; valido = false; }
+    if (newTour.actividades.length === 0) { errores.actividades = "Selecciona al menos una actividad."; valido = false; }
+
+    return valido;
+};
+
+// --- FUNCIONES DINÁMICAS (ITINERARIO E INCLUIDO) ---
+const addItineraryItem = () => newTour.itinerario.push({ time: '', activity: '' });
+const removeItineraryItem = (index) => { if (newTour.itinerario.length > 1) newTour.itinerario.splice(index, 1); };
+
+const addIncludedItem = () => newTour.incluido.push({ item: '' });
+const removeIncludedItem = (index) => { if (newTour.incluido.length > 1) newTour.incluido.splice(index, 1); };
+
+// --- LÓGICA DE GOOGLE MAPS ---
+const initMap = () => {
+    if (typeof google === 'undefined' || !mapContainer.value || !locationInput.value) return;
+
+    const defaultPos = { lat: 4.6097, lng: -74.0817 }; 
+
+    map = new google.maps.Map(mapContainer.value, {
+        center: defaultPos, zoom: 12, mapTypeControl: false, streetViewControl: false,
     });
 
-    const inicial = JSON.parse(JSON.stringify(newTour));
+    marker = new google.maps.Marker({ map, position: defaultPos, visible: false });
 
-    watch(() => props.datos, (nuevosdatos) => {
-        if(nuevosdatos){
-            Object.assign(newTour, JSON.parse(JSON.stringify(nuevosdatos)));
-            if (!newTour.itinerario || newTour.itinerario.length === 0) newTour.itinerario = [{ time: '', activity: '' }];
-            if (!newTour.incluido || newTour.incluido.length === 0) newTour.incluido = [{ item: '' }];
-        }else{
-            Object.assign(newTour, JSON.parse(JSON.stringify(inicial)));
-        }
-        // Limpiar errores al abrir/cambiar datos
-        Object.keys(errores).forEach(key => delete errores[key]);
-    }, {immediate: true})
-
-    // --- VALIDACIÓN DEL FORMULARIO ---
-    const validarFormulario = () => {
-        Object.keys(errores).forEach(key => delete errores[key]); // Reiniciar errores
-        let valido = true;
-
-        if (!newTour.nombre.trim()) { errores.nombre = "El nombre es obligatorio."; valido = false; }
-        if (!newTour.descripcion.trim()) { errores.descripcion = "La descripción es obligatoria."; valido = false; }
-        if (!newTour.precio || newTour.precio <= 0) { errores.precio = "Ingresa un precio válido mayor a 0."; valido = false; }
-        if (!newTour.duracion.trim()) { errores.duracion = "La duración es obligatoria."; valido = false; }
-        if (!newTour.capacidad || newTour.capacidad <= 0) { errores.capacidad = "Ingresa una capacidad válida mayor a 0."; valido = false; }
-        if (newTour.actividades.length === 0) { errores.actividades = "Selecciona al menos una actividad."; valido = false; }
-        // Se retiró la validación de ubicación
-
-        return valido;
-    };
-
-    // --- FUNCIONES DINÁMICAS (ITINERARIO E INCLUIDO) ---
-    const addItineraryItem = () => newTour.itinerario.push({ time: '', actividades: '' });
-    const removeItineraryItem = (index) => { if (newTour.itinerario.length > 1) newTour.itinerario.splice(index, 1); };
-
-    const addIncludedItem = () => newTour.incluido.push({ item: '' });
-    const removeIncludedItem = (index) => { if (newTour.incluido.length > 1) newTour.incluido.splice(index, 1); };
-
-    // --- LÓGICA DE GOOGLE MAPS ---
-    const initMap = () => {
-        if (typeof google === 'undefined' || !mapContainer.value || !locationInput.value) return;
-
-        const defaultPos = { lat: 4.6097, lng: -74.0817 }; 
-
-        map = new google.maps.Map(mapContainer.value, {
-            center: defaultPos, zoom: 12, mapTypeControl: false, streetViewControl: false,
-        });
-
-        marker = new google.maps.Marker({ map, position: defaultPos, visible: false });
-
-        autocomplete = new google.maps.places.Autocomplete(locationInput.value, {
-            fields: ["geometry", "name", "formatted_address"],
-        });
-
-        autocomplete.bindTo("bounds", map);
-
-        autocomplete.addListener("place_changed", () => {
-            const place = autocomplete.getPlace();
-            if (!place.geometry || !place.geometry.location) return; // Simplemente no hace nada si no selecciona algo válido
-
-            if (place.geometry.viewport) {
-                map.fitBounds(place.geometry.viewport);
-            } else {
-                map.setCenter(place.geometry.location);
-                map.setZoom(17);
-            }
-            
-            marker.setPosition(place.geometry.location);
-            marker.setVisible(true);
-
-            newTour.ubicacion = place.formatted_address || place.name;
-            newTour.latitud = place.geometry.location.lat();
-            newTour.longitud = place.geometry.location.lng();
-        });
-    };
-
-    watch(() => props.abrir, (estaAbierto) => {
-        if (estaAbierto) {
-            if (typeof google === 'undefined') {
-                const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&libraries=places&callback=iniciarMapaGlobal`;
-                script.async = true; script.defer = true;
-                document.head.appendChild(script);
-
-                window.iniciarMapaGlobal = () => setTimeout(() => initMap(), 100);
-            } else {
-                setTimeout(() => initMap(), 100);
-            }
-        }
+    autocomplete = new google.maps.places.Autocomplete(locationInput.value, {
+        fields: ["geometry", "name", "formatted_address"],
     });
 
-    // --- LÓGICA DE DRAG & DROP ---
-    const procesarArchivos = (archivos) => {
-        const archivosValidos = Array.from(archivos).filter(file => file.type.startsWith('image/'));
-        archivosValidos.forEach(file => {
-            const urlPreview = URL.createObjectURL(file);
-            newTour.imagen.push({ file, url: urlPreview, name: file.name });
-        });
-    };
+    autocomplete.bindTo("bounds", map);
 
-    const handleDrop = (e) => { isDragging.value = false; if (e.dataTransfer.files) procesarArchivos(e.dataTransfer.files); };
-    const handleSelect = (event) => {
+    autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) return; 
+
+        if (place.geometry.viewport) {
+            map.fitBounds(place.geometry.viewport);
+        } else {
+            map.setCenter(place.geometry.location);
+            map.setZoom(17);
+        }
+        
+        marker.setPosition(place.geometry.location);
+        marker.setVisible(true);
+
+        newTour.ubicacion = place.formatted_address || place.name;
+        newTour.latitud = place.geometry.location.lat();
+        newTour.longitud = place.geometry.location.lng();
+    });
+};
+
+watch(() => props.abrir, (estaAbierto) => {
+    if (estaAbierto) {
+        if (typeof google === 'undefined') {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=TU_API_KEY&libraries=places&callback=iniciarMapaGlobal`;
+            script.async = true; script.defer = true;
+            document.head.appendChild(script);
+
+            window.iniciarMapaGlobal = () => setTimeout(() => initMap(), 100);
+        } else {
+            setTimeout(() => initMap(), 100);
+        }
+    }
+});
+
+// --- LÓGICA DE DRAG & DROP ---
+const procesarArchivos = (archivos) => {
+    const archivosValidos = Array.from(archivos).filter(file => file.type.startsWith('image/'));
+    archivosValidos.forEach(file => {
+        const urlPreview = URL.createObjectURL(file);
+        newTour.imagen.push({ file, url: urlPreview, name: file.name });
+    });
+};
+
+const handleDrop = (e) => { isDragging.value = false; if (e.dataTransfer.files) procesarArchivos(e.dataTransfer.files); };
+const handleSelect = (event) => {
     const archivos = event.target.files;
-    
     for (let i = 0; i < archivos.length; i++) {
         const file = archivos[i];
-        
-        // Creamos el objeto para la previsualización y GUARDAMOS el archivo físico
         newTour.imagen.push({
             name: file.name,
-            url: URL.createObjectURL(file), // Esto es para que el <img> funcione
-            file: file // <-- ¡ESTE ES EL ARCHIVO REAL QUE NECESITA DJANGO!
+            url: URL.createObjectURL(file), 
+            file: file 
         });
     }
 };
-    const removeImage = (index) => { URL.revokeObjectURL(newTour.imagen[index].url); newTour.imagen.splice(index, 1); };
+const removeImage = (index) => { URL.revokeObjectURL(newTour.imagen[index].url); newTour.imagen.splice(index, 1); };
 
-    // --- ENVÍO DE DATOS ---
-    const Enviar = async () => {
-    // Asegurarnos de capturar el texto de ubicación
+// --- ENVÍO DE DATOS ---
+const Enviar = async () => {
     if (locationInput.value && locationInput.value.value) {
         newTour.ubicacion = locationInput.value.value;
     }
@@ -199,60 +200,57 @@ const limpiarFormulario = () => {
     isLoading.value = true;
     
     try {
-        // 1. CREAMOS EL FORM DATA (El transporte especial para archivos)
         const formData = new FormData();
 
-        // 2. AGREGAMOS LOS CAMPOS SIMPLES
-        // Recorremos las propiedades de newTour para no escribirlas una por una
+        // 1. CAMPOS SIMPLES
         for (const key in newTour) {
-            // Excluimos las que necesitan un trato especial
-            if (!['itinerario', 'incluido', 'actividades', 'archivos_subidos'].includes(key)) {
-                // Solo enviamos si el valor no es nulo o indefinido
+            if (!['itinerario', 'incluido', 'actividades', 'archivos_subidos', 'imagen'].includes(key)) {
                 if (newTour[key] !== null && newTour[key] !== undefined) {
                     formData.append(key, newTour[key]);
                 }
             }
         }
 
-        // 3. ARRAYS DE OBJETOS (Itinerario e Incluido)
-        // Como FormData solo acepta strings o archivos, convertimos estos a JSON string
+        // 2. ARRAYS DE OBJETOS
         const itinerarioFiltrado = newTour.itinerario.filter(i => i.time.trim() !== '' && i.activity.trim() !== '');
         formData.append('itinerario', JSON.stringify(itinerarioFiltrado));
 
         const incluidoFiltrado = newTour.incluido.filter(i => i.item.trim() !== '');
         formData.append('incluido', JSON.stringify(incluidoFiltrado));
 
-        // 4. MANY-TO-MANY (Actividades)
-        // Se debe agregar cada ID con la MISMA llave ('actividades')
+        // 3. MUCHOS A MUCHOS
         if (newTour.actividades && newTour.actividades.length > 0) {
             newTour.actividades.forEach(id => {
                 formData.append('actividades', id);
             });
         }
 
-        // 5. ¡LAS IMÁGENES! (El paso más importante)
-        // Asumiendo que guardaste los archivos en newTour.archivos_subidos
-      // 5. ¡LAS IMÁGENES! (El ajuste clave)
-        // Ahora buscamos en la variable correcta de tu formulario: newTour.imagen
+        // 4. IMÁGENES
         if (newTour.imagen && newTour.imagen.length > 0) {
             newTour.imagen.forEach(imgObj => {
-                // IMPORTANTE: Aquí debes extraer el archivo físico.
-                // Dependiendo de cómo programaste 'handleSelect', el archivo real
-                // podría estar guardado como imgObj.file, imgObj.raw, o el objeto mismo.
-                
-                const archivoReal = imgObj.file; // Ajusta '.file' al nombre que le hayas dado
-                
-                // Lo enviamos con la llave 'archivos_subidos' que es la que pide tu Serializer
+                const archivoReal = imgObj.file; 
                 formData.append('archivos_subidos', archivoReal); 
             });
         }
 
-        // 6. Emitimos el FormData (ya no el objeto plano)
-        emit('enviar', formData); 
+        // 5. PETICIÓN A LA API
+        const resultado = await guardarDatos(formData); 
         
-        setTimeout(() => { isLoading.value = false; }, 1000);
+        // 6. ÉXITO
+        mostrarNotificacion('¡Tour guardado correctamente en la base de datos!', 'exito');
+        limpiarFormulario(); 
+        
+        emit('guardadoExitoso', resultado); 
+        
+        // Cerramos el modal después de 2.5 segundos
+        setTimeout(() => { 
+            emit('cerrar'); 
+        }, 1500);
+
     } catch (error) {
         console.error("Error al enviar", error);
+        mostrarNotificacion('Hubo un error al guardar el tour. Intenta de nuevo.', 'error');
+    } finally {
         isLoading.value = false;
     }
 }
@@ -260,7 +258,7 @@ const limpiarFormulario = () => {
 
 <template>
     <Teleport to="body">
-      <div v-if="abrir" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+      <div v-if="abrir" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
         
         <div class="bg-white/95 backdrop-blur-xl border border-white/80 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative animate-fade-in-up">
           
@@ -321,8 +319,8 @@ const limpiarFormulario = () => {
                   <span v-if="errores.precio" class="text-xs text-red-500 mt-1 block">{{ errores.precio }}</span>
                 </div>
                 <div>
-                  <label class="block text-sm font-semibold text-slate-700 mb-1">Duración <span class="text-emerald-600">*</span></label>
-                  <input v-model="newTour.duracion" type="text" placeholder="Ej: 8 horas, 2 días" 
+                  <label class="block text-sm font-semibold text-slate-700 mb-1">Duración en horas <span class="text-emerald-600">*</span></label>
+                  <input v-model="newTour.duracion" type="text" placeholder="Ej: 8 horas" 
                          :class="['w-full bg-[#f4fcf9] border rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 transition-all placeholder:text-slate-400', 
                                   errores.duracion ? 'border-red-500 focus:ring-red-500/50' : 'border-[#d1ebe1] focus:ring-emerald-500/50 focus:border-emerald-500']">
                   <span v-if="errores.duracion" class="text-xs text-red-500 mt-1 block">{{ errores.duracion }}</span>
@@ -439,26 +437,27 @@ const limpiarFormulario = () => {
           </div>
         </div>
       </div>
-    </Teleport>
-    <div 
-        class="fixed top-6 right-6 z-[100] flex items-center p-4 text-slate-700 bg-white rounded-xl shadow-2xl border-l-4 transition-all duration-500 ease-in-out transform" 
-        :class="[
-            notificacion.tipo === 'exito' ? 'border-emerald-500' : 'border-red-500',
-            notificacion.mostrar ? 'translate-y-0 opacity-100 visible' : '-translate-y-5 opacity-0 invisible pointer-events-none'
-        ]" 
-        role="alert">
-      
-      <div class="inline-flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-lg" 
-           :class="notificacion.tipo === 'exito' ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'">
-        <svg v-if="notificacion.tipo === 'exito'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-        <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+
+      <div 
+          class="fixed top-6 right-6 z-[100] flex items-center p-4 text-slate-700 bg-white rounded-xl shadow-2xl border-l-4 transition-all duration-500 ease-in-out transform" 
+          :class="[
+              notificacion.tipo === 'exito' ? 'border-emerald-500' : 'border-red-500',
+              notificacion.mostrar ? 'translate-y-0 opacity-100 visible' : '-translate-y-5 opacity-0 invisible pointer-events-none'
+          ]" 
+          role="alert">
+        
+        <div class="inline-flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-lg" 
+             :class="notificacion.tipo === 'exito' ? 'text-emerald-600 bg-emerald-100' : 'text-red-600 bg-red-100'">
+          <svg v-if="notificacion.tipo === 'exito'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </div>
+        
+        <div class="ms-4 mr-8 text-sm font-semibold tracking-wide">{{ notificacion.mensaje }}</div>
+        
+        <button @click="notificacion.mostrar = false" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white text-slate-400 hover:text-slate-900 rounded-lg focus:ring-2 focus:ring-slate-300 p-1.5 hover:bg-slate-100 inline-flex items-center justify-center h-8 w-8">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
       </div>
       
-      <div class="ms-4 mr-8 text-sm font-semibold tracking-wide">{{ notificacion.mensaje }}</div>
-      
-      <button @click="notificacion.mostrar = false" class="absolute right-2 top-1/2 -translate-y-1/2 bg-white text-slate-400 hover:text-slate-900 rounded-lg focus:ring-2 focus:ring-slate-300 p-1.5 hover:bg-slate-100 inline-flex items-center justify-center h-8 w-8">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-      </button>
-      
-    </div>
+    </Teleport>
 </template>
