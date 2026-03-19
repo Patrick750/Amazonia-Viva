@@ -45,26 +45,23 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   const rol = localStorage.getItem('rol')
 
-  if(to.path === '/panel'){
-    if(!token){
+  const urlAuth = ['/auth/login','/auth/signup'] 
+  const urlMenus = ['/panel/dashboard','/panel/gestion-paquetes']
+
+  if(urlMenus.includes(to.path)){
+    if(!token || !rol){
       next('/panel')
     }
-  }
-  const urlAuth = ['/auth/login','/auth/signup'] 
-  const urlMenus = ['/panel/inicio  ']
+  } 
 
   if (urlAuth.includes(to.path)) {
     
     if (token && rol) {
       next(`/panel`)
-    } else {
-      next()
     }
-  }else if(urlMenus.includes(to.path)){
-
-  } else {
-    next()
   }
+
+  return next()
 })
 
 export default router
