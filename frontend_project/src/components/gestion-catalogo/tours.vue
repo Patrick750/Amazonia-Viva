@@ -3,7 +3,7 @@
     import { ref } from 'vue';
 
     const props = defineProps(['datos'])
-    const emit = defineEmits(['editar', 'eliminar'])
+    const emit = defineEmits(['editar', 'eliminar', 'verDetalles'])
 
     const deleteTour = (id) => {
         emit('eliminar', id);
@@ -56,7 +56,7 @@
                       </div>
                     </div>
                     <div>
-                        <h3 class="font-semibold text-slate-800 text-sm">{{ tour.nombre }}</h3>
+                        <h3 class="font-semibold text-slate-800 text-sm cursor-pointer hover:text-emerald-600 hover:underline transition-all" @click="emit('verDetalles', tour)">{{ tour.nombre }}</h3>
                         <span class="text-xs text-slate-500">{{ tour.category }}</span>
                     </div>
                     </div>

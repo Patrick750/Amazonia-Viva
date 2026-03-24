@@ -3,6 +3,7 @@
     import Tours from '@/components/gestion-catalogo/tours.vue';
     import Formulario from '@/components/gestion-catalogo/formulario.vue';
     import ConfirmarEliminar from '@/components/gestion-catalogo/delete.vue';
+    import DetallesTour from '@/components/gestion-catalogo/detalles-tour.vue';
     import Notificacion from '@/components/notificacion.vue';
     import { pedirActividades } from '@/composables/gestion-tours/actividades';
     import { paquetes } from '@/composables/gestion-tours/paquetes';
@@ -46,6 +47,20 @@
     const onEliminadoExitoso = (id) => {
         paquetesTraidos.value = paquetesTraidos.value.filter(p => p.id !== id);
         cerrarModalEliminar();
+    };
+
+    // --- ESTADO DEL MODAL DETALLES ---
+    const isDetallesModalOpen = ref(false);
+    const paqueteADetallar = ref(null);
+
+    const abrirModalDetalles = (tour) => {
+        paqueteADetallar.value = tour;
+        isDetallesModalOpen.value = true;
+    };
+
+    const cerrarModalDetalles = () => {
+        isDetallesModalOpen.value = false;
+        paqueteADetallar.value = null;
     };
 
     const onGuardadoExitoso = (paqueteActualizado) => {
@@ -94,6 +109,7 @@
         :datos="paquetesTraidos"
         @editar="editarTour"
         @eliminar="abrirModalEliminar"
+        @verDetalles="abrirModalDetalles"
       ></Tours>
     </main>
     <Formulario
@@ -110,6 +126,13 @@
       @cerrar="cerrarModalEliminar"
       @eliminadoExitoso="onEliminadoExitoso"
     ></ConfirmarEliminar>
+
+    <DetallesTour
+      :abrir="isDetallesModalOpen"
+      :paquete="paqueteADetallar"
+      :actividades="listado"
+      @cerrar="cerrarModalDetalles"
+    ></DetallesTour>
 
     <Notificacion />
   </div>
