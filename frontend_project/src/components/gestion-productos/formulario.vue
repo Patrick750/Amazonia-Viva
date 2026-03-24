@@ -96,15 +96,19 @@ const guardarProducto = async () => {
                 formData.append('imagenes_eliminar', id);
             });
 
-            await axios.put(`${API_URL}${props.producto.id}/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            await axios.put(`${API_URL}${props.producto.id}/`, formData);
         } else {
-            await axios.post(API_URL, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            await axios.post(API_URL, formData);
         }
 
         emit('guardadoExitoso');
     } catch (error) {
         console.error('Error guardando el producto:', error);
-        alert('Hubo un error al guardar el producto.');
+        let errorMsg = 'Hubo un error al guardar el producto.';
+        if (error.response && error.response.data && error.response.data.errores) {
+             errorMsg += '\nRevisa los siguientes campos: ' + JSON.stringify(error.response.data.errores);
+        }
+        alert(errorMsg);
     } finally {
         isLoading.value = false;
     }

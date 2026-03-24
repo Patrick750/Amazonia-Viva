@@ -16,7 +16,7 @@ class ProductoImagenSerializer(serializers.ModelSerializer):
 class ProductoSerializer(serializers.ModelSerializer):
     imagen_producto = ProductoImagenSerializer(many=True, read_only=True)
     archivos_subidos = serializers.ListField(
-        child=serializers.ImageField(), 
+        child=serializers.FileField(), 
         write_only=True, 
         required=False
     )

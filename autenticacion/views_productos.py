@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+import json
 from .models import Productos, Proveedor
 from .serializers_productos import ProductoSerializer
 
@@ -24,7 +25,20 @@ class ProductosAPIView(APIView):
             elif Proveedor.objects.exists():
                 proveedor = Proveedor.objects.first()
 
-            data = request.data.copy()
+            data = {}
+            for key in request.data.keys():
+                if key in ['archivos_subidos', 'imagenes_eliminar']:
+                    data[key] = request.data.getlist(key)
+                elif key == 'caracteristicas':
+                    try:
+                        data[key] = json.loads(request.data.get(key))
+                    except:
+                        data[key] = request.data.get(key)
+                elif key == 'disponible':
+                    data[key] = str(request.data.get(key)).lower() == 'true'
+                else:
+                    data[key] = request.data.get(key)
+                    
             if proveedor:
                 data['proveedor'] = proveedor.id
 
@@ -39,7 +53,19 @@ class ProductosAPIView(APIView):
 class ProductoDetalleAPIView(APIView):
     def put(self, request, pk):
         producto = get_object_or_404(Productos, pk=pk)
-        data = request.data.copy()
+        data = {}
+        for key in request.data.keys():
+            if key in ['archivos_subidos', 'imagenes_eliminar']:
+                data[key] = request.data.getlist(key)
+            elif key == 'caracteristicas':
+                try:
+                    data[key] = json.loads(request.data.get(key))
+                except:
+                    data[key] = request.data.get(key)
+            elif key == 'disponible':
+                data[key] = str(request.data.get(key)).lower() == 'true'
+            else:
+                data[key] = request.data.get(key)
         
         serializer = ProductoSerializer(producto, data=data, partial=True)
         if serializer.is_valid():

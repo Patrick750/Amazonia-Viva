@@ -21,6 +21,16 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 
 ---
 
+### 2.4.1 — Carrusel de Productos y Estabilización de Edición
+> Archivos: `detalles-producto.vue`, `views_productos.py`, `serializers_productos.py`
+
+- Implementación del Carrusel Infinito (Animación continua y track de clonación) homólogo al módulo de Tours dentro del visor de detalles de productos.
+- **[Bugfix]** Resolución de alertas de subida omitiendo la cabecera forzada `multipart/form-data` de Axios para permitir inyección orgánica de boundaries en el navegador.
+- **[Bugfix]** Parsing recursivo nativo en DRF de variables `FormData` (JSON strings y variables booleanas) estabilizando la técnica de edición de registros (`PUT`).
+- **[Bugfix]** Bypass deliberado de la validación interna `Pillow` en serializers, permitiendo que formatos web asíncronos (`webp`, `avif`, `heic`) se suban nativamente y sin alertas a la API de Cloudinary.
+
+---
+
 ### 2.4.0 — Módulo CRUD de Productos Integrado (API & Cloudinary)
 > Archivos: `models.py`, `serializers_productos.py`, `views_productos.py`, `productos.vue`, `formulario.vue`, `detalles-producto.vue`
 

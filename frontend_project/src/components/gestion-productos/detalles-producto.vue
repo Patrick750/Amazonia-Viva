@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onUnmounted, nextTick } from 'vue';
 
 const props = defineProps({
   abrir: Boolean,
@@ -19,17 +19,77 @@ const formatedPrice = computed(() => {
     return parseFloat(props.producto.precio).toLocaleString('es-CO');
 });
 
-const imagenSeleccionada = ref(0);
-const seleccionarImagen = (index) => {
-    imagenSeleccionada.value = index;
+// --- Carrusel infinito (clone-and-jump) ---
+const internalIndex = ref(1);
+const isTransitioning = ref(true);
+const currentSlide = ref(0);
+let autoTimer = null;
+
+const images = computed(() => props.producto?.imagen_producto || []);
+const len = computed(() => images.value.length);
+
+const trackImages = computed(() => {
+    if (len.value <= 1) return images.value;
+    return [images.value[len.value - 1], ...images.value, images.value[0]];
+});
+
+const trackStyle = computed(() => ({
+    transform: `translateX(-${internalIndex.value * 100}%)`,
+    transition: isTransitioning.value ? 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+}));
+
+const onTransitionEnd = () => {
+    if (len.value <= 1) return;
+    if (internalIndex.value === 0) {
+        isTransitioning.value = false;
+        internalIndex.value = len.value;
+        nextTick(() => { isTransitioning.value = true; });
+    } else if (internalIndex.value === len.value + 1) {
+        isTransitioning.value = false;
+        internalIndex.value = 1;
+        nextTick(() => { isTransitioning.value = true; });
+    }
+    currentSlide.value = internalIndex.value - 1;
 };
 
-// Reiniciar la imagen seleccionada cuando se abre un nuevo producto
-watch(() => props.abrir, (newVal) => {
-    if (newVal) {
-        imagenSeleccionada.value = 0;
+const startAuto = () => {
+    stopAuto();
+    if (len.value > 1) {
+        autoTimer = setInterval(() => { moveNext(); }, 4000);
     }
+};
+
+const stopAuto = () => {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+};
+
+const moveNext = () => { isTransitioning.value = true; internalIndex.value += 1; };
+const movePrev = () => { isTransitioning.value = true; internalIndex.value -= 1; };
+const prevSlide = () => { movePrev(); startAuto(); };
+const nextSlide = () => { moveNext(); startAuto(); };
+
+const goToSlide = (i) => {
+    isTransitioning.value = true;
+    internalIndex.value = i + 1;
+    currentSlide.value = i;
+    startAuto();
+};
+
+watch(() => props.producto, () => {
+    isTransitioning.value = false;
+    internalIndex.value = 1;
+    currentSlide.value = 0;
+    nextTick(() => {
+        isTransitioning.value = true;
+        startAuto();
+    });
+}, { immediate: true });
+
+watch(() => props.abrir, (val) => {
+    if (val) startAuto(); else stopAuto();
 });
+onUnmounted(stopAuto);
+
 </script>
 
 <template>
@@ -44,12 +104,39 @@ watch(() => props.abrir, (newVal) => {
       <!-- Modal Card -->
       <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[95vh] flex flex-col overflow-hidden animate-fade-in-up">
         
-        <!-- HEADER IMAGEN DE FONDO (Galería) -->
+        <!-- HEADER IMAGEN DE FONDO (Galería Carrusel) -->
         <div class="relative h-56 sm:h-72 flex-shrink-0 bg-slate-900 overflow-hidden group">
-            <template v-if="producto.imagen_producto && producto.imagen_producto.length > 0">
-                <img :src="producto.imagen_producto[imagenSeleccionada].url" 
+            
+            <template v-if="images.length > 1">
+                <!-- Track con clones -->
+                <div class="slider-track" :style="trackStyle" @transitionend="onTransitionEnd">
+                    <div v-for="(img, i) in trackImages" :key="'tr-'+i" class="slider-slide">
+                        <img :src="img.url" :alt="producto.nombre" class="w-full h-full object-cover">
+                    </div>
+                </div>
+
+                <!-- Flechas y Controles -->
+                <button @click.stop="prevSlide" class="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:scale-110 shadow-lg opacity-0 group-hover:opacity-100">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <button @click.stop="nextSlide" class="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:scale-110 shadow-lg opacity-0 group-hover:opacity-100">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                </button>
+
+                <!-- Dots indicadores -->
+                <div class="absolute bottom-6 sm:bottom-8 right-6 flex gap-1.5 z-10">
+                    <button v-for="(img, i) in images" :key="'dot-'+i"
+                        @click.stop="goToSlide(i)"
+                        :class="['w-2 h-2 rounded-full transition-all duration-300', i === currentSlide ? 'bg-white scale-125 shadow-md' : 'bg-white/45 hover:bg-white/70']"
+                    />
+                </div>
+            </template>
+            
+            <template v-else-if="images.length === 1">
+                <img :src="images[0].url" 
                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" :alt="producto.nombre">
             </template>
+
             <svg v-else class="w-20 h-20 text-slate-700 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             
             <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent"></div>
@@ -83,10 +170,10 @@ watch(() => props.abrir, (newVal) => {
         <div class="flex-1 overflow-y-auto form-scroll p-6 sm:p-8 space-y-8 bg-slate-50">
             
             <!-- Galería Miniaturas (Si hay múltiples) -->
-            <div v-if="producto.imagen_producto && producto.imagen_producto.length > 1" class="flex items-center gap-3 overflow-x-auto pb-2 form-scroll">
-                <button v-for="(img, i) in producto.imagen_producto" :key="i"
-                        @click="seleccionarImagen(i)"
-                        :class="['w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all', imagenSeleccionada === i ? 'border-emerald-500 ring-2 ring-emerald-500/30' : 'border-transparent opacity-70 hover:opacity-100']">
+            <div v-if="images.length > 1" class="flex items-center gap-3 overflow-x-auto pb-2 form-scroll">
+                <button v-for="(img, i) in images" :key="'thumb-'+i"
+                        @click="goToSlide(i)"
+                        :class="['w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all', currentSlide === i ? 'border-emerald-500 ring-2 ring-emerald-500/30' : 'border-transparent opacity-70 hover:opacity-100 hover:border-emerald-300']">
                     <img :src="img.url" class="w-full h-full object-cover">
                 </button>
             </div>
@@ -141,4 +228,18 @@ watch(() => props.abrir, (newVal) => {
 .form-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
 .form-scroll::-webkit-scrollbar-track { background: transparent; }
 .form-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+
+/* Slider Styles */
+.slider-track {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+}
+.slider-slide {
+    min-width: 100%;
+    height: 100%;
+    flex-shrink: 0;
+}
 </style>
