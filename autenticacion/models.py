@@ -157,10 +157,10 @@ class Categorias(models.Model):
 class Productos(models.Model):
     nombre = models.CharField(max_length=40,null=False,blank=False)
     sku = models.CharField(max_length=150, null=False, blank=False)
-    caracterisitcas = models.JSONField(default=dict, blank=True)
+    caracteristicas = models.JSONField(default=dict, blank=True)
     imagenes = models.JSONField(default=dict, null=True)
     stock = models.IntegerField(null=False, blank=False)
-    precio = models.DecimalField(decimal_places=1000,max_digits=1000, null=False, blank=False)
+    precio = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
     disponible = models.BooleanField(null=False, blank=False)
     categorias = models.ForeignKey(Categorias, on_delete=models.CASCADE, related_name='producto_categorias')
     proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='producto_proveedor')

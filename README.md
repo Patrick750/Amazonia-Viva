@@ -21,6 +21,15 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 
 ---
 
+### 2.3.1 — Corrección de modelos y configuración IDE
+> Archivos: `autenticacion/models.py`, `.vscode/settings.json`
+
+- Corrección de ortografía en el campo `caracteristicas` del modelo `Productos`
+- Ajuste de límites válidos para `precio` (`DecimalField` con max_digits=12, decimal_places=2)
+- Integración de entorno virtual (`venv`) para el IDE a través de `.vscode/settings.json`
+
+---
+
 ### 2.3.0 — Carrusel infinito de imágenes en detalle de tour
 > Rama: `SCRUM-33-Menu-principal-para-agencias` | Archivo: `detalles-tour.vue`
 
