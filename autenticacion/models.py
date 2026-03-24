@@ -155,15 +155,24 @@ class Categorias(models.Model):
     caracteristicas = models.JSONField(default=dict, null=True)
 
 class Productos(models.Model):
+    TIPO_CATALOGO_CHOICES = [
+        ('turistas', 'Turistas'),
+        ('agencias', 'Agencias'),
+    ]
     nombre = models.CharField(max_length=40,null=False,blank=False)
     sku = models.CharField(max_length=150, null=False, blank=False)
     caracteristicas = models.JSONField(default=dict, blank=True)
-    imagenes = models.JSONField(default=dict, null=True)
     stock = models.IntegerField(null=False, blank=False)
     precio = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
     disponible = models.BooleanField(null=False, blank=False)
     categorias = models.ForeignKey(Categorias, on_delete=models.CASCADE, related_name='producto_categorias')
     proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='producto_proveedor')
+    tipo_catalogo = models.CharField(max_length=20, choices=TIPO_CATALOGO_CHOICES, default='turistas')
+
+class ProductoImagen(models.Model):
+    imagen = CloudinaryField('image', folder='amazonia_viva/productos')
+    producto = models.ForeignKey(Productos, on_delete=models.CASCADE, related_name='imagen_producto')
+    es_portada = models.BooleanField(default=False)
     
 class Estados(models.Model):
     estado = models.CharField(max_length=40, null=False, blank=False)

@@ -21,6 +21,17 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 
 ---
 
+### 2.4.0 — Módulo CRUD de Productos Integrado (API & Cloudinary)
+> Archivos: `models.py`, `serializers_productos.py`, `views_productos.py`, `productos.vue`, `formulario.vue`, `detalles-producto.vue`
+
+- Refactorización de la Vista de Productos con un diseño de UI avanzado (Modales dinámicos, Tablas, Estado Reactivo).
+- Creación de Backend API bajo arquitectura SOLID para la gestión de inventario de `Productos`.
+- Integración real con **Cloudinary** mediante el uso del modelo auxiliar `ProductoImagen` y envíos muti-part (`FormData`).
+- Eliminación de la "Data Mock" e inyección de **Categorías Dinámicas** (Seed de DB con comando nativo).
+- Reestructuración del Visor de Detalles (`detalles-producto.vue`) mostrando en tiempo real los metadatos `tipo_catalogo`, galerías miniatura y atributos JSON.
+
+---
+
 ### 2.3.2 — Restricción de Gestión de Paquetes sólo para Agencias
 > Tarea: `SCRUM-50` | Archivos: `dashboard.vue`, `router/index.js`
 
