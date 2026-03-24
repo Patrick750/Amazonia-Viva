@@ -50,14 +50,20 @@ router.beforeEach((to, from, next) => {
 
   if(urlMenus.includes(to.path)){
     if(!token || !rol){
-      next('/panel')
+      return next('/panel')
     }
   } 
+
+  if (to.path === '/panel/gestion-paquetes') {
+    if (rol !== 'agencia') {
+      return next('/panel')
+    }
+  }
 
   if (urlAuth.includes(to.path)) {
     
     if (token && rol) {
-      next(`/panel`)
+      return next(`/panel`)
     }
   }
 

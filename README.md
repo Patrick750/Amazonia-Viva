@@ -21,6 +21,14 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 
 ---
 
+### 2.3.2 — Restricción de Gestión de Paquetes sólo para Agencias
+> Tarea: `SCRUM-50` | Archivos: `dashboard.vue`, `router/index.js`
+
+- Ocultamiento condicional (`v-if`) del botón "Gestionar Catálogo" en el dashboard para roles distintos a agencia.
+- Protección de ruta en el guardián global `beforeEach` para `/panel/gestion-paquetes`, redirigiendo al panel principal a usuarios sin autorización.
+
+---
+
 ### 2.3.1 — Corrección de modelos y configuración IDE
 > Archivos: `autenticacion/models.py`, `.vscode/settings.json`
 
