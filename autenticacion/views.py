@@ -103,14 +103,39 @@ class NewPack(APIView):
         serializer = SerializersCreateNewPack(data=request.data)
         if serializer.is_valid():
             try:
-                serializer.save()
+                # Obtener el objeto Agencia del usuario autenticado
+                agencia = Agencia.objects.get(pk=request.user.pk)
+                serializer.save(agencia=agencia)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Agencia.DoesNotExist:
+                return Response(
+                    {"error": "Solo las agencias pueden crear paquetes turísticos."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
             except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:   
             print('Error en los serializers: ', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+class UpdatePack(APIView):
+    def put(self, request, pk):
+        try:
+            paquete = PaqueteTuristico.objects.get(pk=pk)
+        except PaqueteTuristico.DoesNotExist:
+            return Response({"error": "Paquete no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = SerializersCreateNewPack(paquete, data=request.data, partial=True)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:   
+            print('Error en update serializers: ', serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class PaquetesTuristicos(APIView):
     def get(self, request):
         try:

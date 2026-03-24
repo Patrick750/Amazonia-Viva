@@ -1,10 +1,9 @@
-<script setup>
+  <script setup>
 import { reactive, watch, ref } from 'vue';
 // IMPORTANTE: Asegúrate de colocar la ruta correcta hacia el archivo de tu composable
 import { GuardarRegistro } from '@/composables/gestion-tours/create-pack'; // <-- Ajusta esta ruta
 
-const props = defineProps(['abrir', 'datos']);
-// Cambiamos 'enviar' por 'guardadoExitoso' para avisarle al padre cuando termine
+const props = defineProps(['abrir', 'actividades', 'paquete']);
 const emit = defineEmits(['cerrar', 'guardadoExitoso']); 
 
 // --- INSTANCIA DEL COMPOSABLE ---
@@ -33,7 +32,11 @@ const mostrarNotificacion = (mensaje, tipo = 'exito') => {
 const limpiarFormulario = () => {
     // 1. Limpiar URLs de memoria para evitar fugas (muy importante con imágenes)
     if (newTour.imagen && newTour.imagen.length > 0) {
-        newTour.imagen.forEach(img => URL.revokeObjectURL(img.url));
+        newTour.imagen.forEach(img => {
+            if (img.url && img.url.startsWith('blob:')) {
+                URL.revokeObjectURL(img.url);
+            }
+        });
     }
     
     // 2. Restaurar el objeto principal a su estado inicial
@@ -64,6 +67,7 @@ let autocomplete = null;
 
 // --- ESTADO DEL FORMULARIO ---
 const newTour = reactive({
+    id: null,
     nombre: '',
     descripcion: '',
     precio: '',
@@ -80,13 +84,17 @@ const newTour = reactive({
 
 const inicial = JSON.parse(JSON.stringify(newTour));
 
-watch(() => props.datos, (nuevosdatos) => {
-    if(nuevosdatos){
-        Object.assign(newTour, JSON.parse(JSON.stringify(nuevosdatos)));
+watch(() => props.paquete, (paqueteAEditar) => {
+    if (paqueteAEditar) {
+        Object.assign(newTour, JSON.parse(JSON.stringify(paqueteAEditar)));
         if (!newTour.itinerario || newTour.itinerario.length === 0) newTour.itinerario = [{ time: '', activity: '' }];
         if (!newTour.incluido || newTour.incluido.length === 0) newTour.incluido = [{ item: '' }];
+        if (!newTour.imagen) newTour.imagen = [];
     } else {
         Object.assign(newTour, JSON.parse(JSON.stringify(inicial)));
+        newTour.itinerario = [{ time: '', activity: '' }];
+        newTour.incluido = [{ item: '' }];
+        newTour.imagen = [];
     }
     Object.keys(errores).forEach(key => delete errores[key]);
 }, {immediate: true})
@@ -117,13 +125,15 @@ const removeIncludedItem = (index) => { if (newTour.incluido.length > 1) newTour
 const initMap = () => {
     if (typeof google === 'undefined' || !mapContainer.value || !locationInput.value) return;
 
-    const defaultPos = { lat: 4.6097, lng: -74.0817 }; 
+    const defaultPos = (newTour.latitud && newTour.longitud) 
+        ? { lat: Number(newTour.latitud), lng: Number(newTour.longitud) }
+        : { lat: 4.6097, lng: -74.0817 }; 
 
     map = new google.maps.Map(mapContainer.value, {
-        center: defaultPos, zoom: 12, mapTypeControl: false, streetViewControl: false,
+        center: defaultPos, zoom: (newTour.latitud ? 15 : 12), mapTypeControl: false, streetViewControl: false,
     });
 
-    marker = new google.maps.Marker({ map, position: defaultPos, visible: false });
+    marker = new google.maps.Marker({ map, position: defaultPos, visible: (!!newTour.latitud) });
 
     autocomplete = new google.maps.places.Autocomplete(locationInput.value, {
         fields: ["geometry", "name", "formatted_address"],
@@ -187,7 +197,12 @@ const handleSelect = (event) => {
         });
     }
 };
-const removeImage = (index) => { URL.revokeObjectURL(newTour.imagen[index].url); newTour.imagen.splice(index, 1); };
+const removeImage = (index) => { 
+    if (newTour.imagen[index].url && newTour.imagen[index].url.startsWith('blob:')) {
+        URL.revokeObjectURL(newTour.imagen[index].url); 
+    }
+    newTour.imagen.splice(index, 1); 
+};
 
 // --- ENVÍO DE DATOS ---
 const Enviar = async () => {
@@ -228,13 +243,15 @@ const Enviar = async () => {
         // 4. IMÁGENES
         if (newTour.imagen && newTour.imagen.length > 0) {
             newTour.imagen.forEach(imgObj => {
-                const archivoReal = imgObj.file; 
-                formData.append('archivos_subidos', archivoReal); 
+                if (imgObj.file) {
+                    const archivoReal = imgObj.file; 
+                    formData.append('archivos_subidos', archivoReal); 
+                }
             });
         }
 
         // 5. PETICIÓN A LA API
-        const resultado = await guardarDatos(formData); 
+        const resultado = await guardarDatos(formData, newTour.id); 
         
         // 6. ÉXITO
         mostrarNotificacion('¡Tour guardado correctamente en la base de datos!', 'exito');
@@ -264,8 +281,8 @@ const Enviar = async () => {
           
           <div class="flex items-start justify-between p-6 border-b border-slate-100">
             <div>
-              <h2 class="text-xl font-bold text-emerald-900">Crear Nuevo Tour</h2>
-              <p class="text-sm text-slate-500 mt-1">Agrega un nuevo tour a tu oferta</p>
+              <h2 class="text-xl font-bold text-emerald-900">{{ paquete ? 'Editar Tour' : 'Crear Nuevo Tour' }}</h2>
+              <p class="text-sm text-slate-500 mt-1">{{ paquete ? 'Modifica los datos del tour seleccionado' : 'Agrega un nuevo tour a tu oferta' }}</p>
             </div>
             <button @click="emit('cerrar')" class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -338,7 +355,7 @@ const Enviar = async () => {
               <div :class="['bg-slate-50 p-4 rounded-xl border transition-all', errores.actividades ? 'border-red-300' : 'border-slate-100']">
                 <label class="block text-sm font-semibold text-slate-700 mb-3">Actividades del Paquete <span class="text-emerald-600">*</span></label>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2 form-scroll">
-                  <label v-for="actividad in datos" :key="actividad.id"
+                  <label v-for="actividad in actividades" :key="actividad.id"
                          class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/30 transition-all group">
                     <input type="checkbox" :value="actividad.id" v-model="newTour.actividades"
                            class="mt-0.5 w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500/50">
@@ -432,7 +449,7 @@ const Enviar = async () => {
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <span>{{ isLoading ? 'Guardando...' : 'Crear Tour' }}</span>
+              <span>{{ isLoading ? 'Guardando...' : (paquete ? 'Guardar Cambios' : 'Crear Tour') }}</span>
             </button>
           </div>
         </div>

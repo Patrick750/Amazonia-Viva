@@ -15,6 +15,7 @@ future==1.0.0
 gevent==25.9.1
 greenlet==3.3.2
 idna==3.11
+pillow==12.1.1
 psycopg2-binary==2.9.11
 pycparser==3.0
 PyJWT==2.11.0

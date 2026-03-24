@@ -99,6 +99,11 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
         write_only=True, 
         required=False
     )
+    agencia = serializers.PrimaryKeyRelatedField(
+        queryset=Agencia.objects.all(),
+        write_only=True,
+        required=False
+    )
 
     class Meta:
         model = PaqueteTuristico
@@ -106,7 +111,7 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
             'id', 'nombre', 'descripcion', 'precio', 'duracion', 
             'ubicacion', 'latitud', 'longitud', 'capacidad', 
             'actividades', 'itinerario', 'incluido', 
-            'imagen_paquete', 'archivos_subidos'
+            'imagen_paquete', 'archivos_subidos', 'agencia'
         ]
 
     def create(self, validated_data):
@@ -125,6 +130,23 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
                 DestinoTuristico.objects.create(paquete=paquete, imagen=archivo)
 
         return paquete
+
+    def update(self, instance, validated_data):
+        archivos = validated_data.pop('archivos_subidos', [])
+        actividades_data = validated_data.pop('actividades', None)
+        
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        if actividades_data is not None:
+            instance.actividades.set(actividades_data)
+            
+        if archivos:
+            for archivo in archivos:
+                DestinoTuristico.objects.create(paquete=instance, imagen=archivo)
+                
+        return instance
 
 class SerializersImagenes(serializers.ModelSerializer):
     class Meta:

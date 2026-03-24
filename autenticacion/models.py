@@ -106,6 +106,14 @@ class PaqueteTuristico(models.Model):
     latitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitud = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
+    # --- Agencia propietaria ---
+    agencia = models.ForeignKey(
+        'Agencia',
+        on_delete=models.CASCADE,
+        related_name='paquetes_agencia',
+        verbose_name="Agencia"
+    )
+
     # --- LA RELACIÓN CON TUS CATEGORÍAS/ACTIVIDADES ---
     actividades = models.ManyToManyField(
         Actividad, 
