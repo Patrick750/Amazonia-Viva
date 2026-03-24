@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue';
 
 const props = defineProps({
   abrir: Boolean,
@@ -9,16 +9,93 @@ const props = defineProps({
 
 const emit = defineEmits(['cerrar']);
 
-// Para manejar qué imagen se muestra de principal si hay varias
-const imagenPrincipal = ref(null);
+// --- Carrusel infinito (clone-and-jump) ---
+// El track tiene: [clon_último, slide0, slide1, ..., slideN-1, clon_primero]
+// El índice interno empieza en 1 (apuntando al slide real 0).
 
-watch(() => props.paquete, () => {
-    imagenPrincipal.value = null;
+const internalIndex = ref(1);   // posición real en el track (incluye clones)
+const isTransitioning = ref(true);
+const currentSlide = ref(0);    // índice lógico 0-based (para dots y miniaturas)
+let autoTimer = null;
+
+const images = computed(() => props.paquete?.imagen_paquete || []);
+const len = computed(() => images.value.length);
+
+// Track = [último, ...originales, primero]
+const trackImages = computed(() => {
+    if (len.value <= 1) return images.value;
+    return [images.value[len.value - 1], ...images.value, images.value[0]];
 });
 
-const setImagenPrincipal = (url) => {
-    imagenPrincipal.value = url;
+const trackStyle = computed(() => ({
+    transform: `translateX(-${internalIndex.value * 100}%)`,
+    transition: isTransitioning.value ? 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+}));
+
+// Al terminar la transición, salta silenciosamente si estamos en un clon
+const onTransitionEnd = () => {
+    if (len.value <= 1) return;
+    if (internalIndex.value === 0) {
+        // Salto silencioso: clon del último → real último
+        isTransitioning.value = false;
+        internalIndex.value = len.value;
+        nextTick(() => { isTransitioning.value = true; });
+    } else if (internalIndex.value === len.value + 1) {
+        // Salto silencioso: clon del primero → real primero
+        isTransitioning.value = false;
+        internalIndex.value = 1;
+        nextTick(() => { isTransitioning.value = true; });
+    }
+    currentSlide.value = internalIndex.value - 1; // actualiza dot activo
 };
+
+const startAuto = () => {
+    stopAuto();
+    if (len.value > 1) {
+        autoTimer = setInterval(() => { moveNext(); }, 4000);
+    }
+};
+
+const stopAuto = () => {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+};
+
+const moveNext = () => {
+    isTransitioning.value = true;
+    internalIndex.value += 1;
+};
+
+const movePrev = () => {
+    isTransitioning.value = true;
+    internalIndex.value -= 1;
+};
+
+const prevSlide = () => { movePrev(); startAuto(); };
+const nextSlide = () => { moveNext(); startAuto(); };
+
+const goToSlide = (i) => {
+    isTransitioning.value = true;
+    internalIndex.value = i + 1;  // +1 por el clon del inicio
+    currentSlide.value = i;
+    startAuto();
+};
+
+// Reset al cambiar de paquete
+watch(() => props.paquete, () => {
+    isTransitioning.value = false;
+    internalIndex.value = 1;
+    currentSlide.value = 0;
+    nextTick(() => {
+        isTransitioning.value = true;
+        startAuto();
+    });
+}, { immediate: true });
+
+watch(() => props.abrir, (val) => {
+    if (val) startAuto(); else stopAuto();
+});
+
+onUnmounted(stopAuto);
 
 // Formatear precio
 const formatPrice = (price) => {
@@ -48,34 +125,70 @@ const getNombreActividad = (id) => {
       <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up border-2 border-slate-100">
         
         <!-- Header / Portada -->
-        <div class="relative w-full h-48 sm:h-64 bg-slate-100 flex-shrink-0">
-            <template v-if="paquete?.imagen_paquete && paquete.imagen_paquete.length > 0">
-                <img 
-                    :src="imagenPrincipal || paquete.imagen_paquete.find(i => i.es_portada)?.url || paquete.imagen_paquete[0].url" 
-                    alt="Portada del Tour" 
-                    class="w-full h-full object-cover"
-                />
+        <div class="relative w-full h-48 sm:h-64 bg-slate-100 flex-shrink-0 overflow-hidden">
+
+            <!-- CARRUSEL INFINITO: más de 1 imagen -->
+            <template v-if="images.length > 1">
+                <!-- Track con clones: [últimoClón, ...originales, primerClón] -->
+                <div class="slider-track" :style="trackStyle" @transitionend="onTransitionEnd">
+                    <div v-for="(img, i) in trackImages" :key="i" class="slider-slide">
+                        <img :src="img.url" :alt="img.nombre || 'Imagen del Tour'" class="w-full h-full object-cover" />
+                    </div>
+                </div>
+
+                <!-- Flecha izquierda -->
+                <button @click.stop="prevSlide"
+                    class="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:scale-110 shadow-lg">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+
+                <!-- Flecha derecha -->
+                <button @click.stop="nextSlide"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:scale-110 shadow-lg">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                </button>
+
+                <!-- Dots indicadores -->
+                <div class="absolute bottom-14 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                    <button v-for="(img, i) in images" :key="'dot-'+i"
+                        @click.stop="goToSlide(i)"
+                        :class="['w-2 h-2 rounded-full transition-all duration-300', i === currentSlide ? 'bg-white scale-125 shadow-md' : 'bg-white/45 hover:bg-white/70']"
+                    />
+                </div>
+
+                <!-- Contador -->
+                <div class="absolute top-4 left-4 z-10 px-2.5 py-1 bg-black/40 backdrop-blur-sm rounded-full text-white text-xs font-semibold">
+                    {{ currentSlide + 1 }} / {{ images.length }}
+                </div>
             </template>
+
+
+            <!-- IMAGEN ÚNICA -->
+            <template v-else-if="paquete?.imagen_paquete && paquete.imagen_paquete.length === 1">
+                <img :src="paquete.imagen_paquete[0].url" alt="Portada del Tour" class="w-full h-full object-cover" />
+            </template>
+
+            <!-- SIN IMAGEN -->
             <div v-else class="w-full h-full flex items-center justify-center bg-emerald-50">
                 <svg class="w-16 h-16 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             </div>
 
             <!-- Gradiente para texto overlay -->
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent pointer-events-none"></div>
 
             <!-- Boton de cerrar -->
-            <button @click="emit('cerrar')" class="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all hover:rotate-90">
+            <button @click="emit('cerrar')" class="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all hover:rotate-90 z-10">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
             <!-- Titulo Overlay -->
-            <div class="absolute bottom-0 left-0 w-full p-6 sm:px-8">
+            <div class="absolute bottom-0 left-0 w-full p-6 sm:px-8 pointer-events-none z-10">
                 <div class="flex items-center gap-2 mb-2">
                     <span :class="['px-3 py-1 text-xs font-bold rounded-full border backdrop-blur-sm', paquete?.activo ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30']">
                         {{ paquete?.activo ? 'Activo' : 'Inactivo' }}
                     </span>
                     <span class="px-3 py-1 text-xs font-bold rounded-full bg-slate-800/50 text-slate-300 border border-slate-600/50 backdrop-blur-sm">
-                        {{ paquete?.duracion }}
+                        {{ paquete?.duracion }} h
                     </span>
                 </div>
                 <h2 class="text-3xl sm:text-4xl font-bold text-white drop-shadow-md leading-tight">{{ paquete?.nombre }}</h2>
@@ -98,11 +211,11 @@ const getNombreActividad = (id) => {
                         <p class="text-slate-600 leading-relaxed text-sm sm:text-base">{{ paquete?.descripcion || 'Sin descripción detallada.' }}</p>
                     </section>
 
-                    <!-- Galeria Miniaturas -->
-                    <section v-if="paquete?.imagen_paquete && paquete.imagen_paquete.length > 1">
+                    <!-- Galeria Miniaturas (thumbnails del slider) -->
+                    <section v-if="images.length > 1">
                         <div class="flex gap-3 overflow-x-auto pb-2 form-scroll">
-                            <button v-for="img in paquete.imagen_paquete" :key="img.id" @click="setImagenPrincipal(img.url)"
-                                :class="['relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all', (imagenPrincipal === img.url || (!imagenPrincipal && img.es_portada)) ? 'border-emerald-500 scale-105' : 'border-transparent hover:border-emerald-300']">
+                            <button v-for="(img, i) in images" :key="img.id" @click="goToSlide(i)"
+                                :class="['relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all', i === currentSlide ? 'border-emerald-500 scale-105' : 'border-transparent hover:border-emerald-300']">
                                 <img :src="img.url" class="w-full h-full object-cover" />
                             </button>
                         </div>
@@ -215,4 +328,18 @@ const getNombreActividad = (id) => {
 .detail-scroll::-webkit-scrollbar { width: 6px; }
 .detail-scroll::-webkit-scrollbar-track { background: transparent; }
 .detail-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+
+/* Slider */
+.slider-track {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+}
+.slider-slide {
+    min-width: 100%;
+    height: 100%;
+    flex-shrink: 0;
+}
 </style>
