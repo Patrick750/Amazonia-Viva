@@ -8,6 +8,8 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 - **Frontend:** Vue 3 + Vite + Vue Router
 - **Base de datos:** PostgreSQL
 - **Autenticación:** JWT / Sesiones Django
+- **Servicios en la nube:** Cloudinary (Imágenes)
+- **Control de versiones:** Git
 
 ---
 
@@ -18,6 +20,17 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MAYOR** — cambio funcional significativo o rediseño arquitectónico
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
+
+---
+
+### 2.5.0 — Dashboard Analítico y Control Integral de Productos
+> Archivos: `productos.vue`, `formulario.vue`, `eliminar-producto.vue`, `seed_categorias_productos.py`
+
+- **[Feature] Búsqueda Reactiva**: Implementación de un motor de búsqueda instantánea por Nombre de Producto o SKU sobre la grilla principal.
+- **[Feature] Alertas de Stock**: Nuevo Widget lateral derecho para monitorizar e identificar automáticamente productos con niveles críticos de inventario (≤ 5).
+- **[Feature] Eliminación Dinámica**: Creación del componente `eliminar-producto.vue` con un modal animado de "Candado de Seguridad Turística", erradicando las alertas nativas del navegador, finalizando con una petición `DELETE` segura al API.
+- **[Feature] Rediseño de Categorías**: Reescritura completa del Seeder en Django y el mapeo en VueJS para orientar el catálogo estrictamente a perfiles de "Seguridad y Supervivencia" (p.ej. _Indumentaria Outdoor_, _Tecnología y Navegación_).
+- **[Feature] Validaciones Estrictas**: Integración proactiva y segura del entorno de notificaciones Toaster en Vue para atrapar campos vacíos, características sin variables o pre-aprobación del precio superior a $0 localmente.
 
 ---
 

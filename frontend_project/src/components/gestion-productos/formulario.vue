@@ -1,6 +1,9 @@
 <script setup>
 import { ref, watch, defineProps, defineEmits } from 'vue';
 import axios from 'axios';
+import { useNotificacion } from '@/composables/useNotificacion';
+
+const { mostrarNotificacion } = useNotificacion();
 
 const API_URL = 'http://localhost:8000/api/productos/';
 
@@ -37,11 +40,11 @@ const inicialForm = {
 };
 
 const categoriasLista = [
-    { id: 1, nombre: 'Artesanías' },
-    { id: 2, nombre: 'Arte y Decoración' },
-    { id: 3, nombre: 'Salud y Bienestar' },
-    { id: 4, nombre: 'Souvenirs y Recuerdos' },
-    { id: 5, nombre: 'Ropa y Textiles' }
+    { id: 1, nombre: 'Equipos de Supervivencia' },
+    { id: 2, nombre: 'Seguridad y Primeros Auxilios' },
+    { id: 3, nombre: 'Indumentaria Outdoor' },
+    { id: 4, nombre: 'Accesorios de Viaje' },
+    { id: 5, nombre: 'Tecnología y Navegación' }
 ];
 
 const atributosPredefinidos = [
@@ -68,7 +71,49 @@ watch(() => props.producto, (prodActual) => {
     }
 }, { immediate: true });
 
+const validarFormulario = () => {
+    if (!form.value.nombre || form.value.nombre.trim().length < 3) {
+        mostrarNotificacion('El nombre debe tener al menos 3 caracteres.', 'error');
+        return false;
+    }
+    if (!form.value.sku || form.value.sku.trim().length < 2) {
+        mostrarNotificacion('El SKU/Código es obligatorio.', 'error');
+        return false;
+    }
+    if (!form.value.precio || form.value.precio <= 0) {
+        mostrarNotificacion('El precio debe ser superior a $0 COP.', 'error');
+        return false;
+    }
+    if (form.value.stock === '' || form.value.stock === null || form.value.stock < 0) {
+        mostrarNotificacion('El stock inicial no puede ser negativo.', 'error');
+        return false;
+    }
+    if (!form.value.categorias) {
+        mostrarNotificacion('Debes clasificar el producto en una Categoría.', 'error');
+        return false;
+    }
+    
+    // Validación estructural de atributos clave/valor
+    if (form.value.caracteristicas && form.value.caracteristicas.length > 0) {
+        const filaVacia = form.value.caracteristicas.find(c => !c.clave.trim() || !c.valor.trim());
+        if (filaVacia) {
+            mostrarNotificacion('Completa los Atributos Extra o elimina la fila vacía.', 'error');
+            return false;
+        }
+    }
+
+    // Validación multimedia obligatoria
+    if (!form.value.imagenes || form.value.imagenes.length === 0) {
+        mostrarNotificacion('Debes adjuntar al menos 1 fotografía del producto.', 'warning');
+        return false;
+    }
+
+    return true;
+};
+
 const guardarProducto = async () => {
+    if (!validarFormulario()) return;
+    
     isLoading.value = true;
     try {
         const formData = new FormData();

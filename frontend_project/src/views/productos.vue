@@ -1,23 +1,41 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
 import TablaProductos from '@/components/gestion-productos/tabla-productos.vue';
 import FormularioProducto from '@/components/gestion-productos/formulario.vue';
 import DetallesProducto from '@/components/gestion-productos/detalles-producto.vue';
+import EliminarProducto from '@/components/gestion-productos/eliminar-producto.vue';
 
 const API_URL = 'http://localhost:8000/api/productos/';
 
 const vistaActiva = ref('turistas'); // 'turistas' o 'agencias'
 
 const categoriasLista = [
-    { id: 1, nombre: 'Artesanías' },
-    { id: 2, nombre: 'Arte y Decoración' },
-    { id: 3, nombre: 'Salud y Bienestar' },
-    { id: 4, nombre: 'Souvenirs y Recuerdos' },
-    { id: 5, nombre: 'Ropa y Textiles' }
+    { id: 1, nombre: 'Equipos de Supervivencia' },
+    { id: 2, nombre: 'Seguridad y Primeros Auxilios' },
+    { id: 3, nombre: 'Indumentaria Outdoor' },
+    { id: 4, nombre: 'Accesorios de Viaje' },
+    { id: 5, nombre: 'Tecnología y Navegación' }
 ];
 
 const listadoProductos = ref([]);
+const searchQuery = ref('');
+
+const listadoFiltrado = computed(() => {
+    let filtrado = listadoProductos.value;
+    if (searchQuery.value.trim()) {
+        const q = searchQuery.value.toLowerCase();
+        filtrado = filtrado.filter(p => 
+            p.nombre.toLowerCase().includes(q) || 
+            p.sku.toLowerCase().includes(q)
+        );
+    }
+    return filtrado;
+});
+
+const productosAlertaStock = computed(() => {
+    return listadoProductos.value.filter(p => p.stock >= 0 && p.stock <= 5).sort((a,b) => a.stock - b.stock);
+});
 
 const fetchProductos = async () => {
     try {
@@ -74,20 +92,44 @@ const onGuardadoExitoso = () => {
     fetchProductos(); // Refresh list after complete
 };
 
-const eliminarProducto = (id) => {
-    if(confirm("¿Estás seguro de que quieres eliminar este producto?")) {
-        listadoProductos.value = listadoProductos.value.filter(p => p.id !== id);
+// --- ESTADO DEL MODAL ELIMINAR ---
+const isModalEliminarOpen = ref(false);
+const productoParaEliminar = ref(null);
+
+const abrirModalEliminar = (id) => {
+    const prod = listadoProductos.value.find(p => p.id === id);
+    if (prod) {
+        productoParaEliminar.value = prod;
+        isModalEliminarOpen.value = true;
     }
+};
+
+const cerrarModalEliminar = () => {
+    isModalEliminarOpen.value = false;
+    setTimeout(() => { productoParaEliminar.value = null; }, 300);
+};
+
+const onEliminadoExitoso = (id) => {
+    listadoProductos.value = listadoProductos.value.filter(p => p.id !== id);
+    cerrarModalEliminar();
+};
+
+const eliminarProducto = (id) => {
+    abrirModalEliminar(id);
 };
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#e8f4f1] p-6 md:p-10 relative z-0 flex flex-col items-center">
-    <div class="max-w-7xl w-full">
+  <div class="min-h-screen bg-[#e8f4f1] p-6 md:p-8 relative z-0 flex flex-col items-center">
+    <div class="max-w-[90rem] w-full">
 
       <!-- HEADER PRINCIPAL -->
       <header class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 animate-fade-in-down">
         <div>
+          <router-link to="/panel/dashboard" class="group inline-flex items-center gap-2 text-sm font-bold text-emerald-600 hover:text-emerald-800 mb-3 transition-colors">
+            <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            Volver al Dashboard
+          </router-link>
           <h1 class="text-3xl font-bold text-emerald-900 tracking-tight">Gestión de Productos</h1>
           <p class="text-slate-600 mt-1">Administra la oferta de inventario en tus diferentes catálogos</p>
         </div>
@@ -98,8 +140,8 @@ const eliminarProducto = (id) => {
         </button>
       </header>
       
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in-up" style="animation-delay: 0.1s;">
-        <!-- SIDEBAR -->
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 animate-fade-in-up" style="animation-delay: 0.1s;">
+        <!-- SIDEBAR IZQUIERDO: Catálogos -->
         <aside class="lg:col-span-1 bg-white/65 backdrop-blur-xl border border-white/80 rounded-2xl p-6 shadow-sm h-fit">
           <h2 class="text-sm font-semibold text-emerald-900 uppercase tracking-wider mb-4 border-b border-white/80 pb-3">Catálogos</h2>
           <nav class="flex flex-col gap-2">
@@ -118,16 +160,52 @@ const eliminarProducto = (id) => {
           </nav>
         </aside>
 
-        <!-- CONTENIDO PRINCIPAL (Tabla) -->
-        <main class="lg:col-span-3">
+        <!-- CONTENIDO PRINCIPAL (Tabla + Buscador) -->
+        <main class="lg:col-span-3 flex flex-col gap-5">
+          
+          <!-- BÚSQUEDA Y FILTRO -->
+          <div class="bg-white/65 backdrop-blur-xl border border-white/80 rounded-2xl p-3 shadow-sm flex flex-col sm:flex-row items-center gap-4">
+            <div class="relative flex-1 w-full">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input v-model="searchQuery" type="text" placeholder="Buscar por nombre, SKU o coincidencia..." class="w-full bg-white border-2 border-transparent rounded-xl pl-10 pr-4 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:border-emerald-300 focus:shadow-md transition-all placeholder:text-slate-400">
+            </div>
+            
+            <div class="flex items-center gap-2 flex-shrink-0 bg-emerald-50 px-4 py-1.5 rounded-xl border border-emerald-100">
+               <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Coincidencias:</span>
+               <span class="text-emerald-600 text-sm font-black">{{ listadoFiltrado.length }}</span>
+            </div>
+          </div>
+
           <TablaProductos 
-             :datos="listadoProductos" 
+             :datos="listadoFiltrado" 
              :tipo-catalogo="vistaActiva"
              @editar="editarProducto"
              @eliminar="eliminarProducto"
              @verDetalles="verDetallesProducto"
           />
         </main>
+
+        <!-- SIDEBAR DERECHO: Alertas de Stock -->
+        <aside class="lg:col-span-1 bg-white/65 backdrop-blur-xl border border-white/80 rounded-2xl p-5 shadow-sm h-fit">
+          <h2 class="text-xs font-bold text-rose-600 uppercase tracking-wider mb-4 border-b border-rose-200/50 pb-3 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            Nivel Crítico de Stock
+          </h2>
+          <div v-if="productosAlertaStock.length === 0" class="text-xs text-slate-500 text-center py-6 bg-slate-50/50 rounded-xl font-medium border border-dashed border-slate-200">
+            🌱 Excelente, tu inventario está saludable.
+          </div>
+          <ul v-else class="space-y-3 max-h-[60vh] overflow-y-auto pr-1 form-scroll">
+            <li v-for="prod in productosAlertaStock" :key="prod.id" class="p-3 bg-rose-50/80 hover:bg-rose-100 rounded-xl border border-rose-200/60 flex justify-between items-start gap-2 transition-colors cursor-default" @click="verDetallesProducto(prod)">
+              <div class="overflow-hidden">
+                <p class="text-[11px] font-bold text-slate-800 leading-tight truncate">{{ prod.nombre }}</p>
+                <p class="text-[9px] text-slate-500 font-mono mt-1 bg-white/60 inline-block px-1.5 py-0.5 rounded">{{ prod.sku }}</p>
+              </div>
+              <span class="px-2 py-1 bg-rose-500 text-white rounded-md text-[10px] font-black shadow-sm flex-shrink-0 flex items-center justify-center min-w-[24px]">
+                {{ prod.stock }}
+              </span>
+            </li>
+          </ul>
+        </aside>
       </div>
 
       <!-- MODAL DEL FORMULARIO -->
@@ -145,6 +223,14 @@ const eliminarProducto = (id) => {
         :producto="productoParaDetalle"
         :categorias-lista="categoriasLista"
         @cerrar="cerrarModalDetalles"
+      />
+
+      <!-- MODAL DE ELIMINAR -->
+      <EliminarProducto 
+        :abrir="isModalEliminarOpen"
+        :producto="productoParaEliminar"
+        @cerrar="cerrarModalEliminar"
+        @eliminadoExitoso="onEliminadoExitoso"
       />
 
     </div>
