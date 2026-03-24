@@ -95,6 +95,7 @@ class Actividad(models.Model):
 
 class PaqueteTuristico(models.Model):
     # --- Datos Básicos ---
+    activo = models.BooleanField(default=True, verbose_name="Activo")
     nombre = models.CharField(max_length=200, verbose_name="Nombre del Tour")
     descripcion = models.TextField(verbose_name="Descripción")
     precio = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio (COP)")

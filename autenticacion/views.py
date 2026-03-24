@@ -136,6 +136,17 @@ class UpdatePack(APIView):
             print('Error en update serializers: ', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class DeletePack(APIView):
+    def delete(self, request, pk):
+        try:
+            paquete = PaqueteTuristico.objects.get(pk=pk)
+            paquete.delete()
+            return Response({"mensaje": "Paquete eliminado exitosamente"}, status=status.HTTP_200_OK)
+        except PaqueteTuristico.DoesNotExist:
+            return Response({"error": "Paquete no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class PaquetesTuristicos(APIView):
     def get(self, request):
         try:

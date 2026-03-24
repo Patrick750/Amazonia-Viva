@@ -2,6 +2,8 @@
     import { ref, onMounted } from 'vue';
     import Tours from '@/components/gestion-catalogo/tours.vue';
     import Formulario from '@/components/gestion-catalogo/formulario.vue';
+    import ConfirmarEliminar from '@/components/gestion-catalogo/delete.vue';
+    import Notificacion from '@/components/notificacion.vue';
     import { pedirActividades } from '@/composables/gestion-tours/actividades';
     import { paquetes } from '@/composables/gestion-tours/paquetes';
 
@@ -22,6 +24,28 @@
     const cerrarModal = () => {
         isModalOpen.value = false;
         paqueteSeleccionado.value = null;
+    };
+
+    // --- ESTADO DEL MODAL ELIMINAR ---
+    const isDeleteModalOpen = ref(false);
+    const paqueteAEliminar = ref(null);
+
+    const abrirModalEliminar = (id) => {
+        const tour = paquetesTraidos.value.find(p => p.id === id);
+        if (tour) {
+            paqueteAEliminar.value = tour;
+            isDeleteModalOpen.value = true;
+        }
+    };
+
+    const cerrarModalEliminar = () => {
+        isDeleteModalOpen.value = false;
+        paqueteAEliminar.value = null;
+    };
+
+    const onEliminadoExitoso = (id) => {
+        paquetesTraidos.value = paquetesTraidos.value.filter(p => p.id !== id);
+        cerrarModalEliminar();
     };
 
     const onGuardadoExitoso = (paqueteActualizado) => {
@@ -69,6 +93,7 @@
       <Tours
         :datos="paquetesTraidos"
         @editar="editarTour"
+        @eliminar="abrirModalEliminar"
       ></Tours>
     </main>
     <Formulario
@@ -78,6 +103,15 @@
       :paquete="paqueteSeleccionado"
       @guardadoExitoso="onGuardadoExitoso"
     ></Formulario>
+
+    <ConfirmarEliminar
+      :abrir="isDeleteModalOpen"
+      :paquete="paqueteAEliminar"
+      @cerrar="cerrarModalEliminar"
+      @eliminadoExitoso="onEliminadoExitoso"
+    ></ConfirmarEliminar>
+
+    <Notificacion />
   </div>
 </template>
 

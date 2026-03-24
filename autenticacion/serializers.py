@@ -86,17 +86,28 @@ class SerializersActividades(serializers.ModelSerializer):
         fields = '__all__'
 
 class SerializersImages(serializers.ModelSerializer):
-    url = serializers.ImageField(source='imagen') 
+    url = serializers.SerializerMethodField()
     
+    def get_url(self, obj):
+        # CloudinaryField tiene una propiedad .url que retorna la URL completa del CDN
+        if obj.imagen:
+            return obj.imagen.url
+        return None
+
     class Meta:
-        model = DestinoTuristico # Antes decía models
-        fields = ['id', 'url', 'es_portada'] # Antes decía field y faltaba 'url'
+        model = DestinoTuristico
+        fields = ['id', 'url', 'es_portada']
 
 class SerializersCreateNewPack(serializers.ModelSerializer):
     imagen_paquete = SerializersImages(many=True, read_only=True)
     archivos_subidos = serializers.ListField(
         child=serializers.ImageField(), 
         write_only=True, 
+        required=False
+    )
+    imagenes_eliminar = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
         required=False
     )
     agencia = serializers.PrimaryKeyRelatedField(
@@ -108,10 +119,10 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
     class Meta:
         model = PaqueteTuristico
         fields = [
-            'id', 'nombre', 'descripcion', 'precio', 'duracion', 
+            'id', 'activo', 'nombre', 'descripcion', 'precio', 'duracion', 
             'ubicacion', 'latitud', 'longitud', 'capacidad', 
             'actividades', 'itinerario', 'incluido', 
-            'imagen_paquete', 'archivos_subidos', 'agencia'
+            'imagen_paquete', 'archivos_subidos', 'imagenes_eliminar', 'agencia'
         ]
 
     def create(self, validated_data):
@@ -133,8 +144,20 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         archivos = validated_data.pop('archivos_subidos', [])
+        imagenes_eliminar_list = validated_data.pop('imagenes_eliminar', [])
         actividades_data = validated_data.pop('actividades', None)
         
+        if imagenes_eliminar_list:
+            import cloudinary.uploader
+            for img_id in imagenes_eliminar_list:
+                try:
+                    img = DestinoTuristico.objects.get(id=img_id, paquete=instance)
+                    if img.imagen:
+                        cloudinary.uploader.destroy(img.imagen.public_id)
+                    img.delete()
+                except DestinoTuristico.DoesNotExist:
+                    pass
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -154,6 +177,8 @@ class SerializersImagenes(serializers.ModelSerializer):
         fields = '__all__'
 
 class SerializersPaquetes(serializers.ModelSerializer):
+    imagen_paquete = SerializersImages(many=True, read_only=True)
+
     class Meta:
         model = PaqueteTuristico
         fields = '__all__'

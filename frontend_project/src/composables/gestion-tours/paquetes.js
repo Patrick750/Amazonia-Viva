@@ -9,3 +9,13 @@ export const paquetes = async () => {
     }
 }
 
+export const eliminarPaquete = async (id) => {
+    try {
+        const response = await clienteAxios.delete(`api/deletepack/${id}/`);
+        return response.data;
+    } catch (error) {
+        console.error('Hubo un error al eliminar: ' + error);
+        throw error;
+    }
+}
+
