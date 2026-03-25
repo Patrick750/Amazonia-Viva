@@ -3,6 +3,11 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import *
 from django.contrib.auth.models import Group
 
+class CategoriaPaqueteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CategoriaPaquete
+        fields = '__all__'
+
 class AgenciaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agencia
@@ -122,7 +127,8 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
             'id', 'activo', 'nombre', 'descripcion', 'precio', 'duracion', 
             'ubicacion', 'latitud', 'longitud', 'capacidad', 
             'actividades', 'itinerario', 'incluido', 
-            'imagen_paquete', 'archivos_subidos', 'imagenes_eliminar', 'agencia'
+            'imagen_paquete', 'archivos_subidos', 'imagenes_eliminar', 'agencia',
+            'categoria_paquete'
         ]
 
     def create(self, validated_data):
@@ -191,6 +197,8 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
     nivel_riesgo = serializers.SerializerMethodField()
     num_calificaciones = serializers.SerializerMethodField()
 
+    categoria_paquete_nombre = serializers.CharField(source='categoria_paquete.nombre', read_only=True)
+
     def get_imagen_portada(self, obj):
         portada = obj.imagen_paquete.filter(es_portada=True).first()
         if not portada:
@@ -211,7 +219,8 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
         fields = [
             'id', 'nombre', 'descripcion', 'precio', 'duracion',
             'ubicacion', 'ciudad', 'rating', 'num_calificaciones',
-            'imagen_portada', 'nombre_agencia', 'nivel_riesgo', 'activo'
+            'imagen_portada', 'nombre_agencia', 'nivel_riesgo', 'activo',
+            'categoria_paquete_nombre', 'categoria_paquete'
         ]
 
 

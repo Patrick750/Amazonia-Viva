@@ -20,6 +20,19 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MAYOR** — cambio funcional significativo o rediseño arquitectónico
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
+22: 
+23: ### 2.7.0 — Sistema de Categorización de Tours (SCRUM-40)
+24: > Archivos: `models.py`, `serializers.py`, `views.py`, `seed_categorias_paquetes.py`, `formulario.vue`, `catalogo.vue`, `useCatalogo.js`
+25: 
+26: - **[Feature] Modelo CategoriaPaquete**: Estructura jerárquica con 29 subcategorías organizadas en 7 grupos dinámicos (Naturaleza, Aventura, Cultura, etc.).
+27: - **[Feature] Seed de Categorías**: Comando `python manage.py seed_categorias_paquetes` para poblar el sistema con las categorías oficiales.
+28: - **[Feature] Selección en Formulario**: Selector agrupado (`<optgroup>`) en la creación y edición de tours con validación obligatoria.
+29: - **[Feature] Filtrado Avanzado en Catálogo**: 
+30:     - Panel de filtrado global por Grupo y Subcategoría en la pestaña de Tours.
+31:     - Persistencia de filtros al cambiar el ordenamiento.
+32:     - Soporte para filtrado por grupo completo o categoría específica.
+33: - **[Optimization] Backend**: Implementación de `select_related` y `prefetch_related` para optimizar las consultas del catálogo.
+34: 
 
 ### 2.6.0 — Módulo de Catálogo Público (SCRUM-40)
 > Archivos: `catalogo.vue`, `tarjeta-tour.vue`, `tarjeta-producto.vue`, `useCatalogo.js`, `views.py`, `serializers.py`, `urls.py`, `router/index.js`, `navigation.js`
@@ -230,6 +243,7 @@ python manage.py migrate
 # Iniciar servidor
 python manage.py seed_actividades
 python manage.py seed_groups
+python manage.py seed_categorias_paquetes
 python manage.py runserver
 ```
 

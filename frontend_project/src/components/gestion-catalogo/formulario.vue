@@ -2,6 +2,7 @@
 import { reactive, watch, ref, computed } from 'vue';
 import { GuardarRegistro } from '@/composables/gestion-tours/create-pack';
 import { useNotificacion } from '@/composables/useNotificacion';
+import clienteAxios from '@/api/axios';
 
 const props = defineProps(['abrir', 'actividades', 'paquete']);
 const emit = defineEmits(['cerrar', 'guardadoExitoso']);
@@ -38,8 +39,20 @@ const newTour = reactive({
     actividades: [],
     itinerario: [{ time: '', activity: '' }],
     incluido: [{ item: '' }],
-    imagen: []   // nuevas imágenes locales { file, url, name }
+    imagen: [],   // nuevas imágenes locales { file, url, name }
+    categoria_paquete: ''
 });
+
+const categorias = ref([]);
+const fetchCategorias = async () => {
+    try {
+        const { data } = await clienteAxios.get('api/categorias-paquetes/');
+        // Agrupar categorías por grupo para un mejor select (opcional, pero vamos a listarlas simples primero)
+        categorias.value = data;
+    } catch (error) {
+        console.error("Error al cargar categorías", error);
+    }
+};
 
 // Imágenes ya guardadas en BD (solo edición)
 const imagenesExistentes = ref([]);   // { id, url, es_portada }
@@ -102,6 +115,7 @@ const validarFormulario = () => {
     if (!newTour.precio || newTour.precio <= 0) { errores.precio = "Precio inválido."; valido = false; }
     if (!newTour.duracion?.trim()) { errores.duracion = "La duración es obligatoria."; valido = false; }
     if (!newTour.capacidad || newTour.capacidad <= 0) { errores.capacidad = "Capacidad inválida."; valido = false; }
+    if (!newTour.categoria_paquete) { errores.categoria_paquete = "Selecciona una categoría."; valido = false; }
     if (newTour.actividades.length === 0) { errores.actividades = "Selecciona al menos una actividad."; valido = false; }
     return valido;
 };
@@ -164,6 +178,7 @@ const initMap = () => {
 
 watch(() => props.abrir, (estaAbierto) => {
     if (estaAbierto) {
+        fetchCategorias();
         if (typeof google === 'undefined') {
             const script = document.createElement('script');
             script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDaDxKnE-8fzSc58TS-sMCm3UiP9cY577U&libraries=places&callback=iniciarMapaGlobal`;
@@ -302,6 +317,22 @@ const Enviar = async () => {
                   <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
                   {{ errores.nombre }}
                 </p>
+              </div>
+
+              <!-- Categoría -->
+              <div class="mb-5">
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Categoría del Tour <span class="text-emerald-500">*</span></label>
+                <select v-model="newTour.categoria_paquete"
+                  :class="['w-full bg-slate-50 border-2 rounded-2xl px-5 py-3 text-slate-800 font-medium focus:outline-none focus:bg-white transition-all appearance-none cursor-pointer',
+                  errores.categoria_paquete ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-emerald-500']">
+                  <option value="" disabled selected>Selecciona una categoría...</option>
+                  <optgroup v-for="grupo in [...new Set(categorias.map(c => c.grupo))]" :key="grupo" :label="grupo">
+                    <option v-for="cat in categorias.filter(c => c.grupo === grupo)" :key="cat.id" :value="cat.id">
+                      {{ cat.nombre }}
+                    </option>
+                  </optgroup>
+                </select>
+                <p v-if="errores.categoria_paquete" class="text-xs text-red-500 mt-1 ml-1">{{ errores.categoria_paquete }}</p>
               </div>
 
               <!-- Descripción -->

@@ -36,5 +36,25 @@ export function useCatalogo() {
         }
     };
 
-    return { tours, productos, cargandoTours, cargandoProductos, errorTours, errorProductos, cargarTours, cargarProductos };
+    const categoriasTours = ref([]);
+    const cargandoCategorias = ref(false);
+
+    const cargarCategorias = async () => {
+        cargandoCategorias.value = true;
+        try {
+            const res = await axios.get('api/categorias-paquetes/');
+            categoriasTours.value = res.data;
+        } catch (e) {
+            console.error('Error al cargar categorias de tours:', e);
+        } finally {
+            cargandoCategorias.value = false;
+        }
+    };
+
+    return { 
+        tours, productos, categoriasTours,
+        cargandoTours, cargandoProductos, cargandoCategorias,
+        errorTours, errorProductos, 
+        cargarTours, cargarProductos, cargarCategorias 
+    };
 }

@@ -165,8 +165,18 @@ class CatalogoTours(APIView):
         try:
             tours = PaqueteTuristico.objects.filter(activo=True).prefetch_related(
                 'imagen_paquete', 'actividades'
-            ).select_related('agencia')
+            ).select_related('agencia', 'categoria_paquete')
             serializer = SerializerCatalogoTour(tours, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CategoriaPaqueteListView(APIView):
+    def get(self, request):
+        try:
+            categorias = CategoriaPaquete.objects.all()
+            serializer = CategoriaPaqueteSerializer(categorias, many=True)
             return Response(serializer.data)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -98,7 +98,7 @@ const puedeComprar = props.rol !== 'proveedor';
             <circle cx="12" cy="12" r="10" stroke-width="2"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2"/>
           </svg>
-          {{ tour.duracion }}
+          {{ tour.duracion }}h
         </span>
       </div>
 

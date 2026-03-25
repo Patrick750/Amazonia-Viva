@@ -10,26 +10,58 @@ const rol = localStorage.getItem('rol');
 const tabActivo = ref('tours'); // 'tours' | 'productos'
 
 // --- DATOS ---
-const { tours, productos, cargandoTours, cargandoProductos, cargarTours, cargarProductos } = useCatalogo();
-onMounted(() => { cargarTours(); cargarProductos(); });
+const { 
+  tours, productos, categoriasTours, 
+  cargandoTours, cargandoProductos, 
+  cargarTours, cargarProductos, cargarCategorias 
+} = useCatalogo();
+
+onMounted(() => { 
+  cargarTours(); 
+  cargarProductos(); 
+  cargarCategorias(); 
+});
 
 // --- BUSCADOR ---
 const busqueda = ref('');
 
 // --- ORDENAMIENTO ---
 const orden = ref('');
+const filtroUbicacion = ref('');
+const filtroDuracion = ref(''); // '' | 'menos4' | '4a8' | 'mas8' | 'mas1dia'
+const filtroCategoria = ref(''); // ID de la subcategoría
+const grupoSeleccionado = ref(''); // Para navegar grupos de categorías
+const opcionesDuracion = [
+  { value: 'menos4', label: 'Menos de 4h' },
+  { value: '4a8',    label: '4h – 8h' },
+  { value: 'mas8',   label: 'Más de 8h' },
+  { value: 'mas1dia',label: 'Más de 1 día' },
+];
 const opcionesOrden = [
   { value: '', label: 'Relevancia' },
   { value: 'precio_asc', label: 'Precio: menor a mayor' },
   { value: 'precio_desc', label: 'Precio: mayor a menor' },
   { value: 'rating_desc', label: 'Mejor calificados' },
+  { value: 'ubicacion', label: 'Ubicación' },
+  { value: 'duracion', label: 'Duración' },
+  { value: 'categoria', label: 'Categoría' },
 ];
 const mostrarMenuOrden = ref(false);
 const labelOrden = computed(() => opcionesOrden.find(o => o.value === orden.value)?.label || 'Ordenar por');
 
+// Parsear duración: acepta '3', '3h', '3 h', '2 días', '2 dias', etc. → número de horas
+const parsearHoras = (duracion) => {
+  if (!duracion) return null;
+  const str = String(duracion).toLowerCase();
+  const diasMatch = str.match(/(\d+(?:\.\d+)?)\s*día/);
+  if (diasMatch) return parseFloat(diasMatch[1]) * 24;
+  const horasMatch = str.match(/(\d+(?:\.\d+)?)/);
+  return horasMatch ? parseFloat(horasMatch[1]) : null;
+};
+
 // --- CATEGORÍAS/FILTROS POR TABS ---
 // TOURS: filtrar por nivel de riesgo (categoría funcional)
-const categoriasTours = [
+const categoriasRiesgo = [
   { value: '', label: 'Todos', color: null },
   { value: 'bajo', label: 'Bajo riesgo', color: '#10b981' },
   { value: 'moderado', label: 'Moderado', color: '#f59e0b' },
@@ -58,6 +90,32 @@ const toursFiltrados = computed(() => {
     const [min, max] = nivelRiesgoMax[categoriaActiva.value] || [0,10];
     lista = lista.filter(t => t.nivel_riesgo >= min && t.nivel_riesgo <= max);
   }
+  if (orden.value === 'ubicacion' && filtroUbicacion.value.trim()) {
+    const ciudad = filtroUbicacion.value.trim().toLowerCase();
+    lista = lista.filter(t => t.ciudad && t.ciudad.toLowerCase().includes(ciudad));
+  }
+  if (orden.value === 'duracion' && filtroDuracion.value) {
+    lista = lista.filter(t => {
+      const h = parsearHoras(t.duracion);
+      if (h === null) return false;
+      if (filtroDuracion.value === 'menos4')  return h < 4;
+      if (filtroDuracion.value === '4a8')     return h >= 4 && h <= 8;
+      if (filtroDuracion.value === 'mas8')    return h > 8 && h < 24;
+      if (filtroDuracion.value === 'mas1dia') return h >= 24;
+      return true;
+    });
+  }
+  // Filtro por Categorías (Nueva funcionalidad)
+  if (filtroCategoria.value) {
+    // Filtrado por subcategoría específica
+    lista = lista.filter(t => t.categoria_paquete == filtroCategoria.value);
+  } else if (grupoSeleccionado.value) {
+    // Filtrado por grupo completo
+    const idsEnGrupo = categoriasTours.value
+      .filter(c => c.grupo === grupoSeleccionado.value)
+      .map(c => c.id);
+    lista = lista.filter(t => idsEnGrupo.includes(t.categoria_paquete));
+  }
   if (orden.value === 'precio_asc') lista.sort((a,b) => a.precio - b.precio);
   else if (orden.value === 'precio_desc') lista.sort((a,b) => b.precio - a.precio);
   else if (orden.value === 'rating_desc') lista.sort((a,b) => b.rating - a.rating);
@@ -84,12 +142,16 @@ const productosFiltrados = computed(() => {
 
 const itemsActuales = computed(() => tabActivo.value === 'tours' ? toursFiltrados.value : productosFiltrados.value);
 const cargando = computed(() => tabActivo.value === 'tours' ? cargandoTours.value : cargandoProductos.value);
-const categoriasActuales = computed(() => tabActivo.value === 'tours' ? categoriasTours : categoriasProductos.value);
+const categoriasActuales = computed(() => tabActivo.value === 'tours' ? categoriasRiesgo : categoriasProductos.value);
 
 watch(tabActivo, () => {
   busqueda.value = '';
   orden.value = '';
   categoriaActiva.value = '';
+  filtroUbicacion.value = '';
+  filtroDuracion.value = '';
+  filtroCategoria.value = '';
+  grupoSeleccionado.value = '';
 });
 </script>
 
@@ -171,6 +233,118 @@ watch(tabActivo, () => {
         </transition>
       </div>
     </div>
+
+    <!-- Campo de ciudad (visible solo cuando se selecciona Ubicación) -->
+    <transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 -translate-y-1"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-1"
+    >
+      <div v-if="orden === 'ubicacion' && tabActivo === 'tours'" class="flex items-center gap-3 mb-5">
+        <div class="relative flex-1 max-w-xs">
+          <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <input
+            v-model="filtroUbicacion"
+            type="text"
+            placeholder="Escribe una ciudad..."
+            autofocus
+            class="w-full pl-10 pr-4 py-2.5 rounded-full border border-emerald-300 bg-white text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent shadow-sm transition"
+          >
+        </div>
+        <button
+          v-if="filtroUbicacion"
+          @click="filtroUbicacion = ''"
+          class="text-xs text-gray-400 hover:text-gray-600 transition"
+        >Limpiar</button>
+      </div>
+    </transition>
+
+    <!-- Chips de duración (visible solo cuando se selecciona Duración) -->
+    <transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 -translate-y-1"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-1"
+    >
+      <div v-if="orden === 'duracion' && tabActivo === 'tours'" class="flex items-center gap-2 flex-wrap mb-5">
+        <span class="flex items-center gap-1.5 text-sm text-gray-500 mr-1">
+          <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke-width="2"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6l4 2"/>
+          </svg>
+          Rango:
+        </span>
+        <button
+          v-for="op in opcionesDuracion" :key="op.value"
+          @click="filtroDuracion = filtroDuracion === op.value ? '' : op.value"
+          :class="['px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-200',
+            filtroDuracion === op.value
+              ? 'bg-emerald-600 text-white border-emerald-600'
+              : 'bg-white text-gray-500 border-gray-200 hover:border-emerald-300 hover:text-emerald-700']"
+        >{{ op.label }}</button>
+        <button
+          v-if="filtroDuracion"
+          @click="filtroDuracion = ''"
+          class="text-xs text-gray-400 hover:text-gray-600 transition ml-1"
+        >Limpiar</button>
+      </div>
+    </transition>
+
+    <!-- Panel de Categorías (visible solo cuando se selecciona Categoría) -->
+    <transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 -translate-y-1"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-1"
+    >
+      <div v-if="orden === 'categoria' && tabActivo === 'tours'" class="mb-8 space-y-4 bg-white/50 p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+        <!-- Grupos de Categorías -->
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mr-2">Filtrar por Grupo:</span>
+          <button
+            v-for="grupo in [...new Set(categoriasTours.map(c => c.grupo))]" :key="grupo"
+            @click="grupoSeleccionado = grupo === grupoSeleccionado ? '' : grupo; filtroCategoria = ''"
+            :class="['px-5 py-2 rounded-full text-xs font-bold border transition-all duration-300 uppercase tracking-wider',
+              grupoSeleccionado === grupo
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-200/50 scale-105'
+                : 'bg-white text-gray-500 border-gray-100 hover:border-emerald-300 hover:text-emerald-700 hover:shadow-md']"
+          >{{ grupo }}</button>
+        </div>
+
+        <!-- Subcategorías -->
+        <div v-if="grupoSeleccionado" class="flex items-center gap-2 flex-wrap border-t border-gray-50 pt-5 animate-slide-down">
+          <span class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mr-2">Subcategoría:</span>
+          <button
+            v-for="cat in categoriasTours.filter(c => c.grupo === grupoSeleccionado)" :key="cat.id"
+            @click="filtroCategoria = filtroCategoria === cat.id ? '' : cat.id"
+            :class="['px-4 py-2 rounded-full text-[11px] font-bold border transition-all duration-200',
+              filtroCategoria === cat.id
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-400 ring-2 ring-emerald-400/20'
+                : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 hover:text-emerald-600']"
+          >{{ cat.nombre }}</button>
+        </div>
+        
+        <div v-if="filtroCategoria || grupoSeleccionado" class="flex justify-end pt-2">
+          <button
+            @click="filtroCategoria = ''; grupoSeleccionado = ''"
+            class="text-[10px] font-bold text-gray-400 hover:text-red-500 transition-colors uppercase tracking-[0.2em] flex items-center gap-1.5 px-3 py-1 rounded-full hover:bg-red-50"
+          >
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Limpiar Filtros de Categoría
+          </button>
+        </div>
+      </div>
+    </transition>
 
     <!-- Fila de etiquetas de categoría (chips) -->
     <div class="flex flex-wrap gap-2 mb-8">

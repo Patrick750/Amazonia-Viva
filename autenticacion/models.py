@@ -93,7 +93,21 @@ class Actividad(models.Model):
     def __str__(self):
         return f"{self.nombre} (Nivel {self.nivel_riesgo})"
 
+class CategoriaPaquete(models.Model):
+    grupo = models.CharField(max_length=100, verbose_name="Grupo de Categoría")
+    nombre = models.CharField(max_length=150, unique=True, verbose_name="Subcategoría")
+
+    class Meta:
+        verbose_name = "Categoría de Paquete"
+        verbose_name_plural = "Categorías de Paquetes"
+        ordering = ['grupo', 'nombre']
+
+    def __str__(self):
+        return f"{self.grupo} — {self.nombre}"
+
+
 class PaqueteTuristico(models.Model):
+
     # --- Datos Básicos ---
     activo = models.BooleanField(default=True, verbose_name="Activo")
     nombre = models.CharField(max_length=200, verbose_name="Nombre del Tour")
@@ -120,6 +134,16 @@ class PaqueteTuristico(models.Model):
         Actividad, 
         related_name='paquetes',
         verbose_name="Actividades Incluidas"
+    )
+
+    # --- Categoría del paquete ---
+    categoria_paquete = models.ForeignKey(
+        'CategoriaPaquete',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='paquetes',
+        verbose_name="Categoría del Tour"
     )
 
     # --- LOS CAMPOS DINÁMICOS DE VUE ---
