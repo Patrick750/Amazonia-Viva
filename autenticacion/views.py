@@ -155,5 +155,36 @@ class PaquetesTuristicos(APIView):
             return Response(serializers.data)
         except Exception as e:
             return Response({'mensaje':'Hubo un error'})
-        
-        
+
+
+class CatalogoTours(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            tours = PaqueteTuristico.objects.filter(activo=True).prefetch_related(
+                'imagen_paquete', 'actividades'
+            ).select_related('agencia')
+            serializer = SerializerCatalogoTour(tours, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CatalogoProductos(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            tipo = request.query_params.get('tipo', None)
+            productos = Productos.objects.filter(disponible=True).prefetch_related(
+                'imagen_producto'
+            ).select_related('proveedor', 'categorias')
+            if tipo:
+                productos = productos.filter(tipo_catalogo=tipo)
+            serializer = SerializerCatalogoProducto(productos, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

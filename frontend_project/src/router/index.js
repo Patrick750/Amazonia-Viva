@@ -5,6 +5,7 @@ import paneles from '@/components/paneles.vue'
 import dashboard from '@/components/dashboard.vue'
 import paquetes from '@/views/paquetes.vue'
 import productos from '@/views/productos.vue'
+import catalogo from '@/views/catalogo.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -43,6 +44,11 @@ const router = createRouter({
       name:'productos',
       component: productos,
     },
+    {
+      path:'/panel/catalogo',
+      name:'catalogo',
+      component: catalogo,
+    },
   ],
 })
 
@@ -52,7 +58,7 @@ router.beforeEach((to, from, next) => {
   const rol = localStorage.getItem('rol')
 
   const urlAuth = ['/auth/login','/auth/signup'] 
-  const urlMenus = ['/panel/dashboard','/panel/gestion-paquetes','/panel/productos']
+  const urlMenus = ['/panel/dashboard','/panel/gestion-paquetes','/panel/productos','/panel/catalogo']
 
   if(urlMenus.includes(to.path)){
     if(!token || !rol){

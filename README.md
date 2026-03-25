@@ -21,6 +21,20 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 2.6.0 — Módulo de Catálogo Público (SCRUM-40)
+> Archivos: `catalogo.vue`, `tarjeta-tour.vue`, `tarjeta-producto.vue`, `useCatalogo.js`, `views.py`, `serializers.py`, `urls.py`, `router/index.js`, `navigation.js`
+
+- **[Feature] Vista de Catálogo**: Nueva vista `/panel/catalogo` accesible desde el header para todos los roles (turista, agencia, proveedor).
+- **[Feature] Tabs Tours / Productos**: Navegación por pestañas que separa los paquetes turísticos de los productos del catálogo.
+- **[Feature] Buscador tipo Píldora**: Campo de búsqueda reactivo por nombre y agencia/proveedor, con botón desplegable de ordenamiento (precio, calificación).
+- **[Feature] Chips de Categoría**: Fila de etiquetas de filtrado dinámicas (nivel de riesgo para tours, categorías para productos). Activo con fondo sólido, inactivo con borde sutil.
+- **[Feature] Tarjetas de Tour**: Componente `tarjeta-tour.vue` con foto, estrellas de calificación, título, descripción, íconos de ubicación y duración, y pie con precio + botón "Ver detalles".
+- **[Feature] Control de Roles**: Proveedores pueden explorar el catálogo pero no tienen botón de compra/reserva. Turistas ven productos `tipo_catalogo=turistas`, agencias ven `tipo_catalogo=agencias`.
+- **[Feature] API Pública**: Endpoints `GET /api/catalogo/tours/` y `GET /api/catalogo/productos/` sin autenticación requerida.
+- **[Refactor] Íconos SVG**: Reemplazo de todos los emojis por íconos SVG en tabs, chips de categoría y badges de nivel de riesgo.
+
+---
+
 ### 2.5.1 — Filtro de Estados en Catálogo de Productos
 > Tarea: `SCRUM-52` | Archivo: `tabla-productos.vue`
 

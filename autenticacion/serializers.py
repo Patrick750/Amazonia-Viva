@@ -182,3 +182,86 @@ class SerializersPaquetes(serializers.ModelSerializer):
     class Meta:
         model = PaqueteTuristico
         fields = '__all__'
+
+
+class SerializerCatalogoTour(serializers.ModelSerializer):
+    imagen_portada = serializers.SerializerMethodField()
+    nombre_agencia = serializers.CharField(source='agencia.nombre_agencia', read_only=True)
+    ciudad = serializers.CharField(source='ubicacion', read_only=True)
+    nivel_riesgo = serializers.SerializerMethodField()
+    num_calificaciones = serializers.SerializerMethodField()
+
+    def get_imagen_portada(self, obj):
+        portada = obj.imagen_paquete.filter(es_portada=True).first()
+        if not portada:
+            portada = obj.imagen_paquete.first()
+        if portada and portada.imagen:
+            return portada.imagen.url
+        return None
+
+    def get_nivel_riesgo(self, obj):
+        niveles = obj.actividades.values_list('nivel_riesgo', flat=True)
+        return max(niveles) if niveles else 0
+
+    def get_num_calificaciones(self, obj):
+        return 0  # Placeholder until rating system is implemented
+
+    class Meta:
+        model = PaqueteTuristico
+        fields = [
+            'id', 'nombre', 'descripcion', 'precio', 'duracion',
+            'ubicacion', 'ciudad', 'rating', 'num_calificaciones',
+            'imagen_portada', 'nombre_agencia', 'nivel_riesgo', 'activo'
+        ]
+
+
+class SerializerCatalogoProductoImagen(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    def get_url(self, obj):
+        if obj.imagen:
+            return obj.imagen.url
+        return None
+
+    class Meta:
+        model = ProductoImagen
+        fields = ['id', 'url', 'es_portada']
+
+
+class SerializerCatalogoProducto(serializers.ModelSerializer):
+    imagen_portada = serializers.SerializerMethodField()
+    nombre_proveedor = serializers.CharField(source='proveedor.nombre_empresa', read_only=True)
+    nombre_categoria = serializers.CharField(source='categorias.nombre', read_only=True)
+    num_calificaciones = serializers.SerializerMethodField()
+    descripcion_corta = serializers.SerializerMethodField()
+    rating = serializers.SerializerMethodField()
+
+    def get_imagen_portada(self, obj):
+        portada = obj.imagen_producto.filter(es_portada=True).first()
+        if not portada:
+            portada = obj.imagen_producto.first()
+        if portada and portada.imagen:
+            return portada.imagen.url
+        return None
+
+    def get_num_calificaciones(self, obj):
+        return 0
+
+    def get_descripcion_corta(self, obj):
+        # Build a short description from caracteristicas JSON
+        caract = obj.caracteristicas
+        if isinstance(caract, dict):
+            items = [f"{k}: {v}" for k, v in list(caract.items())[:3]]
+            return ' · '.join(items) if items else 'Sin descripción'
+        return 'Sin descripción'
+
+    def get_rating(self, obj):
+        return 0
+
+    class Meta:
+        model = Productos
+        fields = [
+            'id', 'nombre', 'descripcion_corta', 'precio', 'stock',
+            'disponible', 'tipo_catalogo', 'nombre_categoria',
+            'imagen_portada', 'nombre_proveedor', 'rating', 'num_calificaciones'
+        ]
