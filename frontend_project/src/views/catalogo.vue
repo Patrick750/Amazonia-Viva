@@ -60,19 +60,11 @@ const parsearHoras = (duracion) => {
 };
 
 // --- CATEGORÍAS/FILTROS POR TABS ---
-// TOURS: filtrar por nivel de riesgo (categoría funcional)
-const categoriasRiesgo = [
-  { value: '', label: 'Todos', color: null },
-  { value: 'bajo', label: 'Bajo riesgo', color: '#10b981' },
-  { value: 'moderado', label: 'Moderado', color: '#f59e0b' },
-  { value: 'alto', label: 'Alto', color: '#f97316' },
-  { value: 'extremo', label: 'Extremo', color: '#ef4444' },
-];
-
-// PRODUCTOS: filtrar por nombre_categoria (dinámico)
-const categoriasProductos = computed(() => {
-  const cats = [...new Set(productos.value.map(p => p.nombre_categoria).filter(Boolean))];
-  return [{ value: '', label: 'Todos' }, ...cats.map(c => ({ value: c, label: c }))];
+const categoriasGlobales = computed(() => {
+  const cats = new Set();
+  tours.value.forEach(t => { if(t.categoria_paquete_nombre) cats.add(t.categoria_paquete_nombre) });
+  productos.value.forEach(p => { if(p.nombre_categoria) cats.add(p.nombre_categoria) });
+  return [{ value: '', label: 'Todos' }, ...[...cats].sort().map(c => ({ value: c, label: c }))];
 });
 
 const categoriaActiva = ref('');
@@ -84,11 +76,14 @@ const toursFiltrados = computed(() => {
   let lista = [...tours.value];
   if (busqueda.value.trim()) {
     const q = busqueda.value.trim().toLowerCase();
-    lista = lista.filter(t => t.nombre.toLowerCase().includes(q) || (t.nombre_agencia && t.nombre_agencia.toLowerCase().includes(q)));
+    lista = lista.filter(t => 
+      t.nombre.toLowerCase().includes(q) || 
+      (t.nombre_agencia && t.nombre_agencia.toLowerCase().includes(q)) || 
+      (t.categoria_paquete_nombre && t.categoria_paquete_nombre.toLowerCase().includes(q))
+    );
   }
   if (categoriaActiva.value) {
-    const [min, max] = nivelRiesgoMax[categoriaActiva.value] || [0,10];
-    lista = lista.filter(t => t.nivel_riesgo >= min && t.nivel_riesgo <= max);
+    lista = lista.filter(t => t.categoria_paquete_nombre === categoriaActiva.value);
   }
   if (orden.value === 'ubicacion' && filtroUbicacion.value.trim()) {
     const ciudad = filtroUbicacion.value.trim().toLowerCase();
@@ -132,7 +127,11 @@ const productosFiltrados = computed(() => {
   // Búsqueda
   if (busqueda.value.trim()) {
     const q = busqueda.value.trim().toLowerCase();
-    lista = lista.filter(p => p.nombre.toLowerCase().includes(q) || (p.nombre_proveedor && p.nombre_proveedor.toLowerCase().includes(q)));
+    lista = lista.filter(p => 
+      p.nombre.toLowerCase().includes(q) || 
+      (p.nombre_proveedor && p.nombre_proveedor.toLowerCase().includes(q)) || 
+      (p.nombre_categoria && p.nombre_categoria.toLowerCase().includes(q))
+    );
   }
   if (orden.value === 'precio_asc') lista.sort((a,b) => a.precio - b.precio);
   else if (orden.value === 'precio_desc') lista.sort((a,b) => b.precio - a.precio);
@@ -142,12 +141,10 @@ const productosFiltrados = computed(() => {
 
 const itemsActuales = computed(() => tabActivo.value === 'tours' ? toursFiltrados.value : productosFiltrados.value);
 const cargando = computed(() => tabActivo.value === 'tours' ? cargandoTours.value : cargandoProductos.value);
-const categoriasActuales = computed(() => tabActivo.value === 'tours' ? categoriasRiesgo : categoriasProductos.value);
+const categoriasActuales = computed(() => categoriasGlobales.value);
 
 watch(tabActivo, () => {
-  busqueda.value = '';
   orden.value = '';
-  categoriaActiva.value = '';
   filtroUbicacion.value = '';
   filtroDuracion.value = '';
   filtroCategoria.value = '';
@@ -156,10 +153,13 @@ watch(tabActivo, () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 px-6 py-10 max-w-7xl mx-auto" @click="mostrarMenuOrden = false">
+  <div class="min-h-screen bg-gray-50 px-6 pb-10 max-w-7xl mx-auto" @click="mostrarMenuOrden = false">
 
-    <!-- Título principal -->
-    <div class="mb-8">
+    <!-- CONTENEDOR STICKY COMPONENTIZADO -->
+    <div class="sticky top-[78px] z-40 bg-gray-50 pt-10 pb-4 mb-6 -mx-6 px-6 border-b border-gray-200/60 shadow-[0_4px_6px_-2px_rgba(0,0,0,0.05)]">
+      
+      <!-- Título principal -->
+      <div class="mb-6">
       <p class="text-sm font-semibold text-emerald-600 mb-1 uppercase tracking-widest">Explora</p>
       <h1 class="text-3xl font-black text-gray-900 tracking-tight">Catálogo Amazonia Viva</h1>
     </div>
@@ -347,7 +347,7 @@ watch(tabActivo, () => {
     </transition>
 
     <!-- Fila de etiquetas de categoría (chips) -->
-    <div class="flex flex-wrap gap-2 mb-8">
+    <div class="flex flex-wrap gap-2 mb-2">
       <button
         v-for="cat in categoriasActuales" :key="cat.value"
         @click="categoriaActiva = cat.value"
@@ -365,6 +365,8 @@ watch(tabActivo, () => {
         {{ cat.label }}
       </button>
     </div>
+
+    </div> <!-- CIERRE CONTENEDOR STICKY -->
 
     <!-- Contador de resultados -->
     <p class="text-sm text-gray-400 mb-6">

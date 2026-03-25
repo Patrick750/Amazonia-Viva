@@ -15,7 +15,18 @@ const categoriasLista = [
     { id: 2, nombre: 'Seguridad y Primeros Auxilios' },
     { id: 3, nombre: 'Indumentaria Outdoor' },
     { id: 4, nombre: 'Accesorios de Viaje' },
-    { id: 5, nombre: 'Tecnología y Navegación' }
+    { id: 5, nombre: 'Tecnología y Navegación' },
+    { id: 6, nombre: 'Campamento y pernocta' },
+    { id: 7, nombre: 'Actividades acuáticas' },
+    { id: 8, nombre: 'Senderismo y exploración' },
+    { id: 9, nombre: 'Observación de flora y fauna' },
+    { id: 10, nombre: 'Seguridad y primeros aux' },
+    { id: 11, nombre: 'Indumentaria y calzado' },
+    { id: 12, nombre: 'Alimentación e hidratación' },
+    { id: 13, nombre: 'Fotografía y óptica' },
+    { id: 14, nombre: 'Comunicaciones y orientación' },
+    { id: 15, nombre: 'Transporte y logística' },
+    { id: 16, nombre: 'Supervivencia y herramientas' }
 ];
 
 const listadoProductos = ref([]);
