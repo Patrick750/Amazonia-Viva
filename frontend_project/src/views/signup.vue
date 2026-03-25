@@ -191,6 +191,7 @@
           localStorage.setItem('nombre_agencia', response.data.usuario.nombre_agencia)
           localStorage.setItem('rol', response.data.usuario.group)
 
+          window.location.href = '/panel'
           Redirigir()
 
         }catch(error){

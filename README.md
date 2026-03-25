@@ -21,6 +21,11 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 2.5.1 — Filtro de Estados en Catálogo de Productos
+> Tarea: `SCRUM-52` | Archivo: `tabla-productos.vue`
+
+- **[Feature] Filtro Reactivo de Estado**: Implementación de un selector desplegable para filtrar proactivamente productos por su disponibilidad (Todos, Activos, Inactivos) en la vista principal del catálogo.
+
 ---
 
 ### 2.5.0 — Dashboard Analítico y Control Integral de Productos

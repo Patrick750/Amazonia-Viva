@@ -1,11 +1,19 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 
 const props = defineProps(['datos', 'tipoCatalogo']);
 const emit = defineEmits(['editar', 'eliminar', 'verDetalles']);
 
+const estadoFiltro = ref('todos');
+
 const filteredDatos = computed(() => {
-    return props.datos;
+    if (!props.datos) return [];
+    
+    return props.datos.filter(prod => {
+        if (estadoFiltro.value === 'activo') return prod.disponible === true;
+        if (estadoFiltro.value === 'inactivo') return prod.disponible === false;
+        return true;
+    });
 });
 
 const deleteProducto = (id) => {
@@ -19,6 +27,14 @@ const deleteProducto = (id) => {
         <div>
            <h2 class="text-lg font-semibold text-slate-800">Catálogo de {{ tipoCatalogo === 'turistas' ? 'Turistas' : 'Agencias' }}</h2>
            <p class="text-sm text-slate-500">{{ filteredDatos.length }} productos registrados en este catálogo</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <label for="filtro-estado" class="text-sm font-medium text-slate-600">Estado:</label>
+            <select id="filtro-estado" v-model="estadoFiltro" class="text-sm border-slate-200 rounded-lg text-slate-600 focus:ring-emerald-500 focus:border-emerald-500 py-2 pl-3 pr-8 w-36 cursor-pointer bg-white">
+                <option value="todos">Todos</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+            </select>
         </div>
     </div>
 
