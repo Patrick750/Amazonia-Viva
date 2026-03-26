@@ -174,6 +174,16 @@ watch(tabActivo, () => {
   filtroCategoria.value = '';
   grupoSeleccionado.value = '';
 });
+
+const limpiarTodosLosFiltros = () => {
+  busqueda.value = '';
+  categoriaActiva.value = '';
+  orden.value = '';
+  filtroUbicacion.value = '';
+  filtroDuracion.value = '';
+  filtroCategoria.value = '';
+  grupoSeleccionado.value = '';
+};
 </script>
 
 <template>
@@ -366,7 +376,7 @@ watch(tabActivo, () => {
       <!-- Botón Limpiar para ambos -->
       <div v-if="filtroCategoria || grupoSeleccionado || categoriaActiva" class="flex justify-end pt-2">
         <button
-          @click="filtroCategoria = ''; grupoSeleccionado = ''; categoriaActiva = ''"
+          @click="limpiarTodosLosFiltros"
           class="text-[10px] font-bold text-gray-400 hover:text-red-500 transition-colors uppercase tracking-[0.2em] flex items-center gap-1.5 px-3 py-1 rounded-full hover:bg-red-50"
         >
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -407,7 +417,7 @@ watch(tabActivo, () => {
       </div>
       <h3 class="text-xl font-bold text-gray-500 mb-1">No encontrado</h3>
       <p class="text-gray-400 text-sm max-w-xs">Ningún resultado coincide con tu búsqueda. Prueba otros términos o cambia los filtros.</p>
-      <button @click="busqueda = ''; categoriaActiva = ''" class="mt-5 px-5 py-2 rounded-full text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition">Limpiar filtros</button>
+      <button @click="limpiarTodosLosFiltros" class="mt-5 px-5 py-2 rounded-full text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition">Limpiar filtros</button>
     </div>
 
     <!-- Grid de tarjetas -->

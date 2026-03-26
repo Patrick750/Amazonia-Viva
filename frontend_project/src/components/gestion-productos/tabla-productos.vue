@@ -72,7 +72,7 @@ const deleteProducto = (id) => {
                 </div>
                 <div>
                     <h3 class="font-semibold text-slate-800 text-sm cursor-pointer hover:text-emerald-600 transition-all" @click="emit('verDetalles', prod)">{{ prod.nombre }}</h3>
-                    <span class="text-xs text-slate-500">ID Cat: {{ prod.categorias || 'N/A' }}</span>
+                    <span class="text-xs text-slate-500">Cat: {{ prod.nombre_categoria || 'N/A' }}</span>
                 </div>
                 </div>
             </td>

@@ -8,6 +8,11 @@ class CategoriaPaqueteSerializer(serializers.ModelSerializer):
         model = CategoriaPaquete
         fields = '__all__'
 
+class CategoriaProductoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Categorias
+        fields = '__all__'
+
 class AgenciaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agencia

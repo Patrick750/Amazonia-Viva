@@ -182,6 +182,16 @@ class CategoriaPaqueteListView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class CategoriaProductoListView(APIView):
+    def get(self, request):
+        try:
+            categorias = Categorias.objects.all()
+            serializer = CategoriaProductoSerializer(categorias, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class CatalogoProductos(APIView):
     authentication_classes = []
     permission_classes = []

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, defineProps, defineEmits, computed } from 'vue';
+import { ref, watch, defineProps, defineEmits, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useNotificacion } from '@/composables/useNotificacion';
 
@@ -39,58 +39,30 @@ const inicialForm = {
   imagenes: []
 };
 
-const categoriasLista = [
-    { id: 1, nombre: 'Equipos de Supervivencia' },
-    { id: 2, nombre: 'Seguridad y Primeros Auxilios' },
-    { id: 3, nombre: 'Indumentaria Outdoor' },
-    { id: 4, nombre: 'Accesorios de Viaje' },
-    { id: 5, nombre: 'Tecnología y Navegación' },
-    { id: 6, nombre: 'Campamento y pernocta' },
-    { id: 7, nombre: 'Actividades acuáticas' },
-    { id: 8, nombre: 'Senderismo y exploración' },
-    { id: 9, nombre: 'Observación de flora y fauna' },
-    { id: 10, nombre: 'Seguridad y primeros aux' },
-    { id: 11, nombre: 'Indumentaria y calzado' },
-    { id: 12, nombre: 'Alimentación e hidratación' },
-    { id: 13, nombre: 'Fotografía y óptica' },
-    { id: 14, nombre: 'Comunicaciones y orientación' },
-    { id: 15, nombre: 'Transporte y logística' },
-    { id: 16, nombre: 'Supervivencia y herramientas' }
-];
+const categoriasLista = ref([]);
+
+const cargarCategorias = async () => {
+    try {
+        const res = await axios.get('http://localhost:8000/api/categorias-productos/');
+        categoriasLista.value = res.data;
+    } catch (error) {
+        console.error('Error cargando categorías:', error);
+        mostrarNotificacion('Error al cargar las categorías del servidor.', 'error');
+    }
+};
+
+onMounted(() => {
+    cargarCategorias();
+});
 
 const atributosGenerales = [
-    'Color',
-    'Talla',
-    'Material',
-    'Peso',
-    'Dimensiones',
-    'Capacidad',
-    'Marca'
-];
-
-const atributosTecnicos = [
-    'Marca',
-    'Modelo',
-    'Tipo de cámara',
-    'Número de serie',
-    'Resolución de imagen',
-    'Resolución de video máxima',
-    'Tipo de sensor',
-    'Lente o Montura',
-    'Almacenamiento compatible',
-    'Resistencia al agua o sellado climático',
-    'Peso',
-    'Autonomía de batería',
-    'Conectividad (GPS, Wi-Fi, Bluetooth)',
-    'Estado actual',
-    'Cobertura máxima',
-    'Fuente de energía',
-    'Resistencia ambiental'
+    'Color', 'Talla', 'Material', 'Peso', 'Dimensiones', 'Capacidad', 'Marca'
 ];
 
 const atributosPredefinidos = computed(() => {
-    if (form.value.categorias === 13 || form.value.categorias === 14) {
-        return atributosTecnicos;
+    const cat = categoriasLista.value.find(c => c.id === form.value.categorias);
+    if (cat && cat.caracteristicas && cat.caracteristicas.default_attributes) {
+        return cat.caracteristicas.default_attributes;
     }
     return atributosGenerales;
 });
@@ -99,8 +71,9 @@ const form = ref(JSON.parse(JSON.stringify(inicialForm)));
 
 watch(() => form.value.categorias, (nuevaCat, viejaCat) => {
     if (viejaCat !== undefined && viejaCat !== '' && nuevaCat !== viejaCat) {
-        if (nuevaCat === 13 || nuevaCat === 14) {
-            form.value.caracteristicas = atributosTecnicos.map(attr => ({ clave: attr, valor: '' }));
+        const catObj = categoriasLista.value.find(c => c.id === nuevaCat);
+        if (catObj && catObj.caracteristicas && catObj.caracteristicas.default_attributes) {
+            form.value.caracteristicas = catObj.caracteristicas.default_attributes.map(attr => ({ clave: attr, valor: '' }));
         } else {
             form.value.caracteristicas = [{ clave: '', valor: '' }];
         }

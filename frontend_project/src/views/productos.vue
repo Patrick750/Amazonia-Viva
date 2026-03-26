@@ -1,12 +1,12 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
-import axios from 'axios';
+import axios from '@/api/axios';
 import TablaProductos from '@/components/gestion-productos/tabla-productos.vue';
 import FormularioProducto from '@/components/gestion-productos/formulario.vue';
 import DetallesProducto from '@/components/gestion-productos/detalles-producto.vue';
 import EliminarProducto from '@/components/gestion-productos/eliminar-producto.vue';
 
-const API_URL = 'http://localhost:8000/api/productos/';
+const API_URL = 'api/productos/';
 
 const vistaActiva = ref('turistas'); // 'turistas' o 'agencias'
 

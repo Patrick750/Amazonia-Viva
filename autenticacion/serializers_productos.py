@@ -30,13 +30,15 @@ class ProductoSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
+    nombre_categoria = serializers.CharField(source='categorias.nombre', read_only=True)
 
     class Meta:
         model = Productos
         fields = [
             'id', 'nombre', 'sku', 'caracteristicas', 'stock', 'precio', 
             'disponible', 'categorias', 'proveedor', 'tipo_catalogo',
-            'imagen_producto', 'archivos_subidos', 'imagenes_eliminar'
+            'imagen_producto', 'archivos_subidos', 'imagenes_eliminar',
+            'nombre_categoria'
         ]
 
     def create(self, validated_data):

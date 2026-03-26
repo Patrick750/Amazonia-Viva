@@ -38,8 +38,8 @@ class Command(BaseCommand):
             )
             count += 1
             if created:
-                self.stdout.write(self.style.SUCCESS(f'✅ Categoría creada: {nombre}'))
+                self.stdout.write(self.style.SUCCESS(f'OK Categoría creada: {nombre}'))
             else:
-                self.stdout.write(self.style.WARNING(f'🔄 Categoría actualizada: {nombre}'))
+                self.stdout.write(self.style.WARNING(f'UP Categoría actualizada: {nombre}'))
 
-        self.stdout.write(self.style.SUCCESS(f'¡Proceso completado! Se sincronizaron {count} categorías de seguridad turística.'))
+        self.stdout.write(self.style.SUCCESS(f'¡Proceso completado! Se sincronizaron {count} categorías.'))
