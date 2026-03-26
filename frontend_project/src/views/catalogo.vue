@@ -153,7 +153,9 @@ const productosFiltrados = computed(() => {
     lista = lista.filter(p => 
       p.nombre.toLowerCase().includes(q) || 
       (p.nombre_proveedor && p.nombre_proveedor.toLowerCase().includes(q)) || 
-      (p.nombre_categoria && p.nombre_categoria.toLowerCase().includes(q))
+      (p.nombre_categoria && p.nombre_categoria.toLowerCase().includes(q)) ||
+      (p.marca && p.marca.toLowerCase().includes(q)) ||
+      (p.modelo && p.modelo.toLowerCase().includes(q))
     );
   }
   if (orden.value === 'precio_asc') lista.sort((a,b) => a.precio - b.precio);

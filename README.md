@@ -21,6 +21,14 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 2.7.1 — Búsqueda Extendida y Visualización de Marca/Modelo
+> Archivos: `serializers.py`, `catalogo.vue`, `tarjeta-producto.vue`
+
+- **[Feature] Búsqueda Inteligente**: Expansión del motor de búsqueda del catálogo para incluir coincidencias por **Marca** y **Modelo** de los productos.
+- **[UI/UX] Visualización de Datos**: Actualización de las tarjetas de producto para mostrar el nombre concatenado (**Nombre - Marca Modelo**), facilitando la identificación rápida de ítems técnicos.
+
+---
+
 ### 2.7.0 — Optimización de Gestión de Productos y Seguridad de Acceso
 > Archivos: `views_productos.py`, `serializers_productos.py`, `productos.vue`, `formulario.vue`, `tabla-productos.vue`, `catalogo.vue`
 

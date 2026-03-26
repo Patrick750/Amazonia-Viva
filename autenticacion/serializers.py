@@ -249,6 +249,8 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
     num_calificaciones = serializers.SerializerMethodField()
     descripcion_corta = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
+    marca = serializers.SerializerMethodField()
+    modelo = serializers.SerializerMethodField()
 
     def get_imagen_portada(self, obj):
         portada = obj.imagen_producto.filter(es_portada=True).first()
@@ -272,10 +274,17 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
     def get_rating(self, obj):
         return 0
 
+    def get_marca(self, obj):
+        return obj.caracteristicas.get('Marca', '') if isinstance(obj.caracteristicas, dict) else ''
+
+    def get_modelo(self, obj):
+        return obj.caracteristicas.get('Modelo', '') if isinstance(obj.caracteristicas, dict) else ''
+
     class Meta:
         model = Productos
         fields = [
             'id', 'nombre', 'descripcion_corta', 'precio', 'stock',
             'disponible', 'tipo_catalogo', 'nombre_categoria',
-            'imagen_portada', 'nombre_proveedor', 'rating', 'num_calificaciones'
+            'imagen_portada', 'nombre_proveedor', 'rating', 'num_calificaciones',
+            'marca', 'modelo'
         ]
