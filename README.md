@@ -21,6 +21,18 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 2.8.0 — Catálogo Público, Detalle dinámico y Contadores Reactivos
+> Archivos: `detalle-paquete.vue`, `header.vue`, `useUserStats.js`, `useCatalogo.js`, `models.py`, `views.py`, `urls.py`
+
+- **[Feature] Catálogo Público**: Apertura del catálogo de tours y vista de detalles a usuarios no registrados (invitados) en rutas de libre acceso, con redirección automática al login ante acciones de compra.
+- **[Feature] Detalle de Paquete Premium**: Nueva interfaz de detalles con galería interactiva, itinerario visual tipo timeline, lista de inclusiones y vinculación directa con Google Maps.
+- **[Feature] Contadores Reactivos en Header**: Implementación de badges (burbujas) en el carrito y favoritos que se actualizan en tiempo real mediante un estado global reactivo (`useUserStats`).
+- **[Security] Restricciones por Rol**: Los proveedores y agencias ahora tienen bloqueadas las acciones de "Agregar al Carrito/Favoritos" con retroalimentación visual (botones deshabilitados) y tooltips informativos.
+- **[Fix] Precisión de Datos y Nulabilidad**: Resolución de errores de precisión en campos `Decimal` y ajuste de campos nulos en `Items` y `Favoritos` para permitir operaciones parciales (solo Paquete o solo Producto).
+- **[Optimization] Deduplicación**: Refactorización de vistas para evitar registros duplicados en el carrito y favoritos, manteniendo los conteos del header precisos y únicos.
+
+---
+
 ### 2.7.4 — Activación Global de Notificaciones y Gestión Avanzada
 > Archivos: `App.vue`, `serializers_productos.py`, `tabla-productos.vue`
 
