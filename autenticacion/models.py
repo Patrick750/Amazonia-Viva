@@ -23,8 +23,8 @@ class Usuario(AbstractUser):
 
 class Agencia(Usuario):
     nombre_agencia = models.CharField(max_length=50, null=False, blank=False)
-    latitud = models.DecimalField(max_digits=10,decimal_places=10, blank=True,null=True)
-    logitud = models.DecimalField(max_digits=10,decimal_places=10, blank=True,null=True)
+    latitud = models.DecimalField(max_digits=10,decimal_places=8, blank=True,null=True)
+    logitud = models.DecimalField(max_digits=10,decimal_places=8, blank=True,null=True)
     numero_telefonico = models.CharField(max_length=20, null=False, blank=False)
     logotipo = models.CharField(max_length=255, blank=True,null=True)
     descripcion = models.CharField(max_length=255, blank=True,null=True)

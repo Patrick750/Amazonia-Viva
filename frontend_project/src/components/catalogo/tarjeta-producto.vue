@@ -1,9 +1,11 @@
 <script setup>
+import { useRouter } from 'vue-router';
+
 const props = defineProps({
     producto: { type: Object, required: true },
     rol: { type: String, default: null }
 });
-const emit = defineEmits(['verDetalles']);
+const router = useRouter();
 
 const estrellas = (rating) => {
     const r = Math.round(Number(rating) * 2) / 2;
@@ -78,7 +80,7 @@ const puedeComprar = props.rol !== 'proveedor';
           <p class="text-xl font-bold text-teal-700">${{ Number(producto.precio).toLocaleString('es-CO') }}</p>
         </div>
         <div class="flex gap-2">
-          <button @click="emit('verDetalles', producto)"
+          <button @click="router.push(`/catalogo/producto/${producto.id}`)"
             class="px-3 py-2 text-sm border border-teal-200 text-teal-700 rounded-xl hover:bg-teal-50 transition-colors font-medium">
             Ver +
           </button>

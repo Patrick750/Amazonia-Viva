@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCatalogo } from '@/composables/useCatalogo';
 import { useNotificacion } from '@/composables/useNotificacion';
@@ -17,6 +17,12 @@ const rol = ref(localStorage.getItem('rol'));
 const mostrarTooltip = ref(false);
 const tooltipPos = ref({ x: 0, y: 0 });
 let tooltipTimeout = null;
+
+// Variables del mapa
+const mostrarMapaModal = ref(false);
+const mapContainer = ref(null);
+let map = null;
+let marker = null;
 
 onMounted(async () => {
     tour.value = await obtenerTourPorId(id);
@@ -37,12 +43,46 @@ const estrellas = (rating) => {
 
 const abrirMapa = () => {
     if (tour.value?.latitud && tour.value?.longitud) {
-        const url = `https://www.google.com/maps/search/?api=1&query=${tour.value.latitud},${tour.value.longitud}`;
-        window.open(url, '_blank');
+        mostrarMapaModal.value = true;
     } else {
-        mostrarNotificacion('La ubicación exacta no está disponible en el mapa.', 'info');
+        mostrarNotificacion('La ubicación exacta no está disponible para este paquete.', 'warning');
     }
 };
+
+const initMap = () => {
+    if (typeof google === 'undefined' || !mapContainer.value) return;
+    const position = { 
+        lat: Number(tour.value.latitud), 
+        lng: Number(tour.value.longitud) 
+    };
+    
+    map = new google.maps.Map(mapContainer.value, {
+        center: position, 
+        zoom: 15,
+        mapTypeControl: false, 
+        streetViewControl: false,
+    });
+    
+    marker = new google.maps.Marker({ 
+        map, 
+        position: position 
+    });
+};
+
+watch(mostrarMapaModal, async (abierto) => {
+    if (abierto) {
+        await nextTick();
+        if (typeof google === 'undefined') {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDaDxKnE-8fzSc58TS-sMCm3UiP9cY577U&libraries=places&callback=iniciarMapaPackage`;
+            script.async = true; script.defer = true;
+            document.head.appendChild(script);
+            window.iniciarMapaPackage = () => setTimeout(() => initMap(), 100);
+        } else {
+            setTimeout(() => initMap(), 100);
+        }
+    }
+});
 
 const handleAccion = async (tipo, event) => {
     if (rol.value === 'proveedor' || rol.value === 'agencia') {
@@ -85,6 +125,36 @@ const imagenPrincipal = computed(() => {
     }
     return null;
 });
+
+const siguienteImagen = () => {
+    if (imagenes.value.length > 1) {
+        imagenSeleccionadaIdx.value = (imagenSeleccionadaIdx.value + 1) % imagenes.value.length;
+    }
+};
+
+const anteriorImagen = () => {
+    if (imagenes.value.length > 1) {
+        imagenSeleccionadaIdx.value = (imagenSeleccionadaIdx.value - 1 + imagenes.value.length) % imagenes.value.length;
+    }
+};
+
+const formatTime = (timeStr) => {
+    if (!timeStr) return 'HH:MM';
+    // Si ya contiene AM/PM, lo dejamos igual
+    if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) return timeStr;
+    
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    
+    let hrs = parseInt(parts[0]);
+    const mins = parts[1].substring(0, 2);
+    
+    if (isNaN(hrs)) return timeStr;
+    
+    const period = hrs >= 12 ? 'PM' : 'AM';
+    hrs = hrs % 12 || 12;
+    return `${hrs}:${mins} ${period}`;
+};
 </script>
 
 <template>
@@ -113,12 +183,41 @@ const imagenPrincipal = computed(() => {
                     
                     <!-- Imagen Principal y Galería -->
                     <div class="space-y-4">
-                        <div class="relative rounded-3xl overflow-hidden shadow-xl aspect-[16/9] bg-gray-200">
+                        <div class="relative rounded-3xl overflow-hidden shadow-xl aspect-[16/9] bg-gray-200 group/carousel">
                             <img 
                                 :src="imagenPrincipal || 'https://via.placeholder.com/800x450?text=Sin+Imagen'" 
                                 :alt="tour.nombre"
-                                class="w-full h-full object-cover"
+                                class="w-full h-full object-cover transition-all duration-500"
                             >
+                            
+                            <!-- Controles del Carrusel -->
+                            <template v-if="imagenes.length > 1">
+                                <button 
+                                    @click="anteriorImagen"
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/80 hover:bg-white text-emerald-600 shadow-lg opacity-0 group-hover/carousel:opacity-100 transition-all z-10"
+                                >
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <button 
+                                    @click="siguienteImagen"
+                                    class="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/80 hover:bg-white text-emerald-600 shadow-lg opacity-0 group-hover/carousel:opacity-100 transition-all z-10"
+                                >
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                                
+                                <!-- Indicadores de punto -->
+                                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 rounded-full bg-black/20 backdrop-blur-sm">
+                                    <div 
+                                        v-for="(_, idx) in imagenes" :key="idx"
+                                        class="w-1.5 h-1.5 rounded-full transition-all duration-300"
+                                        :class="imagenSeleccionadaIdx === idx ? 'bg-white w-4' : 'bg-white/40'"
+                                    ></div>
+                                </div>
+                            </template>
                         </div>
                         
                         <!-- Galería de Miniaturas -->
@@ -146,6 +245,10 @@ const imagenPrincipal = computed(() => {
                                 </svg>
                                 Organizado por {{ tour.nombre_agencia }}
                             </p>
+                            <!-- Descripción Corta/Quick View -->
+                            <p class="text-gray-600 text-sm leading-relaxed mt-2 italic">
+                                {{ tour.descripcion }}
+                            </p>
                         </div>
                         <button 
                             @click="handleAccion('favorito', $event)"
@@ -159,7 +262,7 @@ const imagenPrincipal = computed(() => {
                     </div>
 
                     <!-- Rating y Categoría -->
-                    <div class="flex items-center gap-4 flex-wrap">
+                    <div class="flex items-center gap-4 flex-wrap pt-2">
                         <div class="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
                             <div class="flex gap-0.5">
                                 <template v-for="(tipo, i) in estrellas(tour.rating)" :key="i">
@@ -294,7 +397,7 @@ const imagenPrincipal = computed(() => {
                             <div v-for="(step, idx) in tour.itinerario" :key="idx" class="relative">
                                 <div class="absolute -left-[30px] top-1 w-4 h-4 rounded-full bg-white border-4 border-purple-500 shadow-sm z-10"></div>
                                 <div class="space-y-1">
-                                    <span class="text-xs font-black text-purple-600 uppercase tracking-widest">{{ step.time || 'HH:MM' }}</span>
+                                    <span class="text-xs font-black text-purple-600 uppercase tracking-widest">{{ formatTime(step.time) }}</span>
                                     <h3 class="font-bold text-gray-800">{{ step.activity || step.actividad }}</h3>
                                     <p v-if="step.description || step.descripcion" class="text-sm text-gray-500 leading-relaxed">{{ step.description || step.descripcion }}</p>
                                 </div>
@@ -395,6 +498,60 @@ const imagenPrincipal = computed(() => {
             Nesesitas inciar sesion como turista
             <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
         </div>
+        <!-- Modal de Mapa -->
+        <Teleport to="body">
+            <div v-if="mostrarMapaModal"
+                class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+                @click.self="mostrarMapaModal = false"
+            >
+                <!-- Backdrop oscuro -->
+                <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+                
+                <!-- Contenedor del Modal -->
+                <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden animate-fade-in-up flex flex-col">
+                    
+                    <!-- Header del Modal -->
+                    <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 flex items-center justify-between z-10">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-white/20 rounded-xl text-white">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-white font-bold text-lg leading-tight">Ubicación del Tour</h3>
+                                <p class="text-emerald-100 text-xs font-medium truncate max-w-md">{{ tour.ubicacion }}</p>
+                            </div>
+                        </div>
+                        <button 
+                            @click="mostrarMapaModal = false"
+                            class="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 hover:rotate-90 transition-all duration-300"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Contenedor del Mapa -->
+                    <div class="w-full h-[60vh] sm:h-[70vh] bg-slate-100 relative">
+                        <div ref="mapContainer" class="absolute inset-0 w-full h-full"></div>
+                        
+                        <!-- Coordenadas overlay -->
+                        <div class="absolute bottom-4 left-4 right-4 sm:right-auto bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg border border-slate-100/50 flex flex-col gap-1 z-10">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Coordenadas exactas</span>
+                            <div class="flex items-center gap-2 text-emerald-700 font-mono text-xs sm:text-sm bg-emerald-50/50 px-3 py-1.5 rounded-xl border border-emerald-100">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>{{ Number(tour.latitud).toFixed(5) }}, {{ Number(tour.longitud).toFixed(5) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </div>
 </template>
 
@@ -406,6 +563,15 @@ const imagenPrincipal = computed(() => {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+    animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .animate-bounce-subtle {

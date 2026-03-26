@@ -7,6 +7,7 @@ import paquetes from '@/views/paquetes.vue'
 import productos from '@/views/productos.vue'
 import catalogo from '@/views/catalogo.vue'
 import DetallePaquete from '@/views/detalle-paquete.vue'
+import DetalleProducto from '@/views/detalle-producto.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -54,6 +55,11 @@ const router = createRouter({
       path: '/catalogo/tour/:id',
       name: 'detalle_tour',
       component: DetallePaquete,
+    },
+    {
+      path: '/catalogo/producto/:id',
+      name: 'detalle_producto',
+      component: DetalleProducto,
     },
   ],
 })

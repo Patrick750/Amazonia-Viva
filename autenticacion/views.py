@@ -293,6 +293,15 @@ class DetalleTourPublico(APIView):
         serializer = SerializerDetalleTour(tour)
         return Response(serializer.data)
 
+class DetalleProductoPublico(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, pk):
+        producto = get_object_or_404(Productos, pk=pk, disponible=True)
+        serializer = SerializerDetalleProducto(producto)
+        return Response(serializer.data)
+
 class UserStatsView(APIView):
     permission_classes = [IsAuthenticated]
 
