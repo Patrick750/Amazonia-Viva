@@ -71,7 +71,10 @@ const deleteProducto = (id) => {
                     </div>
                 </div>
                 <div>
-                    <h3 class="font-semibold text-slate-800 text-sm cursor-pointer hover:text-emerald-600 transition-all" @click="emit('verDetalles', prod)">{{ prod.nombre }}</h3>
+                    <h3 class="font-semibold text-slate-800 text-sm cursor-pointer hover:text-emerald-600 transition-all" @click="emit('verDetalles', prod)">
+                        {{ prod.nombre }}
+                        <span v-if="prod.marca || prod.modelo" class="text-slate-400 font-medium whitespace-nowrap"> - {{ [prod.marca, prod.modelo].filter(Boolean).join(' ') }}</span>
+                    </h3>
                     <span class="text-xs text-slate-500">Cat: {{ prod.nombre_categoria || 'N/A' }}</span>
                 </div>
                 </div>

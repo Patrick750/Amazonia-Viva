@@ -21,10 +21,34 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 2.7.4 — Activación Global de Notificaciones y Gestión Avanzada
+> Archivos: `App.vue`, `serializers_productos.py`, `tabla-productos.vue`
+
+- **[Fix] Notificaciones Globales**: Activación del componente `Notificacion.vue` en la raíz del proyecto (`App.vue`), habilitando el feedback visual para todas las acciones administrativas del sistema.
+- **[Feature] Panel de Gestión con Marca/Modelo**: Actualización de la tabla de administración de productos para mostrar la identidad completa (**Nombre - Marca Modelo**), manteniendo paridad visual con el catálogo público.
+
+---
+
+### 2.7.3 — Feedback de Usuario y Refinamiento de Interfaz
+> Archivos: `formulario.vue`, `tarjeta-producto.vue`
+
+- **[UX] Sistema de Notificaciones**: Integración de alertas visuales reactivas para confirmar el éxito de registros y actualizaciones, o mostrar detalles en caso de errores de red.
+- **[UI/UX] Pulido de Identidad**: Refinamiento estético en la concatenación de **Nombre - Marca Modelo** en el catálogo, mejorando la legibilidad y el espaciado.
+
+---
+
+### 2.7.2 — Corrección de Autenticación en Gestión de Productos
+> Archivos: `formulario.vue`, `eliminar-producto.vue`
+
+- **[Fix] Seguridad en Registro**: Sincronización del cliente de red en el formulario de creación/edición. Se corrigió el error `403 Forbidden` al asegurar que el token JWT se envíe correctamente en las peticiones `POST` y `PUT`.
+- **[Fix] Eliminación Protegida**: Actualización del componente de borrado para utilizar el canal autenticado, permitiendo que solo los propietarios legales puedan remover ítems del inventario.
+
+---
+
 ### 2.7.1 — Búsqueda Extendida y Visualización de Marca/Modelo
 > Archivos: `serializers.py`, `catalogo.vue`, `tarjeta-producto.vue`
 
-- **[Feature] Búsqueda Inteligente**: Expansión del motor de búsqueda del catálogo para incluir coincidencias por **Marca** y **Modelo** de los productos.
+- **[Feature] Búsqueda Inteligente**: Expansión del motor de búsqueda del catálogo para admitir múltiples términos simultáneos. Ahora puedes combinar **Nombre, Marca y Modelo** (ej: "Cámara Canon PowerShot") para obtener resultados exactos.
 - **[UI/UX] Visualización de Datos**: Actualización de las tarjetas de producto para mostrar el nombre concatenado (**Nombre - Marca Modelo**), facilitando la identificación rápida de ítems técnicos.
 
 ---

@@ -46,7 +46,7 @@ const puedeComprar = props.rol !== 'proveedor';
       <!-- Nombre -->
       <h3 class="font-bold text-slate-800 text-base leading-snug group-hover:text-teal-700 transition-colors line-clamp-2">
         {{ producto.nombre }}
-        <span v-if="producto.marca || producto.modelo" class="text-slate-400 font-medium"> - {{ producto.marca }} {{ producto.modelo }}</span>
+        <span v-if="producto.marca || producto.modelo" class="text-slate-400 font-medium"> - {{ [producto.marca, producto.modelo].filter(Boolean).join(' ') }}</span>
       </h3>
 
       <!-- Descripción -->

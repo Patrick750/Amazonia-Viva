@@ -98,12 +98,11 @@ const nivelRiesgoMax = { bajo: [0,3], moderado: [4,6], alto: [7,8], extremo: [9,
 const toursFiltrados = computed(() => {
   let lista = [...tours.value];
   if (busqueda.value.trim()) {
-    const q = busqueda.value.trim().toLowerCase();
-    lista = lista.filter(t => 
-      t.nombre.toLowerCase().includes(q) || 
-      (t.nombre_agencia && t.nombre_agencia.toLowerCase().includes(q)) || 
-      (t.categoria_paquete_nombre && t.categoria_paquete_nombre.toLowerCase().includes(q))
-    );
+    const terms = busqueda.value.trim().toLowerCase().split(/\s+/);
+    lista = lista.filter(t => {
+      const searchStr = `${t.nombre} ${t.nombre_agencia} ${t.categoria_paquete_nombre} ${t.ciudad}`.toLowerCase();
+      return terms.every(term => searchStr.includes(term));
+    });
   }
   if (categoriaActiva.value) {
     lista = lista.filter(t => t.categoria_paquete_nombre === categoriaActiva.value);
@@ -149,14 +148,11 @@ const productosFiltrados = computed(() => {
   if (categoriaActiva.value) lista = lista.filter(p => p.nombre_categoria === categoriaActiva.value);
   // Búsqueda
   if (busqueda.value.trim()) {
-    const q = busqueda.value.trim().toLowerCase();
-    lista = lista.filter(p => 
-      p.nombre.toLowerCase().includes(q) || 
-      (p.nombre_proveedor && p.nombre_proveedor.toLowerCase().includes(q)) || 
-      (p.nombre_categoria && p.nombre_categoria.toLowerCase().includes(q)) ||
-      (p.marca && p.marca.toLowerCase().includes(q)) ||
-      (p.modelo && p.modelo.toLowerCase().includes(q))
-    );
+    const terms = busqueda.value.trim().toLowerCase().split(/\s+/);
+    lista = lista.filter(p => {
+      const searchStr = `${p.nombre} ${p.marca} ${p.modelo} ${p.nombre_proveedor} ${p.nombre_categoria}`.toLowerCase();
+      return terms.every(term => searchStr.includes(term));
+    });
   }
   if (orden.value === 'precio_asc') lista.sort((a,b) => a.precio - b.precio);
   else if (orden.value === 'precio_desc') lista.sort((a,b) => b.precio - a.precio);

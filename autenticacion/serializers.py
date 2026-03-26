@@ -275,10 +275,18 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
         return 0
 
     def get_marca(self, obj):
-        return obj.caracteristicas.get('Marca', '') if isinstance(obj.caracteristicas, dict) else ''
+        if isinstance(obj.caracteristicas, list):
+            for item in obj.caracteristicas:
+                if item.get('clave') == 'Marca':
+                    return item.get('valor', '')
+        return ''
 
     def get_modelo(self, obj):
-        return obj.caracteristicas.get('Modelo', '') if isinstance(obj.caracteristicas, dict) else ''
+        if isinstance(obj.caracteristicas, list):
+            for item in obj.caracteristicas:
+                if item.get('clave') == 'Modelo':
+                    return item.get('valor', '')
+        return ''
 
     class Meta:
         model = Productos

@@ -31,6 +31,22 @@ class ProductoSerializer(serializers.ModelSerializer):
         required=False
     )
     nombre_categoria = serializers.CharField(source='categorias.nombre', read_only=True)
+    marca = serializers.SerializerMethodField()
+    modelo = serializers.SerializerMethodField()
+
+    def get_marca(self, obj):
+        if isinstance(obj.caracteristicas, list):
+            for item in obj.caracteristicas:
+                if item.get('clave') == 'Marca':
+                    return item.get('valor', '')
+        return ''
+
+    def get_modelo(self, obj):
+        if isinstance(obj.caracteristicas, list):
+            for item in obj.caracteristicas:
+                if item.get('clave') == 'Modelo':
+                    return item.get('valor', '')
+        return ''
 
     class Meta:
         model = Productos
@@ -38,7 +54,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             'id', 'nombre', 'sku', 'caracteristicas', 'stock', 'precio', 
             'disponible', 'categorias', 'proveedor', 'tipo_catalogo',
             'imagen_producto', 'archivos_subidos', 'imagenes_eliminar',
-            'nombre_categoria'
+            'nombre_categoria', 'marca', 'modelo'
         ]
 
     def create(self, validated_data):

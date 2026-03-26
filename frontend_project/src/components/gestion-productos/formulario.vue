@@ -1,11 +1,11 @@
 <script setup>
 import { ref, watch, defineProps, defineEmits, computed, onMounted } from 'vue';
-import axios from 'axios';
+import axios from '@/api/axios';
 import { useNotificacion } from '@/composables/useNotificacion';
 
 const { mostrarNotificacion } = useNotificacion();
 
-const API_URL = 'http://localhost:8000/api/productos/';
+const API_URL = 'api/productos/';
 
 const props = defineProps({
   abrir: {
@@ -43,7 +43,7 @@ const categoriasLista = ref([]);
 
 const cargarCategorias = async () => {
     try {
-        const res = await axios.get('http://localhost:8000/api/categorias-productos/');
+        const res = await axios.get('api/categorias-productos/');
         categoriasLista.value = res.data;
     } catch (error) {
         console.error('Error cargando categorías:', error);
@@ -167,14 +167,16 @@ const guardarProducto = async () => {
             await axios.post(API_URL, formData);
         }
 
+        mostrarNotificacion(`Producto ${props.producto ? 'actualizado' : 'registrado'} con éxito`, 'exito');
         emit('guardadoExitoso');
     } catch (error) {
         console.error('Error guardando el producto:', error);
         let errorMsg = 'Hubo un error al guardar el producto.';
-        if (error.response && error.response.data && error.response.data.errores) {
-             errorMsg += '\nRevisa los siguientes campos: ' + JSON.stringify(error.response.data.errores);
+        if (error.response && error.response.data) {
+             if (error.response.data.detail) errorMsg = error.response.data.detail;
+             else if (error.response.data.errores) errorMsg += ' ' + JSON.stringify(error.response.data.errores);
         }
-        alert(errorMsg);
+        mostrarNotificacion(errorMsg, 'error');
     } finally {
         isLoading.value = false;
     }
