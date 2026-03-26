@@ -65,9 +65,20 @@ export function useCatalogo() {
         }
     };
 
-    const toggleFavorito = async (paqueteId) => {
+    const obtenerProductoPorId = async (id) => {
         try {
-            await axios.post('api/favoritos/', { paquetes: paqueteId });
+            const res = await axios.get(`api/catalogo/productos/${id}/`);
+            return res.data;
+        } catch (e) {
+            console.error('Error al obtener producto:', e);
+            return null;
+        }
+    };
+
+    const toggleFavorito = async (id, tipo = 'paquete') => {
+        try {
+            const data = tipo === 'producto' ? { producto: id } : { paquetes: id };
+            await axios.post('api/favoritos/', data);
             mostrarNotificacion('Agregado a favoritos', 'exito');
             updateStats(); // Actualizar contadores globalmente
             return true;
@@ -77,9 +88,10 @@ export function useCatalogo() {
         }
     };
 
-    const agregarAlCarrito = async (paqueteId, precio) => {
+    const agregarAlCarrito = async (id, precio, tipo = 'paquete') => {
         try {
-            await axios.post('api/carrito/', { paquetes: paqueteId, precio: precio });
+            const data = tipo === 'producto' ? { producto: id, precio: precio } : { paquetes: id, precio: precio };
+            await axios.post('api/carrito/', data);
             mostrarNotificacion('Agregado al carrito', 'exito');
             updateStats(); // Actualizar contadores globalmente
             return true;
@@ -94,6 +106,6 @@ export function useCatalogo() {
         cargandoTours, cargandoProductos, cargandoCategorias,
         errorTours, errorProductos, 
         cargarTours, cargarProductos, cargarCategorias,
-        obtenerTourPorId, toggleFavorito, agregarAlCarrito
+        obtenerTourPorId, obtenerProductoPorId, toggleFavorito, agregarAlCarrito
     };
 }

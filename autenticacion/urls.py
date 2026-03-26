@@ -4,7 +4,7 @@ from .views import (
     Login, Logout, Actividades, NewPack, UpdatePack, PaquetesTuristicos, 
     DeletePack, CatalogoTours, CatalogoProductos, CategoriaPaqueteListView,
     CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
-    UserStatsView
+    DetalleProductoPublico, UserStatsView
 )
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
 
@@ -30,5 +30,6 @@ urlpatterns = [
     path("favoritos/<int:pk>/", FavoritoView.as_view(), name="favorito_detail"),
     path("carrito/", CarritoView.as_view(), name="carrito"),
     path("catalogo/tours/<int:pk>/", DetalleTourPublico.as_view(), name="detalle_tour_publico"),
+    path("catalogo/productos/<int:pk>/", DetalleProductoPublico.as_view(), name="detalle_producto_publico"),
     path("user/stats/", UserStatsView.as_view(), name="user_stats"),
 ]

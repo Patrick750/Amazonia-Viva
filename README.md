@@ -21,6 +21,18 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 2.9.0 — Paridad de Agencia, Detalle Inmersivo y Robustez de Datos
+> Archivos: `header.vue`, `detalle-producto.vue`, `views.py`, `serializers.py`, `useCatalogo.js`
+
+- **[Feature] Paridad de Agencia**: Extensión de las capacidades de compra y favoritos al rol de **Agencia**. Ahora las agencias disponen de iconos de carrito y favoritos en el navbar con navegación funcional y contadores reactivos.
+- **[Feature] Vista de Detalle Inmersiva**: Rediseño completo de la ficha de producto con carrusel de imágenes de alta resolución, galería de miniaturas y gestión dinámica de especificaciones técnicas desde el modelo de datos.
+- **[Feature] Serialización Profunda**: Implementación de `SerializerDetalleProducto` en el backend para exponer el conjunto completo de metadatos y galerías de imágenes, optimizando la carga de la vista de detalle.
+- **[Security] Privacidad de Datos**: Implementación de visibilidad de datos por rol; el código **SKU** del producto es ahora información privada visible únicamente para el **Proveedor** propietario.
+- **[Fix] Robustez de Especificaciones**: Mejora en el motor de renderizado del frontend para procesar estructuras de características tanto en formato de objeto como de lista, eliminando fallos de carga (infinite loading) por inconsistencia de datos.
+- **[Fix] Mapeo de Galería**: Sincronización de las rutas de Cloudinary entre el backend y frontend, asegurando que todas las imágenes adicionales se visualicen correctamente en el carrusel.
+
+---
+
 ### 2.8.0 — Catálogo Público, Detalle dinámico y Contadores Reactivos
 > Archivos: `detalle-paquete.vue`, `header.vue`, `useUserStats.js`, `useCatalogo.js`, `models.py`, `views.py`, `urls.py`
 

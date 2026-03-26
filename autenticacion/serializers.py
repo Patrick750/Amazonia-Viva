@@ -297,6 +297,27 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
             'marca', 'modelo'
         ]
 
+class SerializerDetalleProducto(serializers.ModelSerializer):
+    imagen_producto = SerializerCatalogoProductoImagen(many=True, read_only=True)
+    nombre_proveedor = serializers.CharField(source='proveedor.nombre_empresa', read_only=True)
+    nombre_categoria = serializers.CharField(source='categorias.nombre', read_only=True)
+    num_calificaciones = serializers.SerializerMethodField()
+    rating = serializers.SerializerMethodField()
+
+    def get_num_calificaciones(self, obj):
+        return 0
+
+    def get_rating(self, obj):
+        return 0
+
+    class Meta:
+        model = Productos
+        fields = [
+            'id', 'nombre', 'sku', 'caracteristicas', 'precio', 'stock',
+            'disponible', 'tipo_catalogo', 'nombre_categoria',
+            'imagen_producto', 'nombre_proveedor', 'rating', 'num_calificaciones'
+        ]
+
 class FavoritoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favoritos
