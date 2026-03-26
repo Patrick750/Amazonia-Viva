@@ -296,3 +296,40 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
             'imagen_portada', 'nombre_proveedor', 'rating', 'num_calificaciones',
             'marca', 'modelo'
         ]
+
+class FavoritoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favoritos
+        fields = ['id', 'usuario', 'producto', 'paquetes']
+        extra_kwargs = {
+            'usuario': {'read_only': True},
+            'producto': {'required': False, 'allow_null': True},
+            'paquetes': {'required': False, 'allow_null': True}
+        }
+
+class CarritoItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Items
+        fields = ['id', 'carrito', 'producto', 'paquetes', 'precio']
+        extra_kwargs = {
+            'carrito': {'read_only': True},
+            'producto': {'required': False, 'allow_null': True},
+            'paquetes': {'required': False, 'allow_null': True}
+        }
+
+class SerializerDetalleTour(serializers.ModelSerializer):
+    imagen_paquete = SerializersImages(many=True, read_only=True)
+    nombre_agencia = serializers.CharField(source='agencia.nombre_agencia', read_only=True)
+    categoria_paquete_nombre = serializers.CharField(source='categoria_paquete.nombre', read_only=True)
+    actividades_detalle = SerializersActividades(source='actividades', many=True, read_only=True)
+
+    class Meta:
+        model = PaqueteTuristico
+        fields = [
+            'id', 'activo', 'nombre', 'descripcion', 'precio', 'duracion', 
+            'ubicacion', 'latitud', 'longitud', 'capacidad', 
+            'itinerario', 'incluido', 'rating',
+            'imagen_paquete', 'nombre_agencia', 'categoria_paquete_nombre',
+            'actividades_detalle'
+        ]
+

@@ -1,7 +1,8 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status 
+from rest_framework.permissions import IsAuthenticated
 from .serializers import *
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -207,4 +208,108 @@ class CatalogoProductos(APIView):
             serializer = SerializerCatalogoProducto(productos, many=True)
             return Response(serializer.data)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class FavoritoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            producto_id = request.data.get('producto')
+            paquetes_id = request.data.get('paquetes')
+            
+            if not producto_id and not paquetes_id:
+                return Response({'error': 'Debe proporcionar un producto o un paquete.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Evitar duplicados de forma segura
+            favorito = Favoritos.objects.filter(
+                usuario=request.user,
+                producto_id=producto_id if producto_id else None,
+                paquetes_id=paquetes_id if paquetes_id else None
+            ).first()
+            
+            created = False
+            if not favorito:
+                favorito = Favoritos.objects.create(
+                    usuario=request.user,
+                    producto_id=producto_id if producto_id else None,
+                    paquetes_id=paquetes_id if paquetes_id else None
+                )
+                created = True
+                
+            serializer = FavoritoSerializer(favorito)
+            return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        except Exception as e:
+            print(f"ERROR EN FAVORITOS: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, pk):
+        favorito = get_object_or_404(Favoritos, pk=pk, usuario=request.user)
+        favorito.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class CarritoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            carrito, _ = Carrito.objects.get_or_create(usuario=request.user, status=True)
+            producto_id = request.data.get('producto')
+            paquetes_id = request.data.get('paquetes')
+            precio = request.data.get('precio')
+
+            if not producto_id and not paquetes_id:
+                return Response({'error': 'Debe proporcionar un producto o un paquete.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Evitar duplicados del mismo paquete en el mismo carrito activo de forma segura
+            item = Items.objects.filter(
+                carrito=carrito,
+                producto_id=producto_id if producto_id else None,
+                paquetes_id=paquetes_id if paquetes_id else None
+            ).first()
+            
+            created = False
+            if not item:
+                item = Items.objects.create(
+                    carrito=carrito,
+                    producto_id=producto_id if producto_id else None,
+                    paquetes_id=paquetes_id if paquetes_id else None,
+                    precio=precio
+                )
+                created = True
+
+            serializer = CarritoItemSerializer(item)
+            return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        except Exception as e:
+            print(f"ERROR EN CARRITO: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class DetalleTourPublico(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, pk):
+        tour = get_object_or_404(PaqueteTuristico, pk=pk, activo=True)
+        serializer = SerializerDetalleTour(tour)
+        return Response(serializer.data)
+
+class UserStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        fav_count = Favoritos.objects.filter(usuario=request.user).count()
+        
+        # Obtener el carrito activo
+        carrito = Carrito.objects.filter(usuario=request.user, status=True).first()
+        if not carrito:
+            return Response({'favorites_count': fav_count, 'cart_count': 0})
+
+        # Contar paquetes únicos y productos únicos
+        paquetes_unicos = Items.objects.filter(carrito=carrito, paquetes__isnull=False).values('paquetes').distinct().count()
+        productos_unicos = Items.objects.filter(carrito=carrito, producto__isnull=False).values('producto').distinct().count()
+        
+        return Response({
+            'favorites_count': fav_count,
+            'cart_count': paquetes_unicos + productos_unicos
+        })
+

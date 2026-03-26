@@ -3,7 +3,8 @@ from .views import (
     RegistroAgencia, RegistroProveedor, VerificarEmail, RegistroTurista, 
     Login, Logout, Actividades, NewPack, UpdatePack, PaquetesTuristicos, 
     DeletePack, CatalogoTours, CatalogoProductos, CategoriaPaqueteListView,
-    CategoriaProductoListView
+    CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
+    UserStatsView
 )
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
 
@@ -25,4 +26,9 @@ urlpatterns = [
     path("catalogo/productos/", CatalogoProductos.as_view(), name="catalogo_productos"),
     path("categorias-paquetes/", CategoriaPaqueteListView.as_view(), name="categorias_paquetes"),
     path("categorias-productos/", CategoriaProductoListView.as_view(), name="categorias_productos"),
+    path("favoritos/", FavoritoView.as_view(), name="favoritos"),
+    path("favoritos/<int:pk>/", FavoritoView.as_view(), name="favorito_detail"),
+    path("carrito/", CarritoView.as_view(), name="carrito"),
+    path("catalogo/tours/<int:pk>/", DetalleTourPublico.as_view(), name="detalle_tour_publico"),
+    path("user/stats/", UserStatsView.as_view(), name="user_stats"),
 ]

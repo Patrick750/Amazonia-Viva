@@ -1,7 +1,11 @@
 import { ref } from 'vue';
 import axios from '@/api/axios';
+import { useUserStats } from './useUserStats';
+import { useNotificacion } from './useNotificacion';
 
 export function useCatalogo() {
+    const { mostrarNotificacion } = useNotificacion();
+    const { updateStats } = useUserStats();
     const tours = ref([]);
     const productos = ref([]);
     const cargandoTours = ref(false);
@@ -51,10 +55,45 @@ export function useCatalogo() {
         }
     };
 
+    const obtenerTourPorId = async (id) => {
+        try {
+            const res = await axios.get(`api/catalogo/tours/${id}/`);
+            return res.data;
+        } catch (e) {
+            console.error('Error al obtener tour:', e);
+            return null;
+        }
+    };
+
+    const toggleFavorito = async (paqueteId) => {
+        try {
+            await axios.post('api/favoritos/', { paquetes: paqueteId });
+            mostrarNotificacion('Agregado a favoritos', 'exito');
+            updateStats(); // Actualizar contadores globalmente
+            return true;
+        } catch (e) {
+            console.error('Error al toggle favorito:', e);
+            return false;
+        }
+    };
+
+    const agregarAlCarrito = async (paqueteId, precio) => {
+        try {
+            await axios.post('api/carrito/', { paquetes: paqueteId, precio: precio });
+            mostrarNotificacion('Agregado al carrito', 'exito');
+            updateStats(); // Actualizar contadores globalmente
+            return true;
+        } catch (e) {
+            console.error('Error al agregar al carrito:', e);
+            return false;
+        }
+    };
+
     return { 
         tours, productos, categoriasTours,
         cargandoTours, cargandoProductos, cargandoCategorias,
         errorTours, errorProductos, 
-        cargarTours, cargarProductos, cargarCategorias 
+        cargarTours, cargarProductos, cargarCategorias,
+        obtenerTourPorId, toggleFavorito, agregarAlCarrito
     };
 }

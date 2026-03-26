@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 
 // 1. OBTENCIÓN DEL ROL
 // Obtiene el rol exacto guardado al iniciar sesión
-const userRole = ref(localStorage.getItem('rol') || 'agencia');
+const userRole = ref(localStorage.getItem('rol') || 'invitado');
 
 // 2. LÓGICA INTERACTIVA (Brújula o Mariposa)
 const interactiveElRef = ref(null);
@@ -124,6 +124,28 @@ const roleConfigs = {
         trend: "Clientes únicos atendidos", trendType: "neutral",
         icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
         watermark: '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>'
+      }
+    ]
+  },
+  invitado: {
+    header: {
+      title: "Bienvenido a Amazonia Viva",
+      subtitle: "Descubre las maravillas de la selva amazónica"
+    },
+    gridClass: "lg:grid-cols-2",
+    theme: 'turismo',
+    kpis: [
+      {
+        title: "Tours Disponibles", value: "+50",
+        trend: "Nuevas experiencias cada semana", trendType: "neutral",
+        icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+        watermark: '<path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,19.93C7.06,19.43 4,16.05 4,12C4,7.95 7.06,4.57 11,4.07V19.93M13,4.07C16.94,4.57 20,7.95 20,12C20,16.05 16.94,19.43 13,19.93V4.07M15,10.5A1.5,1.5 0 0,0 16.5,12A1.5,1.5 0 0,0 18,10.5A1.5,1.5 0 0,0 16.5,9A1.5,1.5 0 0,0 15,10.5M16.5,13.5A1.5,1.5 0 0,0 18,15A1.5,1.5 0 0,0 19.5,13.5A1.5,1.5 0 0,0 18,12A1.5,1.5 0 0,0 16.5,13.5Z"/>'
+      },
+      {
+        title: "Destinos Únicos", value: "Amazonía",
+        trend: "Turismo responsable y consciente", trendType: "neutral",
+        icon: '<path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />',
+        watermark: '<path d="M22,12C22,12 21.36,10.58 20.35,9.65C19.35,8.72 18,8.22 18,8.22C18,8.22 16.89,7.5 15.68,7.21C14.47,6.91 13.16,7.05 13.16,7.05C13.16,7.05 11.5,6.67 10.15,6.58C8.81,6.48 7.5,6.67 7.5,6.67C7.5,6.67 6.13,6.33 4.88,6.29C3.62,6.25 2.5,6.5 2.5,6.5C2.5,6.5 3.39,8.22 4.14,9.65C4.89,11.08 5.39,12.5 5.39,12.5V14.17C5.39,14.17 5.72,15.58 6.72,16.52C7.73,17.45 9.06,17.95 9.06,17.95H11.58C11.58,17.95 12.92,18.29 14.17,18.25C15.42,18.21 16.56,17.78 16.56,17.78L19,16.52C19,16.52 20.36,15.11 20.86,13.68C21.36,12.25 21.36,10.82 21.36,10.82C21.36,10.82 22,12 22,12Z"/>'
       }
     ]
   }

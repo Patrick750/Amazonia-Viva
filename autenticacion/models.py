@@ -159,7 +159,7 @@ class PaqueteTuristico(models.Model):
         help_text="Formato esperado: [{'item': 'Transporte'}]"
     )
     
-    rating = models.DecimalField(decimal_places=100, max_digits=100, null=False, default=0)
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
 
     class Meta:
         verbose_name = "Paquete Turístico"
@@ -207,18 +207,18 @@ class Carrito(models.Model):
 
 class Items(models.Model):
     carrito = models.ForeignKey(Carrito, on_delete=models.CASCADE,  related_name='item_carrito')
-    producto = models.ForeignKey(Productos, on_delete=models.CASCADE,  related_name='item_productos')
-    paquetes = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE,  related_name='item_paquetes')
-    precio = models.DecimalField(decimal_places=1000,max_digits=1000, null=False, blank=False)
+    producto = models.ForeignKey(Productos, on_delete=models.CASCADE,  related_name='item_productos', null=True, blank=True)
+    paquetes = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE,  related_name='item_paquetes', null=True, blank=True)
+    precio = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
 
 class Favoritos(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='favorito_usuario')
-    producto = models.ForeignKey(Productos, on_delete=models.CASCADE,  related_name='favorito_productos')
-    paquetes = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE,  related_name='favorito_paquetes')
+    producto = models.ForeignKey(Productos, on_delete=models.CASCADE,  related_name='favorito_productos', null=True, blank=True)
+    paquetes = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE,  related_name='favorito_paquetes', null=True, blank=True)
 
 class Venta(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
-    total = models.DecimalField(decimal_places=1000, max_digits=1000, null=False, blank=False)
+    total = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='venta_usuario')
     fotograficas = models.JSONField(default=dict, null=True)
     estado = models.CharField(max_length=40, null=False, blank=False)
@@ -228,6 +228,6 @@ class Detalles_Venta(models.Model):
     producto = models.IntegerField(null=False, blank=False)
     paquete = models.IntegerField(null=False, blank=False)
     cantidad = models.IntegerField(null=False, blank=False)
-    precio_unitario = models.DecimalField(decimal_places=1000, max_digits=1000, null=False, blank=False)
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
     
 

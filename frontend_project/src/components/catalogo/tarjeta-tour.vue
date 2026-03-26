@@ -1,4 +1,7 @@
 <script setup>
+import { useRouter } from 'vue-router';
+const router = useRouter();
+
 const props = defineProps({
     tour: { type: Object, required: true },
     rol: { type: String, default: null }
@@ -109,7 +112,7 @@ const puedeComprar = props.rol !== 'proveedor';
           <span class="text-xl font-black text-emerald-700">${{ Number(tour.precio).toLocaleString('es-CO') }}</span>
         </div>
         <button
-          @click="emit('verDetalles', tour)"
+          @click="router.push({ name: 'detalle_tour', params: { id: tour.id } })"
           class="px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors shadow-sm"
         >
           Ver detalles
