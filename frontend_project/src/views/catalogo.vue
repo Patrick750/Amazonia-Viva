@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import TarjetaTour from '@/components/catalogo/tarjeta-tour.vue';
 import TarjetaProducto from '@/components/catalogo/tarjeta-producto.vue';
 import { useCatalogo } from '@/composables/useCatalogo';
@@ -16,10 +16,29 @@ const {
   cargarTours, cargarProductos, cargarCategorias 
 } = useCatalogo();
 
+const ultimoScrollY = ref(0);
+const headerOculto = ref(false);
+
+const handleScroll = () => {
+  const actual = window.scrollY;
+  // Ocultar si bajamos y pasamos un umbral, mostrar si subimos
+  if (actual > ultimoScrollY.value && actual > 150) {
+    headerOculto.value = true;
+  } else {
+    headerOculto.value = false;
+  }
+  ultimoScrollY.value = actual;
+};
+
 onMounted(() => { 
   cargarTours(); 
   cargarProductos(); 
   cargarCategorias(); 
+  window.addEventListener('scroll', handleScroll);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
 });
 
 // --- BUSCADOR ---
@@ -44,7 +63,6 @@ const opcionesOrden = [
   { value: 'rating_desc', label: 'Mejor calificados' },
   { value: 'ubicacion', label: 'Ubicación' },
   { value: 'duracion', label: 'Duración' },
-  { value: 'categoria', label: 'Categoría' },
 ];
 const mostrarMenuOrden = ref(false);
 const labelOrden = computed(() => opcionesOrden.find(o => o.value === orden.value)?.label || 'Ordenar por');
@@ -60,9 +78,14 @@ const parsearHoras = (duracion) => {
 };
 
 // --- CATEGORÍAS/FILTROS POR TABS ---
-const categoriasGlobales = computed(() => {
+const categoriasToursRel = computed(() => {
   const cats = new Set();
   tours.value.forEach(t => { if(t.categoria_paquete_nombre) cats.add(t.categoria_paquete_nombre) });
+  return [{ value: '', label: 'Todos' }, ...[...cats].sort().map(c => ({ value: c, label: c }))];
+});
+
+const categoriasProductosRel = computed(() => {
+  const cats = new Set();
   productos.value.forEach(p => { if(p.nombre_categoria) cats.add(p.nombre_categoria) });
   return [{ value: '', label: 'Todos' }, ...[...cats].sort().map(c => ({ value: c, label: c }))];
 });
@@ -141,9 +164,10 @@ const productosFiltrados = computed(() => {
 
 const itemsActuales = computed(() => tabActivo.value === 'tours' ? toursFiltrados.value : productosFiltrados.value);
 const cargando = computed(() => tabActivo.value === 'tours' ? cargandoTours.value : cargandoProductos.value);
-const categoriasActuales = computed(() => categoriasGlobales.value);
+const categoriasActuales = computed(() => tabActivo.value === 'tours' ? categoriasToursRel.value : categoriasProductosRel.value);
 
 watch(tabActivo, () => {
+  categoriaActiva.value = '';
   orden.value = '';
   filtroUbicacion.value = '';
   filtroDuracion.value = '';
@@ -156,13 +180,9 @@ watch(tabActivo, () => {
   <div class="min-h-screen bg-gray-50 px-6 pb-10 max-w-7xl mx-auto" @click="mostrarMenuOrden = false">
 
     <!-- CONTENEDOR STICKY COMPONENTIZADO -->
-    <div class="sticky top-[78px] z-40 bg-gray-50 pt-10 pb-4 mb-6 -mx-6 px-6 border-b border-gray-200/60 shadow-[0_4px_6px_-2px_rgba(0,0,0,0.05)]">
+    <div :class="['sticky top-[78px] z-40 bg-gray-50/95 backdrop-blur-md pt-6 pb-4 mb-6 -mx-6 px-6 border-b border-gray-200/60 shadow-sm transition-all duration-300 ease-in-out', 
+      headerOculto ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100']">
       
-      <!-- Título principal -->
-      <div class="mb-6">
-      <p class="text-sm font-semibold text-emerald-600 mb-1 uppercase tracking-widest">Explora</p>
-      <h1 class="text-3xl font-black text-gray-900 tracking-tight">Catálogo Amazonia Viva</h1>
-    </div>
 
     <!-- Tabs -->
     <div class="flex gap-2 mb-6">
@@ -298,16 +318,11 @@ watch(tabActivo, () => {
       </div>
     </transition>
 
-    <!-- Panel de Categorías (visible solo cuando se selecciona Categoría) -->
-    <transition
-      enter-active-class="transition ease-out duration-200"
-      enter-from-class="opacity-0 -translate-y-1"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition ease-in duration-150"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 -translate-y-1"
-    >
-      <div v-if="orden === 'categoria' && tabActivo === 'tours'" class="mb-8 space-y-4 bg-white/50 p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+    <!-- PANEL DE CATEGORÍAS UNIFICADO (Promovido al frente) -->
+    <section class="mb-8 space-y-4 bg-white/60 p-6 rounded-[2.5rem] border border-emerald-100/50 shadow-sm backdrop-blur-sm animate-fade-in-up">
+      
+      <!-- Lógica para TOURS (Grupos + Subcategorías) -->
+      <div v-if="tabActivo === 'tours'" class="space-y-4">
         <!-- Grupos de Categorías -->
         <div class="flex items-center gap-3 flex-wrap">
           <span class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mr-2">Filtrar por Grupo:</span>
@@ -321,8 +336,8 @@ watch(tabActivo, () => {
           >{{ grupo }}</button>
         </div>
 
-        <!-- Subcategorías -->
-        <div v-if="grupoSeleccionado" class="flex items-center gap-2 flex-wrap border-t border-gray-50 pt-5 animate-slide-down">
+        <!-- Subcategorías (Mostradas al seleccionar un grupo) -->
+        <div v-if="grupoSeleccionado" class="flex items-center gap-2 flex-wrap border-t border-emerald-50/50 pt-5 animate-slide-down">
           <span class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mr-2">Subcategoría:</span>
           <button
             v-for="cat in categoriasTours.filter(c => c.grupo === grupoSeleccionado)" :key="cat.id"
@@ -333,38 +348,32 @@ watch(tabActivo, () => {
                 : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 hover:text-emerald-600']"
           >{{ cat.nombre }}</button>
         </div>
-        
-        <div v-if="filtroCategoria || grupoSeleccionado" class="flex justify-end pt-2">
-          <button
-            @click="filtroCategoria = ''; grupoSeleccionado = ''"
-            class="text-[10px] font-bold text-gray-400 hover:text-red-500 transition-colors uppercase tracking-[0.2em] flex items-center gap-1.5 px-3 py-1 rounded-full hover:bg-red-50"
-          >
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            Limpiar Filtros de Categoría
-          </button>
-        </div>
       </div>
-    </transition>
 
-    <!-- Fila de etiquetas de categoría (chips) -->
-    <div class="flex flex-wrap gap-2 mb-2">
-      <button
-        v-for="cat in categoriasActuales" :key="cat.value"
-        @click="categoriaActiva = cat.value"
-        :class="['flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-200',
-          categoriaActiva === cat.value
-            ? (tabActivo === 'tours' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-teal-600 text-white border-teal-600')
-            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700']"
-      >
-        <!-- Dot de color para niveles de riesgo (tours) -->
-        <span
-          v-if="cat.color"
-          class="inline-block w-2 h-2 rounded-full flex-shrink-0"
-          :style="{ backgroundColor: categoriaActiva === cat.value ? 'white' : cat.color }"
-        ></span>
-        {{ cat.label }}
-      </button>
-    </div>
+      <!-- Lógica para PRODUCTOS (Filtro por nombre de categoría similar a chips) -->
+      <div v-else class="flex flex-wrap gap-2 items-center">
+        <span class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mr-4">Categorías de Productos:</span>
+        <button
+          v-for="cat in categoriasActuales" :key="cat.value"
+          @click="categoriaActiva = cat.value"
+          :class="['flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold border transition-all duration-300',
+            categoriaActiva === cat.value
+              ? 'bg-teal-600 text-white border-teal-600 shadow-lg shadow-teal-100 scale-105'
+              : 'bg-white text-gray-500 border-gray-100 hover:border-teal-300 hover:text-teal-700 hover:shadow-sm']"
+        >{{ cat.label }}</button>
+      </div>
+      
+      <!-- Botón Limpiar para ambos -->
+      <div v-if="filtroCategoria || grupoSeleccionado || categoriaActiva" class="flex justify-end pt-2">
+        <button
+          @click="filtroCategoria = ''; grupoSeleccionado = ''; categoriaActiva = ''"
+          class="text-[10px] font-bold text-gray-400 hover:text-red-500 transition-colors uppercase tracking-[0.2em] flex items-center gap-1.5 px-3 py-1 rounded-full hover:bg-red-50"
+        >
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          Limpiar Filtros de Categoría
+        </button>
+      </div>
+    </section>
 
     </div> <!-- CIERRE CONTENEDOR STICKY -->
 

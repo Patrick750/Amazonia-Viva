@@ -20,23 +20,21 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MAYOR** — cambio funcional significativo o rediseño arquitectónico
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
-30:     - Panel de filtrado global por Grupo y Subcategoría en la pestaña de Tours.
-31:     - Persistencia de filtros al cambiar el ordenamiento.
-32:     - Soporte para filtrado por grupo completo o categoría específica.
-33: - **[Optimization] Backend**: Implementación de `select_related` y `prefetch_related` para optimizar las consultas del catálogo.
-34: 
 
-### 2.6.0 — Módulo de Catálogo Público (SCRUM-40)
-> Archivos: `catalogo.vue`, `tarjeta-tour.vue`, `tarjeta-producto.vue`, `useCatalogo.js`, `views.py`, `serializers.py`, `urls.py`, `router/index.js`, `navigation.js`
+### 2.6.0 — Módulo de Catálogo Público y Filtrado Inteligente (SCRUM-40)
+> Archivos: `catalogo.vue`, `tarjeta-tour.vue`, `tarjeta-producto.vue`, `formulario.vue`, `useCatalogo.js`, `views.py`, `serializers.py`, `urls.py`
 
 - **[Feature] Vista de Catálogo**: Nueva vista `/panel/catalogo` accesible desde el header para todos los roles (turista, agencia, proveedor).
+- **[Feature] Filtrado Global**: Panel de filtrado dinámico por **Grupo** y **Subcategoría** en la pestaña de Tours, con soporte para filtrado por grupo completo o categoría específica.
+- **[Feature] Persistencia de Filtros**: Los filtros seleccionados se mantienen activos incluso al cambiar el criterio de ordenamiento (precio, calificación).
 - **[Feature] Tabs Tours / Productos**: Navegación por pestañas que separa los paquetes turísticos de los productos del catálogo.
-- **[Feature] Buscador tipo Píldora**: Campo de búsqueda reactivo por nombre y agencia/proveedor, con botón desplegable de ordenamiento (precio, calificación).
-- **[Feature] Chips de Categoría**: Fila de etiquetas de filtrado dinámicas (nivel de riesgo para tours, categorías para productos). Activo con fondo sólido, inactivo con borde sutil.
-- **[Feature] Tarjetas de Tour**: Componente `tarjeta-tour.vue` con foto, estrellas de calificación, título, descripción, íconos de ubicación y duración, y pie con precio + botón "Ver detalles".
-- **[Feature] Control de Roles**: Proveedores pueden explorar el catálogo pero no tienen botón de compra/reserva. Turistas ven productos `tipo_catalogo=turistas`, agencias ven `tipo_catalogo=agencias`.
-- **[Feature] API Pública**: Endpoints `GET /api/catalogo/tours/` y `GET /api/catalogo/productos/` sin autenticación requerida.
-- **[Refactor] Íconos SVG**: Reemplazo de todos los emojis por íconos SVG en tabs, chips de categoría y badges de nivel de riesgo.
+- **[Feature] Categorías Dinámicas**: Gestión de categorías en el formulario de productos vinculada al Seeder, permitiendo actualizaciones de catálogo en tiempo real.
+- **[Feature] Buscador Reactivo**: Campo de búsqueda tipo píldora por nombre y agencia/proveedor con retroalimentación instantánea.
+- **[UI/UX] Sticky Header**: Unificación de la lógica de cabecera fija (sticky) responsiva para una navegación fluida en todas las resoluciones.
+- **[Optimization] Backend**: Implementación de `select_related` y `prefetch_related` para optimizar las consultas del catálogo, reduciendo significativamente el tiempo de respuesta.
+- **[Feature] Tarjetas de Tour**: Componente `tarjeta-tour.vue` con galería, badges de riesgo, ubicación, duración y botón de detalles integrado.
+- **[UI/UX] Navegación Inmersiva**: Implementación de lógica *Hide-on-Scroll* que oculta automáticamente los controles del catálogo al bajar y los revela al subir, maximizando el área de visualización.
+- **[Refactor] Iconografía**: Migración total de emojis a íconos SVG vectoriales en tabs, chips de categoría y estados.
 
 ---
 
