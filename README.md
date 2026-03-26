@@ -21,6 +21,18 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 2.7.0 — Optimización de Gestión de Productos y Seguridad de Acceso
+> Archivos: `views_productos.py`, `serializers_productos.py`, `productos.vue`, `formulario.vue`, `tabla-productos.vue`, `catalogo.vue`
+
+- **[Feature] Restricción de Acceso**: Implementación de políticas de privacidad donde cada proveedor solo visualiza y gestiona sus propios productos.
+- **[Security] Verificación de Propiedad**: Protección en el backend (`IsAuthenticated` + `Ownership check`) para prevenir modificaciones no autorizadas entre cuentas de proveedores.
+- **[Feature] Atributos Dinámicos**: Migración de la lógica de atributos "Técnicos" y "Generales" a la base de datos, permitiendo que el formulario se adapte automáticamente según la categoría seleccionada sin dependencias en el código.
+- **[UI/UX] Legibilidad de Categorías**: Actualización de la tabla de gestión para mostrar el **Nombre de la Categoría** en lugar del ID, mejorando la experiencia administrativa.
+- **[Bugfix] Reseteo de Filtros**: Corrección del error de persistencia en las pestañas del catálogo, asegurando que los filtros se limpien correctamente al navegar entre Tours y Productos.
+- **[Fix] Persistencia de Sesión**: Sincronización del cliente `Axios` en la vista de productos para garantizar el envío del token JWT en todas las operaciones administrativas.
+
+---
+
 ### 2.6.0 — Módulo de Catálogo Público y Filtrado Inteligente (SCRUM-40)
 > Archivos: `catalogo.vue`, `tarjeta-tour.vue`, `tarjeta-producto.vue`, `formulario.vue`, `useCatalogo.js`, `views.py`, `serializers.py`, `urls.py`
 
