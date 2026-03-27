@@ -9,12 +9,15 @@ import catalogo from '@/views/catalogo.vue'
 import DetallePaquete from '@/views/detalle-paquete.vue'
 import DetalleProducto from '@/views/detalle-producto.vue'
 
+import home from '@/views/home.vue'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path:'/',
-      redirect: '/catalogo',
+      name: 'home',
+      component: home,
     },
     {
       path:'/auth/signup',
