@@ -482,7 +482,7 @@ const formatTime = (timeStr) => {
             <!-- Estado Error -->
             <div v-else class="text-center py-20">
                 <h2 class="text-2xl font-bold text-gray-500">Paquete no encontrado</h2>
-                <button @click="router.push('/catalogo')" class="mt-4 text-emerald-600 hover:underline">
+                <button @click="router.push('/catalogo/tours')" class="mt-4 text-emerald-600 hover:underline">
                     Ver otros paquetes
                 </button>
             </div>

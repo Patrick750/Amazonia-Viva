@@ -1,6 +1,18 @@
-# frontend_project
+# Amazonia Viva - Frontend Proyecto
 
-This template should help get you started developing with Vue 3 in Vite.
+Catálogo interactivo multi-rol para gestión de turismo y productos amazónicos. Construido bajo los principios de **Arquitectura Limpia**, **Persistencia Natural (URL)** e **Inclusividad para Invitados**.
+
+## ✨ Características Principales
+
+### 📦 Catálogo Inteligente
+- **Rutas Separadas**: Secciones independientes para Tours y Productos para una navegación clara.
+- **Persistencia de Filtros**: Todos los filtros se guardan en la URL para navegar sin pérdidas.
+- **Micro-animaciones**: Transiciones de scroll y carga de alta calidad.
+- **Iconografía Profesional**: Integración total de iconos SVG vectoriales.
+
+### 🛡️ Seguridad y Rutas
+- **Navigation Guard**: Rutas protegidas por rol con redirección automática para usuarios sin sesión.
+- **Contexto Universal**: El usuario invitado puede explorar antes de comprometerse.
 
 ## Recommended IDE Setup
 

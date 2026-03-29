@@ -39,7 +39,7 @@ const cerrarSesion = async () => {
     console.error(error)
   }finally{
     localStorage.clear()
-    window.location.href = '/panel'
+    window.location.href = '/'
   }
 }
 

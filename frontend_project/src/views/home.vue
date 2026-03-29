@@ -16,8 +16,8 @@ const queryPlan = ref('');
 const buscarAventura = () => {
     // Redigir al catálogo con parámetros (simplificado para esta versión)
     router.push({ 
-        path: '/catalogo', 
-        query: { q: queryDestino.value, plan: queryPlan.value } 
+        path: '/catalogo/tours', 
+        query: { q: queryDestino.value, grupo: queryPlan.value } 
     });
 };
 
@@ -65,17 +65,33 @@ const propuestasValor = [
         <!-- Widget de Búsqueda -->
         <div class="bg-white/95 backdrop-blur-md p-3 rounded-[32px] shadow-2xl max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-2 border border-white/20">
           <div class="flex-1 w-full relative">
-            <span class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-600">📍</span>
+            <span class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-600">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+            </span>
             <input v-model="queryDestino" type="text" placeholder="¿A dónde vas?" class="w-full pl-12 pr-6 py-4 bg-transparent text-gray-800 placeholder-gray-400 focus:outline-none font-medium">
           </div>
           <div class="hidden md:block w-px h-10 bg-gray-200"></div>
           <div class="flex-1 w-full relative">
-            <span class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-600">📅</span>
+            <span class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-600">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </span>
             <input v-model="queryFecha" type="date" class="w-full pl-12 pr-6 py-4 bg-transparent text-gray-800 focus:outline-none font-medium">
           </div>
           <div class="hidden md:block w-px h-10 bg-gray-200"></div>
           <div class="flex-1 w-full relative">
-            <span class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-600">🌿</span>
+            <span class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-600">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+              </svg>
+            </span>
             <select v-model="queryPlan" class="w-full pl-12 pr-6 py-4 bg-transparent text-gray-800 appearance-none focus:outline-none font-medium cursor-pointer">
               <option value="">Tipo de Plan</option>
               <option value="aventura">Aventura</option>

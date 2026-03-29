@@ -51,7 +51,16 @@ const router = createRouter({
     },
     {
       path: '/catalogo',
-      name: 'catalogo',
+      redirect: '/catalogo/tours'
+    },
+    {
+      path: '/catalogo/tours',
+      name: 'catalogo_tours',
+      component: catalogo,
+    },
+    {
+      path: '/catalogo/productos',
+      name: 'catalogo_productos',
       component: catalogo,
     },
     {
@@ -72,32 +81,35 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   const rol = localStorage.getItem('rol')
 
-  const urlAuth = ['/auth/login','/auth/signup'] 
-  const urlMenus = ['/panel/dashboard','/panel/gestion-paquetes','/panel/productos']
+  const publicPaths = ['/', '/auth/login', '/auth/signup', '/catalogo']
+  const isPublic = publicPaths.includes(to.path) || to.path.startsWith('/catalogo/')
 
-  if(urlMenus.includes(to.path)){
-    if(!token || !rol){
-      return next('/panel')
+  // Si no está autenticado y no es una ruta pública, al inicio
+  if (!token || !rol) {
+    if (!isPublic) {
+      return next('/')
     }
-  } 
+    return next()
+  }
 
-  if (to.path === '/panel/gestion-paquetes') {
-    if (rol !== 'agencia') {
-      return next('/panel')
+  // Si está autenticado e intenta ir a login/signup, al inicio
+  if (['/auth/login', '/auth/signup'].includes(to.path)) {
+    return next('/')
+  }
+
+  // Restricciones de Panel para usuarios autenticados
+  if (to.path === '/panel' || to.path === '/panel/dashboard') {
+    if (rol === 'turista') {
+      return next('/')
     }
   }
 
-  if (to.path === '/panel/productos') {
-    if (rol !== 'proveedor') {
-      return next('/panel')
-    }
+  if (to.path === '/panel/gestion-paquetes' && rol !== 'agencia') {
+    return next('/')
   }
 
-  if (urlAuth.includes(to.path)) {
-    
-    if (token && rol) {
-      return next(`/panel`)
-    }
+  if (to.path === '/panel/productos' && rol !== 'proveedor') {
+    return next('/')
   }
 
   return next()

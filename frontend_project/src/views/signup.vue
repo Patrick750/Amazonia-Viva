@@ -172,7 +172,7 @@
       return false
     }
     const Redirigir = () => {
-      router.push(`/panel`)
+      router.push(`/`)
     } 
     
     const saveTokens = async (pack) => {
@@ -191,7 +191,7 @@
           localStorage.setItem('nombre_agencia', response.data.usuario.nombre_agencia)
           localStorage.setItem('rol', response.data.usuario.group)
 
-          window.location.href = '/panel'
+          window.location.href = '/'
           Redirigir()
 
         }catch(error){

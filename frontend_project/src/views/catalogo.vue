@@ -1,13 +1,16 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import TarjetaTour from '@/components/catalogo/tarjeta-tour.vue';
 import TarjetaProducto from '@/components/catalogo/tarjeta-producto.vue';
 import { useCatalogo } from '@/composables/useCatalogo';
 
 const rol = localStorage.getItem('rol');
+const route = useRoute();
+const router = useRouter();
 
 // --- TABS ---
-const tabActivo = ref('tours'); // 'tours' | 'productos'
+const tabActivo = computed(() => route.path.includes('/productos') ? 'productos' : 'tours');
 
 // --- DATOS ---
 const { 
@@ -42,14 +45,14 @@ onUnmounted(() => {
 });
 
 // --- BUSCADOR ---
-const busqueda = ref('');
+const busqueda = ref(route.query.q || '');
 
 // --- ORDENAMIENTO ---
-const orden = ref('');
-const filtroUbicacion = ref('');
-const filtroDuracion = ref(''); // '' | 'menos4' | '4a8' | 'mas8' | 'mas1dia'
-const filtroCategoria = ref(''); // ID de la subcategoría
-const grupoSeleccionado = ref(''); // Para navegar grupos de categorías
+const orden = ref(route.query.orden || '');
+const filtroUbicacion = ref(route.query.ubicacion || '');
+const filtroDuracion = ref(route.query.duracion || ''); // '' | 'menos4' | '4a8' | 'mas8' | 'mas1dia'
+const filtroCategoria = ref(route.query.cat || ''); // ID de la subcategoría
+const grupoSeleccionado = ref(route.query.grupo || ''); // Para navegar grupos de categorías
 const opcionesDuracion = [
   { value: 'menos4', label: 'Menos de 4h' },
   { value: '4a8',    label: '4h – 8h' },
@@ -90,7 +93,7 @@ const categoriasProductosRel = computed(() => {
   return [{ value: '', label: 'Todos' }, ...[...cats].sort().map(c => ({ value: c, label: c }))];
 });
 
-const categoriaActiva = ref('');
+const categoriaActiva = ref(route.query.seccion || '');
 
 // --- FILTRADO Y ORDENAMIENTO ---
 const nivelRiesgoMax = { bajo: [0,3], moderado: [4,6], alto: [7,8], extremo: [9,10] };
@@ -143,7 +146,8 @@ const productosFiltrados = computed(() => {
   let lista = [...productos.value];
   // Filtro por rol
   if (rol === 'agencia') lista = lista.filter(p => p.tipo_catalogo === 'agencias');
-  else if (rol === 'turista' || !rol) lista = lista.filter(p => p.tipo_catalogo === 'turistas');
+  else if (rol === 'turista') lista = lista.filter(p => p.tipo_catalogo === 'turistas');
+  // Si no hay rol, no filtramos aquí para poder dividir en dos secciones en el template
   // Filtro categoría
   if (categoriaActiva.value) lista = lista.filter(p => p.nombre_categoria === categoriaActiva.value);
   // Búsqueda
@@ -160,17 +164,24 @@ const productosFiltrados = computed(() => {
   return lista;
 });
 
+const productosTuristas = computed(() => productosFiltrados.value.filter(p => p.tipo_catalogo === 'turistas'));
+const productosAgencias = computed(() => productosFiltrados.value.filter(p => p.tipo_catalogo === 'agencias'));
+
 const itemsActuales = computed(() => tabActivo.value === 'tours' ? toursFiltrados.value : productosFiltrados.value);
 const cargando = computed(() => tabActivo.value === 'tours' ? cargandoTours.value : cargandoProductos.value);
 const categoriasActuales = computed(() => tabActivo.value === 'tours' ? categoriasToursRel.value : categoriasProductosRel.value);
 
-watch(tabActivo, () => {
-  categoriaActiva.value = '';
-  orden.value = '';
-  filtroUbicacion.value = '';
-  filtroDuracion.value = '';
-  filtroCategoria.value = '';
-  grupoSeleccionado.value = '';
+watch([tabActivo, busqueda, orden, filtroUbicacion, filtroDuracion, filtroCategoria, grupoSeleccionado, categoriaActiva], () => {
+    const query = {
+        q: busqueda.value || undefined,
+        orden: orden.value || undefined,
+        ubicacion: filtroUbicacion.value || undefined,
+        duracion: filtroDuracion.value || undefined,
+        cat: filtroCategoria.value || undefined,
+        grupo: grupoSeleccionado.value || undefined,
+        seccion: categoriaActiva.value || undefined
+    };
+    router.replace({ query });
 });
 
 const limpiarTodosLosFiltros = () => {
@@ -181,6 +192,7 @@ const limpiarTodosLosFiltros = () => {
   filtroDuracion.value = '';
   filtroCategoria.value = '';
   grupoSeleccionado.value = '';
+  router.replace({ query: {} });
 };
 </script>
 
@@ -194,8 +206,8 @@ const limpiarTodosLosFiltros = () => {
 
     <!-- Tabs -->
     <div class="flex gap-2 mb-6">
-      <button
-        @click="tabActivo = 'tours'"
+      <router-link
+        to="/catalogo/tours"
         :class="['flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 border',
           tabActivo === 'tours'
             ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
@@ -206,9 +218,9 @@ const limpiarTodosLosFiltros = () => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
         </svg>
         Tours
-      </button>
-      <button
-        @click="tabActivo = 'productos'"
+      </router-link>
+      <router-link
+        to="/catalogo/productos"
         :class="['flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 border',
           tabActivo === 'productos'
             ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
@@ -218,7 +230,7 @@ const limpiarTodosLosFiltros = () => {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
         </svg>
         Productos
-      </button>
+      </router-link>
     </div>
 
     <!-- Barra de control: búsqueda + ordenamiento -->
@@ -424,10 +436,48 @@ const limpiarTodosLosFiltros = () => {
         v-for="tour in toursFiltrados" :key="'t-' + tour.id"
         :tour="tour" :rol="rol"
       />
-      <TarjetaProducto v-if="tabActivo === 'productos'"
+      <!-- Solo mostramos este grid único si hay un rol (usuario logueado) -->
+      <TarjetaProducto v-if="tabActivo === 'productos' && rol"
         v-for="prod in productosFiltrados" :key="'p-' + prod.id"
         :producto="prod" :rol="rol"
       />
+    </div>
+
+    <!-- Secciones divididas para usuarios sin cuenta -->
+    <div v-if="tabActivo === 'productos' && !rol" class="space-y-12">
+      <div v-if="productosTuristas.length > 0">
+        <h2 class="text-2xl font-black text-emerald-800 mb-6 flex items-center gap-3">
+          <span class="bg-emerald-100 p-2.5 rounded-xl text-emerald-600 shadow-sm">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+              <path d="M4 20v-7a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v7" />
+              <rect x="4" y="11" width="16" height="10" rx="2" />
+              <path d="M9 5a3 3 0 0 1 6 0" />
+            </svg>
+          </span>
+          Para Turistas
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TarjetaProducto v-for="prod in productosTuristas" :key="'pt-' + prod.id" :producto="prod" :rol="rol" />
+        </div>
+      </div>
+
+      <div v-if="productosAgencias.length > 0">
+        <h2 class="text-2xl font-black text-teal-800 mb-6 flex items-center gap-3">
+          <span class="bg-teal-100 p-2.5 rounded-xl text-teal-600 shadow-sm">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+              <rect x="4" y="2" width="16" height="20" rx="2" />
+              <path d="M9 22v-4h6v4" />
+              <path d="M8 6h.01" /><path d="M16 6h.01" />
+              <path d="M8 10h.01" /><path d="M16 10h.01" />
+              <path d="M8 14h.01" /><path d="M16 14h.01" />
+            </svg>
+          </span>
+          Para Agencias
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <TarjetaProducto v-for="prod in productosAgencias" :key="'pa-' + prod.id" :producto="prod" :rol="rol" />
+        </div>
+      </div>
     </div>
 
   </div>

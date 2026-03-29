@@ -399,7 +399,7 @@ const getCaracteristica = (claveBuscada) => {
             <!-- Estado Error -->
             <div v-else class="text-center py-20">
                 <h2 class="text-2xl font-bold text-gray-500">Producto no encontrado</h2>
-                <button @click="router.push('/catalogo')" class="mt-4 text-teal-600 font-medium hover:underline">
+                <button @click="router.push('/catalogo/productos')" class="mt-4 text-teal-600 font-medium hover:underline">
                     Ver otros productos en el catálogo
                 </button>
             </div>

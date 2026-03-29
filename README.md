@@ -21,7 +21,17 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
-### 2.9.0 — Paridad de Agencia, Detalle Inmersivo y Robustez de Datos
+### 3.0.0 — Navegación Universal, Catálogo Híbrido y Persistencia de Filtros
+> Archivos: `router/index.js`, `catalogo.vue`, `home.vue`, `navigation.js`, `detalle-paquete.vue`, `detalle-producto.vue`
+
+- **[Architecture] Navegación Universal**: Eliminación de la redirección forzada a `/panel`. La raíz `/` es ahora el centro de la experiencia para todos los usuarios.
+- **[Feature] Catálogo de Rutas Independientes**: Separación física de las vistas de **Tours** (`/catalogo/tours`) y **Productos** (`/catalogo/productos`), permitiendo una navegación más clara y SEO-friendly.
+- **[Feature] Persistencia de Estado vía URL**: Implementación de sincronización de filtros (búsqueda, categorías, orden) con parámetros de consulta (`Query Parameters`). Esto permite que los filtros sobrevivan a la navegación "atrás" y puedan ser compartidos por enlace directo.
+- **[Feature] Vista Híbrida para Invitados**: Los usuarios no autenticados ahora ven los productos divididos en secciones estratégicas (**Para Turistas** y **Para Agencias**) con iconografía profesional.
+- **[UI/UX] Iconografía SVG Premium**: Migración de los últimos emojis decorativos a iconos vectoriales SVG en el buscador de la página de inicio y en los encabezados del catálogo de productos.
+- **[Security] Blindaje de Rutas Privadas**: Refactorización del guardián de navegación (`router.beforeEach`) para restringir el acceso a rutas administrativas y paneles a usuarios no autenticados, redirigiéndolos de forma segura a la raíz.
+
+---
 > Archivos: `header.vue`, `detalle-producto.vue`, `views.py`, `serializers.py`, `useCatalogo.js`
 
 - **[Feature] Paridad de Agencia**: Extensión de las capacidades de compra y favoritos al rol de **Agencia**. Ahora las agencias disponen de iconos de carrito y favoritos en el navbar con navegación funcional y contadores reactivos.
