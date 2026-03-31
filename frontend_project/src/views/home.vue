@@ -103,7 +103,7 @@ const valores = [
       <!-- Fondo: imagen saturada con overlay gradient profundo -->
       <div class="absolute inset-0">
         <img
-          src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=90&w=2600&auto=format&fit=crop"
+          src="@/assets/public/baner.JPG"
           alt="Selva amazónica"
           class="absolute inset-0 w-full h-full object-cover object-center"
         />

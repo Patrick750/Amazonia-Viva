@@ -1,172 +1,305 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { useUserStats } from '@/composables/useUserStats';
 import { navegacion } from '@/config/navigation';
 import axios from '@/api/axios';
-// Si usas Vue Router, asegúrate de tenerlo instalado. 
-// Aquí definimos el nombre de usuario de forma reactiva para que luego lo puedas 
-// conectar con tu localStorage (como hicimos en el login).
-const menuAbierto = ref(false)
 
-const rol = ref(localStorage.getItem('rol')).value
-const token = ref(localStorage.getItem('token')).value
+const menuAbierto   = ref(false);
+const mobileAbierto = ref(false);
+const route         = useRoute();
+
+const rol            = ref(localStorage.getItem('rol')).value;
+const token          = ref(localStorage.getItem('token')).value;
 const nombre_usuario = computed(() => {
-  if(rol === 'turista') return localStorage.getItem('nombre')
-  if(rol === 'agencia') return localStorage.getItem('nombre_agencia')
-  if(rol === 'proveedor') return localStorage.getItem('nombre_empresa')
-  return 'Invitado'
-})
-const menu = computed(() => navegacion[rol] || navegacion.invitado)
+  if (rol === 'turista')   return localStorage.getItem('nombre');
+  if (rol === 'agencia')   return localStorage.getItem('nombre_agencia');
+  if (rol === 'proveedor') return localStorage.getItem('nombre_empresa');
+  return 'Invitado';
+});
+
+const iniciales = computed(() => {
+  const n = nombre_usuario.value || '';
+  return n.trim().slice(0, 2).toUpperCase() || 'AV';
+});
+
+const menu = computed(() => navegacion[rol] || navegacion.invitado);
+
+const rolConfig = computed(() => {
+  if (rol === 'turista')   return { label: 'Turista',   color: 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/30' };
+  if (rol === 'agencia')   return { label: 'Agencia',   color: 'bg-teal-500/25 text-teal-300 border border-teal-500/30' };
+  if (rol === 'proveedor') return { label: 'Proveedor', color: 'bg-amber-500/25 text-amber-300 border border-amber-500/30' };
+  return null;
+});
 
 const { cartCount, favoritesCount, updateStats } = useUserStats();
 
 onMounted(() => {
-  if (token) {
-    updateStats();
-  }
-})
-
+  if (token) updateStats();
+});
 
 const cerrarSesion = async () => {
-  try{
-    const refresh_token = localStorage.getItem('refresh_token')
-    if(refresh_token){
-      await axios.post('api/logout/',{
-        refresh_token: refresh_token
-      })
-    }
-  }catch(error){
-    console.error(error)
-  }finally{
-    localStorage.clear()
-    window.location.href = '/'
+  try {
+    const refresh_token = localStorage.getItem('refresh_token');
+    if (refresh_token) await axios.post('api/logout/', { refresh_token });
+  } catch (e) {
+    console.error(e);
+  } finally {
+    localStorage.clear();
+    window.location.href = '/';
   }
-}
+};
 
+const isActive = (path) => {
+  if (path === '/') return route.path === '/';
+  return route.path.startsWith(path);
+};
 </script>
 
 <template>
-  <nav class="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between w-full sticky top-0 z-50 shadow-sm">
-    
-    <router-link to="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
-      <img src="../assets/public/amazon_logo.png" class="w-12" alt="">
-      <span class="text-xl font-bold text-gray-950 tracking-tight">Amazonia viva</span>
-    </router-link>
+  <header class="sticky top-0 z-50 bg-[#0f2318] border-b border-white/8 shadow-lg shadow-black/30">
+    <nav class="max-w-7xl mx-auto px-6 h-[70px] flex items-center justify-between gap-6">
 
-    <div class="hidden md:flex items-center gap-8">
-      <router-link 
-          v-for="items in menu"
-          :to="items.path" :key="items.label" class="text-gray-900 font-medium hover:text-teal-600 transition-colors cursor-pointer">
-          {{ items.label }}
-      </router-link>
-    </div>
-
-
-    <div v-if="token" class="flex items-center gap-6">
-      
-      <!-- Icono del Carrito (Turistas y Agencias) -->
-      <button v-if="rol === 'turista' || rol === 'agencia'" @click="$router.push('/carrito')" class="relative text-gray-700 hover:text-teal-600 transition-colors focus:outline-none group">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="9" cy="21" r="1"></circle>
-          <circle cx="20" cy="21" r="1"></circle>
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-        </svg>
-        <span v-if="cartCount > 0" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white animate-fade-in shadow-sm">
-          {{ cartCount }}
-        </span>
-      </button>
-
-      <!-- Icono de Favoritos (Turistas y Agencias) -->
-      <button v-if="rol === 'turista' || rol === 'agencia'" @click="$router.push('/favoritos')" class="relative text-gray-700 hover:text-teal-600 transition-colors focus:outline-none group">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-        </svg>
-        <span v-if="favoritesCount > 0" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white animate-fade-in shadow-sm">
-          {{ favoritesCount }}
-        </span>
-      </button>
-
-      <template v-if="token">
-        <div class="relative ml-2">
-          
-          <button 
-            @click="menuAbierto = !menuAbierto" 
-            class="flex items-center gap-2 cursor-pointer group focus:outline-none"
+      <!-- ── LOGO ── -->
+      <router-link
+        to="/"
+        class="flex items-center gap-3 flex-shrink-0 group"
+        @click="mobileAbierto = false"
+      >
+        <div class="relative">
+          <div class="absolute inset-0 rounded-xl bg-emerald-400/30 blur-md scale-125 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <img
+            src="../assets/public/amazon_logo.png"
+            class="relative w-9 h-9 object-contain drop-shadow-sm"
+            alt="Amazonia Viva"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-700 group-hover:text-teal-600 transition-colors">
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
+        </div>
+        <div class="leading-tight">
+          <div class="text-white font-black text-base tracking-tight leading-none">Amazonia</div>
+          <div class="text-emerald-400 font-bold text-[11px] uppercase tracking-[0.2em] leading-none">Viva</div>
+        </div>
+      </router-link>
+
+      <!-- ── NAV LINKS (Desktop) ── -->
+      <div class="hidden md:flex items-center gap-1 flex-1 justify-center">
+        <router-link
+          v-for="item in menu"
+          :key="item.label"
+          :to="item.path"
+          :class="[
+            'relative px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+            isActive(item.path)
+              ? 'text-emerald-300 bg-emerald-500/20'
+              : 'text-slate-300 hover:text-white hover:bg-white/10'
+          ]"
+        >
+          {{ item.label }}
+          <!-- Punto indicador activo -->
+          <span
+            v-if="isActive(item.path)"
+            class="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400"
+          ></span>
+        </router-link>
+      </div>
+
+      <!-- ── ACCIONES DERECHA ── -->
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+
+        <!-- === AUTENTICADO === -->
+        <template v-if="token">
+
+          <!-- Carrito -->
+          <button
+            v-if="rol === 'turista' || rol === 'agencia'"
+            @click="$router.push('/carrito')"
+            class="relative p-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+            title="Carrito"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
             </svg>
-            <span class="font-medium text-gray-900 group-hover:text-teal-600 transition-colors">
-              {{ nombre_usuario }}
-            </span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500 transition-transform duration-200" :class="{ 'rotate-180': menuAbierto }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            <span
+              v-if="cartCount > 0"
+              class="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] bg-emerald-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-[#0f2318] shadow badge-pop"
+            >{{ cartCount }}</span>
           </button>
 
-          <div v-if="menuAbierto" @click="menuAbierto = false" class="fixed inset-0 z-40"></div>
-
-          <transition 
-            enter-active-class="transition ease-out duration-100" 
-            enter-from-class="transform opacity-0 scale-95" 
-            enter-to-class="transform opacity-100 scale-100" 
-            leave-active-class="transition ease-in duration-75" 
-            leave-from-class="transform opacity-100 scale-100" 
-            leave-to-class="transform opacity-0 scale-95"
+          <!-- Favoritos -->
+          <button
+            v-if="rol === 'turista' || rol === 'agencia'"
+            @click="$router.push('/favoritos')"
+            class="relative p-2.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+            title="Favoritos"
           >
-            <div v-if="menuAbierto" class="absolute right-0 mt-4 w-52 bg-white rounded-xl shadow-lg border border-gray-100 z-50 py-2 overflow-hidden">
-              
-              <div class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-50 mb-1">
-                Mi Cuenta
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+            </svg>
+            <span
+              v-if="favoritesCount > 0"
+              class="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-[#0f2318] shadow badge-pop"
+            >{{ favoritesCount }}</span>
+          </button>
+
+          <!-- Divisor -->
+          <div class="h-6 w-px bg-white/10 mx-1"></div>
+
+          <!-- Avatar + Dropdown -->
+          <div class="relative">
+            <button
+              @click="menuAbierto = !menuAbierto"
+              :class="[
+                'flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl transition-all duration-200',
+                menuAbierto ? 'bg-white/12' : 'hover:bg-white/10'
+              ]"
+            >
+              <!-- Avatar -->
+              <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[11px] font-black shadow-md">
+                {{ iniciales }}
               </div>
+              <!-- Nombre (solo en pantallas lg+) -->
+              <span class="hidden lg:block text-slate-200 text-sm font-semibold max-w-[100px] truncate">
+                {{ nombre_usuario }}
+              </span>
+              <!-- Chevron -->
+              <svg
+                :class="['w-3.5 h-3.5 text-slate-400 transition-transform duration-200', menuAbierto ? 'rotate-180' : '']"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
 
-              <router-link to="/perfil" @click="menuAbierto = false" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-teal-600 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                Perfil
-              </router-link>
-              
-              <router-link to="/configuraciones" @click="menuAbierto = false" class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-teal-600 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                Configuraciones
-              </router-link>
-              
-              <div class="border-t border-gray-100 my-1"></div>
-              
-              <button @click="cerrarSesion" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors text-left font-medium">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                Cerrar sesión
-              </button>
-            </div>
-          </transition>
+            <!-- Clic fuera -->
+            <div v-if="menuAbierto" class="fixed inset-0 z-40" @click="menuAbierto = false"></div>
+
+            <!-- Panel dropdown -->
+            <transition
+              enter-active-class="transition ease-out duration-150"
+              enter-from-class="opacity-0 translate-y-1 scale-95"
+              enter-to-class="opacity-100 translate-y-0 scale-100"
+              leave-active-class="transition ease-in duration-100"
+              leave-from-class="opacity-100 translate-y-0 scale-100"
+              leave-to-class="opacity-0 translate-y-1 scale-95"
+            >
+              <div
+                v-if="menuAbierto"
+                class="absolute right-0 mt-2 w-56 rounded-2xl overflow-hidden z-50 shadow-2xl shadow-black/50 border border-white/10 bg-[#122b1a]"
+              >
+                <!-- Perfil mini en el header del dropdown -->
+                <div class="px-4 py-3.5 flex items-center gap-3 border-b border-white/8 bg-white/4">
+                  <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-sm shadow">
+                    {{ iniciales }}
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-white text-sm font-bold truncate">{{ nombre_usuario }}</p>
+                    <span v-if="rolConfig" :class="['inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5', rolConfig.color]">
+                      {{ rolConfig.label }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Items -->
+                <div class="py-1.5">
+                  <router-link to="/perfil" @click="menuAbierto = false"
+                    class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/8 transition-colors">
+                    <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    Mi Perfil
+                  </router-link>
+
+                  <router-link to="/configuraciones" @click="menuAbierto = false"
+                    class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/8 transition-colors">
+                    <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Configuraciones
+                  </router-link>
+
+                  <div class="h-px bg-white/8 mx-4 my-1"></div>
+
+                  <button @click="cerrarSesion"
+                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    Cerrar Sesión
+                  </button>
+                </div>
+              </div>
+            </transition>
+          </div>
+        </template>
+
+        <!-- === SIN SESIÓN === -->
+        <template v-else>
+          <router-link
+            to="/auth/login"
+            class="hidden sm:block px-4 py-2 rounded-lg text-sm font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+          >
+            Iniciar Sesión
+          </router-link>
+          <router-link
+            to="/auth/signup"
+            class="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all shadow-md shadow-emerald-500/20 hover:scale-105"
+          >
+            Registrarse
+          </router-link>
+        </template>
+
+        <!-- Hamburguesa mobile -->
+        <button
+          @click="mobileAbierto = !mobileAbierto"
+          class="md:hidden p-2.5 ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path v-if="!mobileAbierto" stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+            <path v-else stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ── MENÚ MOBILE ── -->
+    <transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div
+        v-if="mobileAbierto"
+        class="md:hidden border-t border-white/8 bg-[#0f2318] px-4 pb-4 pt-3 space-y-1"
+      >
+        <router-link
+          v-for="item in menu" :key="item.label" :to="item.path"
+          @click="mobileAbierto = false"
+          :class="[
+            'flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all',
+            isActive(item.path)
+              ? 'text-emerald-300 bg-emerald-500/20'
+              : 'text-slate-300 hover:text-white hover:bg-white/10'
+          ]"
+        >{{ item.label }}</router-link>
+
+        <!-- Botones login/registro en mobile sin sesión -->
+        <div v-if="!token" class="pt-3 space-y-2 border-t border-white/8 mt-2">
+          <router-link to="/auth/login" @click="mobileAbierto = false"
+            class="block w-full text-center py-2.5 rounded-xl text-sm font-semibold text-slate-300 border border-white/15 hover:bg-white/10 transition-all">
+            Iniciar Sesión
+          </router-link>
+          <router-link to="/auth/signup" @click="mobileAbierto = false"
+            class="block w-full text-center py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 shadow-md">
+            Registrarse
+          </router-link>
         </div>
-      </template>
-    </div>
-
-    <div v-else class="flex items-center gap-6">
-      <router-link 
-        to="/auth/login" 
-        class="text-gray-800 hover:text-[#00a8b5] transition-colors font-medium"
-      >
-        Iniciar Sesión
-      </router-link>
-      <router-link 
-        to="/auth/signup" 
-        class="bg-[#0091a3] hover:bg-[#007f8f] text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm inline-block"
-      >
-        Registrarse
-      </router-link>
-    </div>
-
-  </nav>
-
+      </div>
+    </transition>
+  </header>
 </template>
 
 <style scoped>
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+.badge-pop {
+  animation: badgePop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.5); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes badgePop {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
 }
 </style>

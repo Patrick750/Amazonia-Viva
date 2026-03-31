@@ -26,6 +26,17 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 3.2.0 — Rediseño Premium "Amazonia Viva" y Consistencia Visual
+> Archivos: `home.vue`, `catalogo.vue`, `header.vue`
+
+- **[UI/UX] Home "Inmensivo"**: Rediseño total de la página de inicio con estética premium. Incluye imágenes de alta resolución, decoraciones SVG animadas (hojas flotantes) y un sistema de "Hero" con búsqueda integrada para tours.
+- **[UI/UX] Catálogo Forest**: Adaptación del catálogo de tours y productos a la nueva identidad visual oscura. Uso de **Glassmorphism** en paneles de filtrado y transiciones fluidas.
+- **[UI/UX] Header Forest de Alta Visibilidad**: Nueva barra de navegación global con fondo sólido `#0f2318`, asegurando legibilidad total del texto y módulos en cualquier sección de la plataforma (blanca o oscura).
+- **[Feature] Identidad por Rol**: Implementación de insignias (badges) de colores por rol de usuario (Turista, Agencia, Proveedor) y generación automática de iniciales de perfil.
+- **[Architecture] Paleta de Colores Curada**: Migración de colores genéricos a una paleta cohesiva de verdes profundos, esmeralda y teal que refuerzan el branding del proyecto.
+
+---
+
 ### 3.1.0 — Migración a Leaflet, Autocompletado Geográfico y Optimización de Mapas
 > Archivos: `formulario.vue`, `detalle-paquete.vue`, `serializers.py`
 
