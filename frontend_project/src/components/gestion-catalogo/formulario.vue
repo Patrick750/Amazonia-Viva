@@ -1,8 +1,19 @@
 <script setup>
-import { reactive, watch, ref, computed } from 'vue';
+import { reactive, watch, ref, computed, nextTick } from 'vue';
 import { GuardarRegistro } from '@/composables/gestion-tours/create-pack';
 import { useNotificacion } from '@/composables/useNotificacion';
 import clienteAxios from '@/api/axios';
+
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default marker icon in Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 const props = defineProps(['abrir', 'actividades', 'paquete']);
 const emit = defineEmits(['cerrar', 'guardadoExitoso']);
@@ -15,14 +26,19 @@ const isLoading = ref(false);
 const errores = reactive({});
 const isDragging = ref(false);
 const fileInput = ref(null);
-const locationInput = ref(null);
 const mapContainer = ref(null);
 let map = null;
 let marker = null;
-let autocomplete = null;
 
 // --- NOTIFICACIÓN ---
 const { mostrarNotificacion } = useNotificacion();
+
+// --- ESTADO DEL MAPA/BÚSQUEDA ---
+const searchQuery = ref('');
+const suggestions = ref([]);
+const isSearching = ref(false);
+const isMapExpanded = ref(false);
+let searchTimeout = null;
 
 // --- ESTADO DEL FORMULARIO ---
 const newTour = reactive({
@@ -32,7 +48,7 @@ const newTour = reactive({
     descripcion: '',
     precio: '',
     duracion: '',
-    ubicacion: 'default',
+    ubicacion: '',
     latitud: null,
     longitud: null,
     capacidad: '',
@@ -70,6 +86,7 @@ const inicial = JSON.parse(JSON.stringify(newTour));
 watch(() => props.paquete, (paqueteAEditar) => {
     if (paqueteAEditar) {
         Object.assign(newTour, JSON.parse(JSON.stringify(paqueteAEditar)));
+        if (paqueteAEditar.ubicacion) searchQuery.value = paqueteAEditar.ubicacion;
         if (!newTour.itinerario || newTour.itinerario.length === 0) newTour.itinerario = [{ time: '', activity: '' }];
         if (!newTour.incluido || newTour.incluido.length === 0) newTour.incluido = [{ item: '' }];
         newTour.imagen = [];
@@ -100,9 +117,10 @@ const limpiarFormulario = () => {
     newTour.actividades = [];
     imagenesExistentes.value = [];
     imagenesAEliminar.value = [];
-    if (locationInput.value) locationInput.value.value = '';
+    searchQuery.value = '';
+    suggestions.value = [];
     if (fileInput.value) fileInput.value.value = '';
-    if (marker) marker.setVisible(false);
+    if (marker) marker.setOpacity(0);
     Object.keys(errores).forEach(key => delete errores[key]);
 };
 
@@ -117,6 +135,16 @@ const validarFormulario = () => {
     if (!newTour.capacidad || newTour.capacidad <= 0) { errores.capacidad = "Capacidad inválida."; valido = false; }
     if (!newTour.categoria_paquete) { errores.categoria_paquete = "Selecciona una categoría."; valido = false; }
     if (newTour.actividades.length === 0) { errores.actividades = "Selecciona al menos una actividad."; valido = false; }
+    
+    // Validación de mapa y ubicación
+    if (!searchQuery.value?.trim()) {
+        errores.ubicacion = "Debes escribir o buscar una ubicación principal.";
+        valido = false;
+    }
+    if (!newTour.latitud || !newTour.longitud) {
+        errores.ubicacion = "Debes seleccionar un punto en el mapa (puedes buscarlo o hacer clic).";
+        valido = false;
+    }
     return valido;
 };
 
@@ -148,52 +176,148 @@ const removeExistingImage = (imgId, index) => {
     imagenesExistentes.value.splice(index, 1);
 };
 
-// --- GOOGLE MAPS ---
+// --- LEAFLET MAPS ---
 const initMap = () => {
-    if (typeof google === 'undefined' || !mapContainer.value || !locationInput.value) return;
+    if (!mapContainer.value) return;
+    
+    // Si ya existe el mapa lo destruimos para volver a crearlo
+    if (map) {
+        map.off();
+        map.remove();
+        map = null;
+    }
+
     const defaultPos = (newTour.latitud && newTour.longitud)
-        ? { lat: Number(newTour.latitud), lng: Number(newTour.longitud) }
-        : { lat: 4.6097, lng: -74.0817 };
-    map = new google.maps.Map(mapContainer.value, {
-        center: defaultPos, zoom: newTour.latitud ? 15 : 12,
-        mapTypeControl: false, streetViewControl: false,
+        ? [Number(newTour.latitud), Number(newTour.longitud)]
+        : [4.6097, -74.0817];
+
+    map = L.map(mapContainer.value).setView(defaultPos, newTour.latitud ? 15 : 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    marker = L.marker(defaultPos, { draggable: true }).addTo(map);
+    
+    if (!newTour.latitud) {
+        marker.setOpacity(0);
+    }
+
+    marker.on('dragend', function () {
+        const posicion = marker.getLatLng();
+        newTour.latitud = posicion.lat;
+        newTour.longitud = posicion.lng;
     });
-    marker = new google.maps.Marker({ map, position: defaultPos, visible: !!newTour.latitud });
-    autocomplete = new google.maps.places.Autocomplete(locationInput.value, {
-        fields: ["geometry", "name", "formatted_address"],
+
+    map.on('click', function (e) {
+        marker.setLatLng(e.latlng);
+        marker.setOpacity(1);
+        newTour.latitud = e.latlng.lat;
+        newTour.longitud = e.latlng.lng;
     });
-    autocomplete.bindTo("bounds", map);
-    autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (!place.geometry?.location) return;
-        if (place.geometry.viewport) { map.fitBounds(place.geometry.viewport); }
-        else { map.setCenter(place.geometry.location); map.setZoom(17); }
-        marker.setPosition(place.geometry.location);
-        marker.setVisible(true);
-        newTour.ubicacion = place.formatted_address || place.name;
-        newTour.latitud = place.geometry.location.lat();
-        newTour.longitud = place.geometry.location.lng();
-    });
+    
+    // Resize map when modal opens
+    setTimeout(() => {
+        if(map) map.invalidateSize();
+    }, 200);
 };
 
-watch(() => props.abrir, (estaAbierto) => {
+// --- AUTOCOMPLETADO Y BÚSQUEDA ---
+watch(searchQuery, (newVal) => {
+    if (!newVal || newVal.trim().length < 3) {
+        suggestions.value = [];
+        return;
+    }
+    
+    // Si la selección fue directa (el texto es igual a la ubicación guardada), ignoramos
+    if (newVal === newTour.ubicacion) return;
+
+    if (searchTimeout) clearTimeout(searchTimeout);
+    
+    searchTimeout = setTimeout(async () => {
+        isSearching.value = true;
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(newVal)}&limit=5`);
+            const data = await res.json();
+            suggestions.value = data || [];
+        } catch (e) {
+            console.error("Nominatim input error:", e);
+        } finally {
+            isSearching.value = false;
+        }
+    }, 600);
+});
+
+const selectSuggestion = async (place) => {
+    suggestions.value = [];
+    searchQuery.value = place.display_name;
+    
+    if (!map) {
+        await nextTick();
+        initMap();
+    }
+    
+    const lat = parseFloat(place.lat);
+    const lon = parseFloat(place.lon);
+    
+    if (map) {
+        map.setView([lat, lon], 15);
+        if (marker) {
+            marker.setLatLng([lat, lon]);
+            marker.setOpacity(1);
+        }
+    }
+    
+    newTour.latitud = lat;
+    newTour.longitud = lon;
+    newTour.ubicacion = place.display_name;
+    mostrarNotificacion('Ubicación seleccionada', 'exito');
+};
+
+const buscarUbicacionManual = async () => {
+    if (!searchQuery.value) return;
+    suggestions.value = []; 
+    
+    if (!map) {
+        await nextTick();
+        initMap();
+    }
+    
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}&limit=1`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+            selectSuggestion(data[0]);
+        } else {
+            mostrarNotificacion('No se encontró la ubicación', 'error');
+        }
+    } catch (e) {
+        console.error("Leaflet Search Error:", e);
+        mostrarNotificacion('Error al buscar la ubicación', 'error');
+    }
+};
+
+const toggleMapSize = async () => {
+    isMapExpanded.value = !isMapExpanded.value;
+    await nextTick();
+    setTimeout(() => {
+        if (map) map.invalidateSize();
+    }, 300);
+};
+
+watch(() => props.abrir, async (estaAbierto) => {
     if (estaAbierto) {
         fetchCategorias();
-        if (typeof google === 'undefined') {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDaDxKnE-8fzSc58TS-sMCm3UiP9cY577U&libraries=places&callback=iniciarMapaGlobal`;
-            script.async = true; script.defer = true;
-            document.head.appendChild(script);
-            window.iniciarMapaGlobal = () => setTimeout(() => initMap(), 100);
-        } else {
-            setTimeout(() => initMap(), 100);
-        }
+        await nextTick();
+        setTimeout(() => {
+            initMap();
+        }, 150);
     }
 });
 
 // --- ENVÍO ---
 const Enviar = async () => {
-    if (locationInput.value?.value) newTour.ubicacion = locationInput.value.value;
+    if (searchQuery.value) newTour.ubicacion = searchQuery.value;
     if (!validarFormulario()) return;
     isLoading.value = true;
     try {
@@ -201,7 +325,11 @@ const Enviar = async () => {
         for (const key in newTour) {
             if (!['itinerario', 'incluido', 'actividades', 'archivos_subidos', 'imagen', 'imagen_paquete'].includes(key)) {
                 if (newTour[key] !== null && newTour[key] !== undefined) {
-                    formData.append(key, newTour[key]);
+                    if (key === 'latitud' || key === 'longitud') {
+                        formData.append(key, Number(newTour[key]).toFixed(6));
+                    } else {
+                        formData.append(key, newTour[key]);
+                    }
                 }
             }
         }
@@ -381,9 +509,46 @@ const Enviar = async () => {
                 <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Ubicación</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
               </div>
-              <input ref="locationInput" type="text" placeholder="Busca el lugar exacto del tour..."
-                class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-300 mb-3">
-              <div ref="mapContainer" class="w-full h-52 bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-200"></div>
+              <div class="relative flex gap-2 mb-3">
+                <div class="relative flex-1">
+                    <input v-model="searchQuery" type="text" placeholder="Busca un lugar y presiona Buscar..."
+                      @keydown.enter.prevent="buscarUbicacionManual"
+                      class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-300">
+                      
+                    <div v-if="isSearching" class="absolute right-4 top-1/2 -translate-y-1/2">
+                        <svg class="animate-spin h-5 w-5 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    </div>
+
+                    <ul v-if="suggestions.length > 0" class="absolute z-[100] w-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden max-h-60 overflow-y-auto">
+                        <li v-for="place in suggestions" :key="place.place_id" 
+                            @click="selectSuggestion(place)"
+                            class="px-5 py-3 hover:bg-emerald-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors flex items-center gap-3">
+                            <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            <span class="text-sm text-slate-700 truncate">{{ place.display_name }}</span>
+                        </li>
+                    </ul>
+                </div>
+                <button @click.prevent="buscarUbicacionManual" type="button" class="px-5 py-3 bg-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-300 transition-colors flex-shrink-0">
+                  Buscar
+                </button>
+              </div>
+              
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-xs text-slate-500 italic">Haz clic en el mapa central o arrastra el marcador para seleccionar un punto.</p>
+                <button @click.prevent="toggleMapSize" type="button" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline decoration-2 underline-offset-4 flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path v-if="!isMapExpanded" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h6m0 0v6m0-6l-7 7m17-11h-6m0 0V4m0 6l-7-7M4 10h6m0 0V4m0 6l-7-7m17 11h-6m0 0v6m0-6l7 7" />
+                    </svg>
+                    {{ isMapExpanded ? 'Reducir mapa' : 'Ampliar mapa' }}
+                </button>
+              </div>
+              
+              <div :class="['w-full bg-slate-100 rounded-2xl overflow-hidden border-2 z-0 relative transition-all duration-300 ease-in-out flex flex-col', isMapExpanded ? 'h-[50vh]' : 'h-52', errores.ubicacion ? 'border-red-400' : 'border-slate-200']">
+                <div ref="mapContainer" class="absolute inset-0 w-full h-full" style="touch-action: none;"></div>
+              </div>
+              <p v-if="errores.ubicacion" class="text-xs text-red-500 mt-2 font-bold">{{ errores.ubicacion }}</p>
+              
               <div v-if="newTour.latitud && newTour.longitud" class="mt-2.5 flex items-center gap-2 text-xs text-emerald-600 font-bold">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                 Coordenadas: {{ Number(newTour.latitud).toFixed(5) }}, {{ Number(newTour.longitud).toFixed(5) }}

@@ -4,6 +4,17 @@ import { useRoute, useRouter } from 'vue-router';
 import { useCatalogo } from '@/composables/useCatalogo';
 import { useNotificacion } from '@/composables/useNotificacion';
 
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default marker icon in Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
 const route = useRoute();
 const router = useRouter();
 const { obtenerTourPorId, toggleFavorito, agregarAlCarrito } = useCatalogo();
@@ -50,37 +61,33 @@ const abrirMapa = () => {
 };
 
 const initMap = () => {
-    if (typeof google === 'undefined' || !mapContainer.value) return;
-    const position = { 
-        lat: Number(tour.value.latitud), 
-        lng: Number(tour.value.longitud) 
-    };
+    if (!mapContainer.value) return;
     
-    map = new google.maps.Map(mapContainer.value, {
-        center: position, 
-        zoom: 15,
-        mapTypeControl: false, 
-        streetViewControl: false,
-    });
+    if (map) {
+        map.off();
+        map.remove();
+        map = null;
+    }
+
+    const position = [Number(tour.value.latitud), Number(tour.value.longitud)];
     
-    marker = new google.maps.Marker({ 
-        map, 
-        position: position 
-    });
+    map = L.map(mapContainer.value).setView(position, 15);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    
+    marker = L.marker(position).addTo(map);
+    
+    setTimeout(() => {
+        if(map) map.invalidateSize();
+    }, 200);
 };
 
 watch(mostrarMapaModal, async (abierto) => {
     if (abierto) {
         await nextTick();
-        if (typeof google === 'undefined') {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDaDxKnE-8fzSc58TS-sMCm3UiP9cY577U&libraries=places&callback=iniciarMapaPackage`;
-            script.async = true; script.defer = true;
-            document.head.appendChild(script);
-            window.iniciarMapaPackage = () => setTimeout(() => initMap(), 100);
-        } else {
-            setTimeout(() => initMap(), 100);
-        }
+        setTimeout(() => initMap(), 100);
     }
 });
 
@@ -535,8 +542,8 @@ const formatTime = (timeStr) => {
                     </div>
                     
                     <!-- Contenedor del Mapa -->
-                    <div class="w-full h-[60vh] sm:h-[70vh] bg-slate-100 relative">
-                        <div ref="mapContainer" class="absolute inset-0 w-full h-full"></div>
+                    <div class="w-full h-[60vh] sm:h-[70vh] bg-slate-100 relative z-0">
+                        <div ref="mapContainer" class="absolute inset-0 w-full h-full z-0" style="touch-action: none;"></div>
                         
                         <!-- Coordenadas overlay -->
                         <div class="absolute bottom-4 left-4 right-4 sm:right-auto bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg border border-slate-100/50 flex flex-col gap-1 z-10">

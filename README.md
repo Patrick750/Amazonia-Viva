@@ -2,6 +2,11 @@
 
 Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias, proveedores y turistas mediante una interfaz multi-rol con autenticación, paquetes turísticos y gestión de ventas.
 
+## Problema y objetivos
+Amazonia viva nace de la idea de integrar uns plataforma donde los turistas puedan encontrar paquetes turísticos y productos relacionados con el turismo amazónico, y las agencias puedan ofrecer sus servicios y productos a los turistas. Existen muchas agencias turisticas poco conocidas en el sur del pais, por lo que se busca darles visibilidad y ofrecer sus servicios a los turistas.
+
+
+
 ## 🛠️ Stack Tecnológico
 
 - **Backend:** Django (Python 3.12) + Django REST Framework
@@ -20,6 +25,18 @@ Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias
 > - **MAYOR** — cambio funcional significativo o rediseño arquitectónico
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
+
+### 3.1.0 — Migración a Leaflet, Autocompletado Geográfico y Optimización de Mapas
+> Archivos: `formulario.vue`, `detalle-paquete.vue`, `serializers.py`
+
+- **[Architecture] Adiós Google Maps**: Migración completa de la API de Google Maps a **Leaflet (OpenStreetMap)**. Eliminación de dependencias de pago y scripts externos pesados.
+- **[Feature] Geolocalización Nominatim**: Implementación de búsqueda por texto y **autocompletado en tiempo real** utilizando la API de Nominatim. Sugerencias inteligentes al escribir para una ubicación precisa.
+- **[UI/UX] Mapa Dinámico y Expandible**: Nueva funcionalidad para ampliar el área del mapa (`50vh`) durante la creación de tours, facilitando la ubicación exacta en dispositivos móviles y escritorio.
+- **[UX] Control de Interacción**: Implementación de `touch-action: none` en contenedores de mapas para evitar que el scroll de la página interfiera con el arrastre del mapa (panning).
+- **[Fix] Precisión de Coordenadas**: Truncado automático a **6 decimales** en el frontend para cumplir con las restricciones de `max_digits=9` del backend de Django, eliminando errores `400 Bad Request`.
+- **[Fix] Renderizado Asíncrono**: Uso de `nextTick` y `invalidateSize` para asegurar que el mapa se pinte correctamente dentro de modales y componentes dinámicos de Vue.
+
+---
 
 ### 3.0.0 — Navegación Universal, Catálogo Híbrido y Persistencia de Filtros
 > Archivos: `router/index.js`, `catalogo.vue`, `home.vue`, `navigation.js`, `detalle-paquete.vue`, `detalle-producto.vue`
