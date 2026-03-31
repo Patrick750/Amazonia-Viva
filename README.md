@@ -26,6 +26,16 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 3.2.1 — Filtro del Home Inteligente y Refactor de Datos Global
+> Archivos: `useCatalogo.js`, `home.vue`
+
+- **[Architecture] useCatalogo Singleton**: Refactorización del composable de catálogo a un patrón **Singleton Global**. Los datos de `tours` y `categoriasTours` ahora se comparten entre todas las vistas, eliminando problemas de reactividad y redundancia en peticiones API.
+- **[Feature] Autocompletado de Destinos**: Implementación de un buscador predictivo en el Home. Sugiere ciudades reales extraídas de la base de datos mientras el usuario escribe, con soporte para selección táctil y mouse.
+- **[Feature] Filtros Cruzados Home → Catálogo**: Sincronización total del buscador del Home con el Catálogo. Al explorar, se pasan los parámetros de búsqueda y categoría (grupos dinámicos) vía URL para resultados inmediatos.
+- **[Performance] Caché de Memoria**: Las peticiones de tours y categorías ahora se realizan una sola vez por sesión, mejorando la velocidad de navegación entre el Home y el Catálogo.
+
+---
+
 ### 3.2.0 — Rediseño Premium "Amazonia Viva" y Consistencia Visual
 > Archivos: `home.vue`, `catalogo.vue`, `header.vue`
 

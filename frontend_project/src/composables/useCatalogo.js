@@ -3,17 +3,24 @@ import axios from '@/api/axios';
 import { useUserStats } from './useUserStats';
 import { useNotificacion } from './useNotificacion';
 
+// Estado Global para uso como Singleton
+const tours = ref([]);
+const productos = ref([]);
+const categoriasTours = ref([]);
+
+const cargandoTours = ref(false);
+const cargandoProductos = ref(false);
+const cargandoCategorias = ref(false);
+
+const errorTours = ref(null);
+const errorProductos = ref(null);
+
 export function useCatalogo() {
     const { mostrarNotificacion } = useNotificacion();
     const { updateStats } = useUserStats();
-    const tours = ref([]);
-    const productos = ref([]);
-    const cargandoTours = ref(false);
-    const cargandoProductos = ref(false);
-    const errorTours = ref(null);
-    const errorProductos = ref(null);
 
     const cargarTours = async () => {
+        if (tours.value.length > 0) return; // Evitar recargar
         cargandoTours.value = true;
         errorTours.value = null;
         try {
@@ -40,10 +47,8 @@ export function useCatalogo() {
         }
     };
 
-    const categoriasTours = ref([]);
-    const cargandoCategorias = ref(false);
-
     const cargarCategorias = async () => {
+        if (categoriasTours.value.length > 0) return; // Evitar recargar
         cargandoCategorias.value = true;
         try {
             const res = await axios.get('api/categorias-paquetes/');

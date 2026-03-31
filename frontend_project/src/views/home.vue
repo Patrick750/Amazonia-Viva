@@ -1,15 +1,27 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCatalogo } from '@/composables/useCatalogo';
 import TarjetaTour from '@/components/catalogo/tarjeta-tour.vue';
 
 const router = useRouter();
-const { tours, cargandoTours, cargarTours } = useCatalogo();
+const { tours, cargandoTours, cargarTours, categoriasTours, cargarCategorias } = useCatalogo();
 const rol = ref(localStorage.getItem('rol')).value;
 
 const queryDestino = ref('');
 const queryPlan = ref('');
+const mostrarSugerencias = ref(false);
+
+const gruposUnicos = computed(() => {
+    return [...new Set(categoriasTours.value.map(c => c.grupo))].filter(Boolean).sort();
+});
+
+const sugerenciasDestino = computed(() => {
+    const q = queryDestino.value.trim().toLowerCase();
+    if (!q) return [];
+    const ciudades = [...new Set(tours.value.map(t => t.ciudad))].filter(Boolean);
+    return ciudades.filter(c => c.toLowerCase().includes(q)).slice(0, 5);
+});
 
 const buscarAventura = () => {
     router.push({ path: '/catalogo/tours', query: { q: queryDestino.value, grupo: queryPlan.value } });
@@ -23,6 +35,7 @@ const observer = ref(null);
 
 onMounted(() => {
     cargarTours();
+    cargarCategorias();
     window.addEventListener('scroll', handleScroll);
 
     observer.value = new IntersectionObserver((entries) => {
@@ -164,23 +177,42 @@ const valores = [
         <!-- Buscador premium -->
         <div class="animate-fade-in delay-300 max-w-3xl mx-auto">
           <div class="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-2 flex flex-col sm:flex-row gap-2 shadow-2xl shadow-black/40">
-            <div class="flex-1 flex items-center gap-3 bg-white/10 rounded-2xl px-5 py-4">
+            <div class="flex-1 flex items-center gap-3 bg-white/10 rounded-2xl px-5 py-4 relative">
               <svg class="w-5 h-5 text-emerald-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
               </svg>
-              <input v-model="queryDestino" type="text" placeholder="¿A dónde quieres ir?" class="w-full bg-transparent text-white placeholder-white/40 font-medium focus:outline-none text-sm">
+              <input v-model="queryDestino" @focus="mostrarSugerencias = true" @blur="setTimeout(() => mostrarSugerencias = false, 200)" type="text" placeholder="¿A dónde quieres ir?" class="w-full bg-transparent text-white placeholder-white/40 font-medium focus:outline-none text-sm">
+              
+              <!-- Sugerencias de Autocompletado -->
+              <transition
+                enter-active-class="transition ease-out duration-200"
+                enter-from-class="opacity-0 translate-y-2"
+                enter-to-class="opacity-100 translate-y-0"
+                leave-active-class="transition ease-in duration-150"
+                leave-from-class="opacity-100 translate-y-0"
+                leave-to-class="opacity-0 translate-y-2"
+              >
+                <div v-if="mostrarSugerencias && sugerenciasDestino.length > 0" class="absolute top-[110%] left-0 right-0 bg-[#0a1a0f]/95 backdrop-blur-xl border border-emerald-500/30 rounded-2xl shadow-2xl py-2 z-50 overflow-hidden text-left">
+                  <button 
+                    v-for="sug in sugerenciasDestino" 
+                    :key="sug" 
+                    @click.prevent="queryDestino = sug; mostrarSugerencias = false"
+                    class="w-full text-left px-5 py-3 text-white/70 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium flex items-center gap-2"
+                  >
+                    <svg class="w-4 h-4 text-emerald-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+                    {{ sug }}
+                  </button>
+                </div>
+              </transition>
             </div>
-            <div class="flex items-center gap-3 bg-white/10 rounded-2xl px-5 py-4 sm:w-48">
+            <div class="flex items-center gap-3 bg-white/10 rounded-2xl px-5 py-4 sm:w-48 relative z-40">
               <svg class="w-5 h-5 text-emerald-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
               </svg>
               <select v-model="queryPlan" class="w-full bg-transparent text-white/70 font-medium focus:outline-none text-sm appearance-none cursor-pointer">
                 <option value="" class="bg-gray-900 text-white">Tipo de plan</option>
-                <option value="safari" class="bg-gray-900">Safari / Fauna</option>
-                <option value="trekking" class="bg-gray-900">Trekking</option>
-                <option value="cultural" class="bg-gray-900">Cultural</option>
-                <option value="ecolodge" class="bg-gray-900">Eco-Lodge</option>
+                <option v-for="grupo in gruposUnicos" :key="grupo" :value="grupo" class="bg-gray-900 text-white">{{ grupo }}</option>
               </select>
             </div>
             <button @click="buscarAventura" class="btn-hero-search px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-2xl hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/30 flex items-center gap-2 justify-center whitespace-nowrap">
