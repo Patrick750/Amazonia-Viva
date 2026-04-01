@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useUserStats } from '@/composables/useUserStats';
+import { useCarrito } from '@/composables/useCarrito';
 import { navegacion } from '@/config/navigation';
 import axios from '@/api/axios';
 
@@ -32,7 +33,8 @@ const rolConfig = computed(() => {
   return null;
 });
 
-const { cartCount, favoritesCount, updateStats } = useUserStats();
+const { favoritesCount, updateStats } = useUserStats();
+const { cartCount } = useCarrito();
 
 onMounted(() => {
   if (token) updateStats();
@@ -45,7 +47,10 @@ const cerrarSesion = async () => {
   } catch (e) {
     console.error(e);
   } finally {
+    // Preservamos el carrito — solo eliminamos claves de autenticación
+    const carritoGuardado = localStorage.getItem('carrito_amazonia');
     localStorage.clear();
+    if (carritoGuardado) localStorage.setItem('carrito_amazonia', carritoGuardado);
     window.location.href = '/';
   }
 };

@@ -115,7 +115,16 @@ const handleAccion = async (tipo, event) => {
     }
 
     if (tipo === 'carrito') {
-        await agregarAlCarrito(tour.value.id, tour.value.precio);
+        await agregarAlCarrito(
+            tour.value.id,
+            tour.value.precio,
+            'paquete',
+            {
+                nombre: tour.value.nombre,
+                imagen: imagenPrincipal.value || null,
+                subtitulo: `${tour.value.duracion}h · ${tour.value.ubicacion}`,
+            }
+        );
     } else if (tipo === 'favorito') {
         await toggleFavorito(tour.value.id);
     }

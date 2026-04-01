@@ -9,6 +9,8 @@ import catalogo from '@/views/catalogo.vue'
 import DetallePaquete from '@/views/detalle-paquete.vue'
 import DetalleProducto from '@/views/detalle-producto.vue'
 import MisFavoritos from '@/views/favoritos.vue'
+import Carrito from '@/views/carrito.vue'
+import CheckoutViajeros from '@/views/checkout-viajeros.vue'
 import home from '@/views/home.vue'
 
 const router = createRouter({
@@ -79,6 +81,18 @@ const router = createRouter({
       component: MisFavoritos,
       meta: { requiresAuth: true }
     },
+    {
+      path: '/carrito',
+      name: 'carrito',
+      component: Carrito,
+      meta: { requiresAuth: true, roles: ['turista', 'agencia'] },
+    },
+    {
+      path: '/checkout/viajeros',
+      name: 'checkout_viajeros',
+      component: CheckoutViajeros,
+      meta: { requiresAuth: true, roles: ['turista', 'agencia'] },
+    },
   ],
 })
 
@@ -101,6 +115,12 @@ router.beforeEach((to, from, next) => {
   // Si está autenticado e intenta ir a login/signup, al inicio
   if (['/auth/login', '/auth/signup'].includes(to.path)) {
     return next('/')
+  }
+
+  // Restricciones de rutas con meta.requiresAuth
+  if (to.meta?.requiresAuth) {
+    if (!token || !rol) return next('/')
+    if (to.meta.roles && !to.meta.roles.includes(rol)) return next('/')
   }
 
   // Restricciones de Panel para usuarios autenticados

@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import axios from '@/api/axios';
-import { useUserStats } from './useUserStats';
 import { useNotificacion } from './useNotificacion';
+import { useCarrito } from './useCarrito';
 
 // Estado Global para uso como Singleton
 const tours = ref([]);
@@ -17,7 +17,7 @@ const errorProductos = ref(null);
 
 export function useCatalogo() {
     const { mostrarNotificacion } = useNotificacion();
-    const { updateStats } = useUserStats();
+    const { agregarItem } = useCarrito();
 
     const cargarTours = async () => {
         if (tours.value.length > 0) return; // Evitar recargar
@@ -85,7 +85,6 @@ export function useCatalogo() {
             const data = tipo === 'producto' ? { producto: id } : { paquetes: id };
             await axios.post('api/favoritos/', data);
             mostrarNotificacion('Agregado a favoritos', 'exito');
-            updateStats(); // Actualizar contadores globalmente
             return true;
         } catch (e) {
             console.error('Error al toggle favorito:', e);
@@ -93,17 +92,24 @@ export function useCatalogo() {
         }
     };
 
-    const agregarAlCarrito = async (id, precio, tipo = 'paquete') => {
-        try {
-            const data = tipo === 'producto' ? { producto: id, precio: precio } : { paquetes: id, precio: precio };
-            await axios.post('api/carrito/', data);
-            mostrarNotificacion('Agregado al carrito', 'exito');
-            updateStats(); // Actualizar contadores globalmente
-            return true;
-        } catch (e) {
-            console.error('Error al agregar al carrito:', e);
-            return false;
-        }
+    /**
+     * Agrega un ítem al carrito local (localStorage via useCarrito).
+     * @param {number} id - ID del item
+     * @param {number} precio - Precio unitario
+     * @param {'paquete'|'producto'} tipo
+     * @param {Object} extra - Datos adicionales { nombre, imagen, subtitulo }
+     */
+    const agregarAlCarrito = (id, precio, tipo = 'paquete', extra = {}) => {
+        agregarItem({
+            id,
+            precio,
+            tipo,
+            nombre: extra.nombre || 'Ítem',
+            imagen: extra.imagen || null,
+            subtitulo: extra.subtitulo || '',
+        });
+        mostrarNotificacion('¡Agregado al carrito!', 'exito');
+        return true;
     };
 
     return { 
