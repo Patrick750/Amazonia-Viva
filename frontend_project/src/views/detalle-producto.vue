@@ -59,7 +59,16 @@ const handleAccion = async (tipo, event) => {
     }
 
     if (tipo === 'carrito') {
-        await agregarAlCarrito(producto.value.id, producto.value.precio, 'producto');
+        agregarAlCarrito(
+            producto.value.id,
+            producto.value.precio,
+            'producto',
+            {
+                nombre: producto.value.nombre,
+                imagen: imagenPrincipal.value || null,
+                subtitulo: producto.value.nombre_categoria || '',
+            }
+        );
     } else if (tipo === 'favorito') {
         await toggleFavorito(producto.value.id, 'producto');
     }
