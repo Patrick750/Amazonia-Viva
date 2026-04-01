@@ -93,6 +93,8 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 - **[Security] Blindaje de Rutas Privadas**: Refactorización del guardián de navegación (`router.beforeEach`) para restringir el acceso a rutas administrativas y paneles a usuarios no autenticados, redirigiéndolos de forma segura a la raíz.
 
 ---
+
+### 3.0.1 — Mejoras de Agencia y Vista de Detalle Inmersiva
 > Archivos: `header.vue`, `detalle-producto.vue`, `views.py`, `serializers.py`, `useCatalogo.js`
 
 - **[Feature] Paridad de Agencia**: Extensión de las capacidades de compra y favoritos al rol de **Agencia**. Ahora las agencias disponen de iconos de carrito y favoritos en el navbar con navegación funcional y contadores reactivos.
