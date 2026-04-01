@@ -213,6 +213,18 @@ class CatalogoProductos(APIView):
 class FavoritoView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        try:
+            favoritos = Favoritos.objects.filter(usuario=request.user).select_related(
+                'producto', 'producto__categorias',
+                'paquetes', 'paquetes__categoria_paquete'
+            ).prefetch_related('producto__imagen_producto', 'paquetes__imagen_paquete')
+            serializer = FavoritoDetailSerializer(favoritos, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"ERROR EN GET FAVORITOS: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def post(self, request):
         try:
             producto_id = request.data.get('producto')

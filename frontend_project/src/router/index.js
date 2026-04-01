@@ -8,7 +8,7 @@ import productos from '@/views/productos.vue'
 import catalogo from '@/views/catalogo.vue'
 import DetallePaquete from '@/views/detalle-paquete.vue'
 import DetalleProducto from '@/views/detalle-producto.vue'
-
+import MisFavoritos from '@/views/favoritos.vue'
 import home from '@/views/home.vue'
 
 const router = createRouter({
@@ -72,6 +72,12 @@ const router = createRouter({
       path: '/catalogo/producto/:id',
       name: 'detalle_producto',
       component: DetalleProducto,
+    },
+    {
+      path: '/mis-favoritos',
+      name: 'mis_favoritos',
+      component: MisFavoritos,
+      meta: { requiresAuth: true }
     },
   ],
 })

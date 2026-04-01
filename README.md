@@ -26,6 +26,15 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 3.2.2 — Corrección de Visualización en Favoritos (SCRUM-44)
+> Archivos: `serializers.py`, `favoritos.vue`
+
+- **[Fix] Serialización de Atributos**: Mejora en la lógica de `get_descripcion` para procesar listas de características de productos, convirtiéndolas en texto legible (ej: "Marca: Nike") en lugar de mostrar código JSON.
+- **[Fix] Sanitización de HTML**: Implementación de un selector de texto plano (stripping HTML) en las descripciones truncadas para evitar que etiquetas residuales se visualicen en las tarjetas de favoritos.
+- **[UI/UX] Consistencia de Tarjetas**: Se eliminó el "ruido visual" de los ítems guardados, garantizando una interfaz limpia y profesional en la colección personal de aventuras del usuario.
+
+---
+
 ### 3.2.1 — Filtro del Home Inteligente y Refactor de Datos Global
 > Archivos: `useCatalogo.js`, `home.vue`
 

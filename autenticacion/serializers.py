@@ -328,6 +328,118 @@ class FavoritoSerializer(serializers.ModelSerializer):
             'paquetes': {'required': False, 'allow_null': True}
         }
 
+
+class FavoritoDetailSerializer(serializers.ModelSerializer):
+    tipo = serializers.SerializerMethodField()
+    item_id = serializers.SerializerMethodField()
+    nombre = serializers.SerializerMethodField()
+    descripcion = serializers.SerializerMethodField()
+    precio = serializers.SerializerMethodField()
+    imagen_portada = serializers.SerializerMethodField()
+    badge = serializers.SerializerMethodField()
+    subtitulo = serializers.SerializerMethodField()
+
+    def get_tipo(self, obj):
+        return 'producto' if obj.producto_id else 'paquete'
+
+    def get_item_id(self, obj):
+        if obj.producto_id:
+            return obj.producto_id
+        return obj.paquetes_id
+
+    def get_nombre(self, obj):
+        try:
+            if obj.producto:
+                return obj.producto.nombre
+            if obj.paquetes:
+                return obj.paquetes.nombre
+        except Exception:
+            pass
+        return ''
+
+    def get_descripcion(self, obj):
+        try:
+            if obj.producto:
+                # Productos no tiene campo 'descripcion', usa caracteristicas
+                caract = obj.producto.caracteristicas or {}
+                if isinstance(caract, dict):
+                    return ', '.join(f"{k}: {v}" for k, v in list(caract.items())[:2])
+                
+                if isinstance(caract, list):
+                    # Formato esperado: [{"clave": "Marca", "valor": "Nike"}, ...]
+                    partes = []
+                    for c in caract[:2]:
+                        if isinstance(c, dict) and 'clave' in c and 'valor' in c:
+                            partes.append(f"{c['clave']}: {c['valor']}")
+                    return ', '.join(partes)
+
+                return str(caract)[:120]
+            if obj.paquetes:
+                texto = obj.paquetes.descripcion or ''
+                # Eliminamos etiquetas HTML si existen para evitar mostrar código en la tarjeta
+                import re
+                texto_plano = re.sub(r'<[^>]+>', '', texto)
+                return texto_plano[:120] + ('...' if len(texto_plano) > 120 else '')
+        except Exception:
+            pass
+        return ''
+
+    def get_precio(self, obj):
+        try:
+            if obj.producto:
+                return str(obj.producto.precio)
+            if obj.paquetes:
+                return str(obj.paquetes.precio)
+        except Exception:
+            pass
+        return '0'
+
+    def get_imagen_portada(self, obj):
+        try:
+            if obj.producto:
+                img = obj.producto.imagen_producto.filter(es_portada=True).first()
+                if not img:
+                    img = obj.producto.imagen_producto.first()
+                return img.imagen.url if img and img.imagen else None
+            if obj.paquetes:
+                img = obj.paquetes.imagen_paquete.filter(es_portada=True).first()
+                if not img:
+                    img = obj.paquetes.imagen_paquete.first()
+                return img.imagen.url if img and img.imagen else None
+        except Exception:
+            pass
+        return None
+
+    def get_badge(self, obj):
+        try:
+            if obj.producto:
+                return obj.producto.get_tipo_catalogo_display() or 'Producto'
+            if obj.paquetes and obj.paquetes.categoria_paquete:
+                return obj.paquetes.categoria_paquete.nombre
+        except Exception:
+            pass
+        return 'Paquete'
+
+    def get_subtitulo(self, obj):
+        try:
+            if obj.producto and obj.producto.categorias:
+                return obj.producto.categorias.nombre
+            if obj.paquetes:
+                duracion = obj.paquetes.duracion or ''
+                ubicacion = obj.paquetes.ubicacion or ''
+                return f"{duracion} · {ubicacion}".strip(' ·')
+        except Exception:
+            pass
+        return ''
+
+    class Meta:
+        model = Favoritos
+        fields = [
+            'id', 'tipo', 'item_id', 'nombre', 'descripcion',
+            'precio', 'imagen_portada', 'badge', 'subtitulo'
+        ]
+
+
 class CarritoItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Items
