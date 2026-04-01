@@ -36,6 +36,8 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 - **[UI/UX] Navegación Intuitiva**: Incorporación de breadcrumbs de pasos (Carrito → Viajeros → Pago) y botones de retorno prominentes para reducir la fricción en el proceso de compra.
 
 ---
+
+### 3.3.0 — Módulo de Carrito de Compras Persistente (SCRUM-43)
 > Archivos: `carrito.vue`, `useCarrito.js`, `useCatalogo.js`, `header.vue`
 
 - **[Feature] Gestión de Carrito Local**: Implementación de un sistema de carrito basado en `localStorage` que permite persistencia total entre sesiones de usuario (Turista/Agencia).
@@ -46,6 +48,8 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 - **[Fix] Persistencia en Logout**: Refactorización del cierre de sesión para limpiar credenciales de acceso manteniendo intacta la mochila del viajero (`carrito_amazonia`).
 
 ---
+
+### 3.2.1 — Filtro del Home Inteligente y Refactor de Datos Global
 > Archivos: `useCatalogo.js`, `home.vue`
 
 - **[Architecture] useCatalogo Singleton**: Refactorización del composable de catálogo a un patrón **Singleton Global**. Los datos de `tours` y `categoriasTours` ahora se comparten entre todas las vistas, eliminando problemas de reactividad y redundancia en peticiones API.
