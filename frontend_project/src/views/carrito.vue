@@ -6,7 +6,7 @@ import { useCarrito } from '@/composables/useCarrito';
 const router = useRouter();
 const {
     tours, productos, itemsCarrito,
-    itemsSeleccionados, todoSeleccionado,
+    itemsSeleccionados, todoSeleccionado, toursSeleccionados,
     subtotalTours, subtotalProductos, tarifaEcologica, totalFinal,
     eliminarItem, actualizarCantidad,
     toggleSeleccion, seleccionarTodos, deseleccionarTodos,
@@ -31,7 +31,13 @@ const toggleTodos = () => {
 };
 
 const irAPago = () => {
-    router.push('/pago');
+    // Si hay tours seleccionados → registrar datos de viajeros primero
+    if (toursSeleccionados.value.length > 0) {
+        router.push('/checkout/viajeros');
+    } else {
+        // Solo productos → ir directamente al pago
+        router.push('/pago');
+    }
 };
 </script>
 

@@ -26,7 +26,16 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
-### 3.3.0 — Módulo de Carrito de Compras Persistente (SCRUM-43)
+### 3.4.0 — Registro de Expedicionarios y Flujo de Checkout (SCRUM-43)
+> Archivos: `checkout-viajeros.vue`, `router/index.js`, `carrito.vue`
+
+- **[Feature] Registro de Viajeros**: Nueva interfaz de captura de datos para múltiples expedicionarios utilizando el principio de "Divulgación Progresiva" mediante acordeones interactivos.
+- **[UX/UI] Acordeones de Seguimiento**: Los formularios se expanden y colapsan automáticamente al ser completados, mostrando indicadores visuales de éxito (checks verdes) y progreso real.
+- **[Feature] Auto-rellenado Titular**: Opción para utilizar los datos del perfil del usuario logueado en el primer viajero con un solo clic.
+- **[Architecture] Smart Routing**: El botón de pago en el carrito ahora redirige inteligentemente: si hay tours seleccionados, solicita datos de viajeros; si solo hay productos, avanza directo al pago.
+- **[UI/UX] Navegación Intuitiva**: Incorporación de breadcrumbs de pasos (Carrito → Viajeros → Pago) y botones de retorno prominentes para reducir la fricción en el proceso de compra.
+
+---
 > Archivos: `carrito.vue`, `useCarrito.js`, `useCatalogo.js`, `header.vue`
 
 - **[Feature] Gestión de Carrito Local**: Implementación de un sistema de carrito basado en `localStorage` que permite persistencia total entre sesiones de usuario (Turista/Agencia).

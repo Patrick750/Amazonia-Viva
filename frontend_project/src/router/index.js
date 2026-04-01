@@ -10,6 +10,7 @@ import DetallePaquete from '@/views/detalle-paquete.vue'
 import DetalleProducto from '@/views/detalle-producto.vue'
 import Carrito from '@/views/carrito.vue'
 import Favoritos from '@/views/favoritos.vue'
+import CheckoutViajeros from '@/views/checkout-viajeros.vue'
 
 import home from '@/views/home.vue'
 
@@ -85,6 +86,12 @@ const router = createRouter({
       path: '/carrito',
       name: 'carrito',
       component: Carrito,
+      meta: { requiresAuth: true, roles: ['turista', 'agencia'] },
+    },
+    {
+      path: '/checkout/viajeros',
+      name: 'checkout_viajeros',
+      component: CheckoutViajeros,
       meta: { requiresAuth: true, roles: ['turista', 'agencia'] },
     },
   ],
