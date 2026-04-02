@@ -34,10 +34,13 @@ const rolConfig = computed(() => {
 });
 
 const { favoritesCount, updateStats } = useUserStats();
-const { cartCount } = useCarrito();
+const { cartCount, cargarDesdeBackend, resetearCarrito } = useCarrito();
 
 onMounted(() => {
-  if (token) updateStats();
+  if (token) {
+    updateStats();
+    cargarDesdeBackend();
+  }
 });
 
 const cerrarSesion = async () => {
@@ -47,13 +50,12 @@ const cerrarSesion = async () => {
   } catch (e) {
     console.error(e);
   } finally {
-    // Preservamos el carrito — solo eliminamos claves de autenticación
-    const carritoGuardado = localStorage.getItem('carrito_amazonia');
     localStorage.clear();
-    if (carritoGuardado) localStorage.setItem('carrito_amazonia', carritoGuardado);
+    resetearCarrito(); // Reiniciar estado reactivo para el próximo usuario
     window.location.href = '/';
   }
 };
+
 
 const isActive = (path) => {
   if (path === '/') return route.path === '/';

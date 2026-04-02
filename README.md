@@ -26,7 +26,17 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 3.4.1 — Aislamiento de Carrito y Sincronización Backend (Bugfix)
+> Archivos: `views.py`, `serializers.py`, `useCarrito.js`, `header.vue`, `useCatalogo.js`
+
+- **[Fix] Aislamiento por Cuenta**: Se eliminó la filtración de ítems entre usuarios al cambiar de cuenta. Ahora el `localStorage` utiliza claves dinámicas vinculadas al email del usuario.
+- **[Feature] Sincronización de Persistencia**: Implementación de sincronización bidireccional con el backend. Los ítems se guardan en la base de datos y se recuperan automáticamente al iniciar sesión, permitiendo que el carrito sobreviva a la limpieza del navegador.
+- **[Feature] Gestión de Ítems via API**: Nuevos endpoints `GET` (recuperar) y `DELETE` (eliminar) en el backend para permitir una gestión completa del carrito desde el servidor.
+- **[UX/UI] Limpieza Automática**: Refactorización del flujo de logout para garantizar que el estado reactivo del carrito se resetee completamente antes de la siguiente sesión.
+
+---
 ### 3.4.0 — Registro de Expedicionarios y Flujo de Checkout (SCRUM-43)
+
 > Archivos: `checkout-viajeros.vue`, `router/index.js`, `carrito.vue`
 
 - **[Feature] Registro de Viajeros**: Nueva interfaz de captura de datos para múltiples expedicionarios utilizando el principio de "Divulgación Progresiva" mediante acordeones interactivos.

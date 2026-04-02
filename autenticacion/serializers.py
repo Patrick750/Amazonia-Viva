@@ -450,6 +450,49 @@ class CarritoItemSerializer(serializers.ModelSerializer):
             'paquetes': {'required': False, 'allow_null': True}
         }
 
+class CarritoItemDetailSerializer(serializers.ModelSerializer):
+    tipo = serializers.SerializerMethodField()
+    item_id = serializers.SerializerMethodField()
+    nombre = serializers.SerializerMethodField()
+    precio = serializers.SerializerMethodField()
+    imagen = serializers.SerializerMethodField()
+    subtitulo = serializers.SerializerMethodField()
+
+    def get_tipo(self, obj):
+        return 'paquete' if obj.paquetes_id else 'producto'
+
+    def get_item_id(self, obj):
+        return obj.paquetes_id if obj.paquetes_id else obj.producto_id
+
+    def get_nombre(self, obj):
+        if obj.paquetes: return obj.paquetes.nombre
+        if obj.producto: return obj.producto.nombre
+        return ''
+
+    def get_precio(self, obj):
+        return str(obj.precio)
+
+    def get_imagen(self, obj):
+        try:
+            if obj.paquetes:
+                img = obj.paquetes.imagen_paquete.filter(es_portada=True).first() or obj.paquetes.imagen_paquete.first()
+                return img.imagen.url if img and img.imagen else None
+            if obj.producto:
+                img = obj.producto.imagen_producto.filter(es_portada=True).first() or obj.producto.imagen_producto.first()
+                return img.imagen.url if img and img.imagen else None
+        except: pass
+        return None
+
+    def get_subtitulo(self, obj):
+        if obj.paquetes: return obj.paquetes.ubicacion
+        if obj.producto: return obj.producto.categorias.nombre if obj.producto.categorias else ''
+        return ''
+
+    class Meta:
+        model = Items
+        fields = ['id', 'tipo', 'item_id', 'nombre', 'precio', 'imagen', 'subtitulo']
+
+
 class SerializerDetalleTour(serializers.ModelSerializer):
     imagen_paquete = SerializersImages(many=True, read_only=True)
     nombre_agencia = serializers.CharField(source='agencia.nombre_agencia', read_only=True)

@@ -100,6 +100,7 @@ export function useCatalogo() {
      * @param {Object} extra - Datos adicionales { nombre, imagen, subtitulo }
      */
     const agregarAlCarrito = (id, precio, tipo = 'paquete', extra = {}) => {
+        // 1. Agregar localmente para feedback inmediato
         agregarItem({
             id,
             precio,
@@ -108,9 +109,30 @@ export function useCatalogo() {
             imagen: extra.imagen || null,
             subtitulo: extra.subtitulo || '',
         });
+
+        // 2. Sincronizar con el backend si está autenticado
+        const token = localStorage.getItem('token');
+        if (token) {
+            const data = tipo === 'producto' 
+                ? { producto: id, precio } 
+                : { paquetes: id, precio };
+            
+            axios.post('api/carrito/', data).then(res => {
+                // Actualizar con el ID de la base de datos para permitir borrado posterior
+                const itemLocal = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+                if (itemLocal && res.data.id) {
+                    itemLocal.db_id = res.data.id;
+                }
+            }).catch(err => {
+                console.error('Error al sincronizar ítem con el servidor:', err);
+            });
+
+        }
+
         mostrarNotificacion('¡Agregado al carrito!', 'exito');
         return true;
     };
+
 
     return { 
         tours, productos, categoriasTours,

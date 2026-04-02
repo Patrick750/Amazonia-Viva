@@ -1,24 +1,38 @@
 import { ref, computed, watch } from 'vue';
-
-// ── Clave en localStorage ────────────────────────────────────────────────────
-const STORAGE_KEY = 'carrito_amazonia';
+import axios from '@/api/axios';
 
 // ── Estado Global Singleton ──────────────────────────────────────────────────
 const itemsCarrito = ref([]);
 
-// Cargamos desde localStorage una sola vez al importar el módulo
-const saved = localStorage.getItem(STORAGE_KEY);
-if (saved) {
-    try {
-        const parsed = JSON.parse(saved);
-        // Garantizamos que todos los ítems tengan el campo seleccionado
-        itemsCarrito.value = parsed.map(i => ({ seleccionado: true, ...i }));
-    } catch { itemsCarrito.value = []; }
-}
+/**
+ * Obtiene la clave de localStorage específica para el usuario.
+ * Si no hay usuario, usa una clave de invitado.
+ */
+const getStorageKey = () => {
+    const email = localStorage.getItem('email');
+    return email ? `carrito_amazonia_${email}` : 'carrito_amazonia_invitado';
+};
+
+// Cargamos el carrito inicial
+const initLocal = () => {
+    const key = getStorageKey();
+    const saved = localStorage.getItem(key);
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            itemsCarrito.value = parsed.map(i => ({ seleccionado: true, ...i }));
+        } catch { itemsCarrito.value = []; }
+    } else {
+        itemsCarrito.value = [];
+    }
+};
+
+// Inicialización inmediata (para cuando el módulo se carga)
+initLocal();
 
 // Persistimos en localStorage cada vez que el estado cambia
 watch(itemsCarrito, (nuevo) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nuevo));
+    localStorage.setItem(getStorageKey(), JSON.stringify(nuevo));
 }, { deep: true });
 
 // ── Composable ───────────────────────────────────────────────────────────────
@@ -44,17 +58,43 @@ export function useCarrito() {
     const subtotalProductos = computed(() =>
         productosSeleccionados.value.reduce((sum, i) => sum + (Number(i.precio) * i.cantidad), 0)
     );
-    // Tarifa ecológica simbólica del 1% del subtotal de tours
+    
     const tarifaEcologica = computed(() => Math.round(subtotalTours.value * 0.01));
     const totalFinal = computed(() => subtotalTours.value + subtotalProductos.value + tarifaEcologica.value);
 
     // ── Acciones ──────────────────────────────────────────────────────────
 
-    /**
-     * Agrega un ítem al carrito.
-     * Si ya existe (mismo id y tipo), incrementa la cantidad.
-     * @param {Object} item - { id, nombre, precio, imagen, tipo ('paquete'|'producto'), subtitulo }
-     */
+    /** Sincroniza el carrito local con el del usuario autenticado */
+    const cargarDesdeBackend = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const res = await axios.get('api/carrito/');
+            if (res.data && Array.isArray(res.data)) {
+                itemsCarrito.value = res.data.map(item => ({
+                    id: item.item_id, // ID del producto o paquete
+                    db_id: item.id,   // ID único de la fila en la tabla Items
+                    tipo: item.tipo,
+                    nombre: item.nombre,
+                    precio: item.precio,
+                    imagen: item.imagen,
+                    subtitulo: item.subtitulo,
+                    cantidad: 1,
+                    seleccionado: true
+                }));
+            }
+        } catch (e) {
+
+            console.error('Error al cargar carrito:', e);
+        }
+    };
+
+    /** Reinicia el estado del carrito (útil al cambiar de cuenta) */
+    const resetearCarrito = () => {
+        initLocal();
+    };
+
     const agregarItem = (item) => {
         const yaExiste = itemsCarrito.value.find(
             i => i.id === item.id && i.tipo === item.tipo
@@ -69,23 +109,22 @@ export function useCarrito() {
         }
     };
 
-    /**
-     * Elimina completamente un ítem del carrito.
-     * @param {number|string} id
-     * @param {string} tipo - 'paquete' o 'producto'
-     */
     const eliminarItem = (id, tipo) => {
+        // 1. Sincronizar con backend si existe db_id
+        const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+        if (item && item.db_id) {
+            axios.delete(`api/carrito/${item.db_id}/`).catch(err => {
+                console.error('Error al eliminar ítem del servidor:', err);
+            });
+        }
+
+        // 2. Eliminar localmente
         itemsCarrito.value = itemsCarrito.value.filter(
             i => !(i.id === id && i.tipo === tipo)
         );
     };
 
-    /**
-     * Actualizar la cantidad de un ítem (mínimo 1).
-     * @param {number|string} id
-     * @param {string} tipo
-     * @param {number} nuevaCantidad
-     */
+
     const actualizarCantidad = (id, tipo, nuevaCantidad) => {
         const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
         if (item) {
@@ -93,25 +132,19 @@ export function useCarrito() {
         }
     };
 
-    /** Vacía todo el carrito */
     const vaciarCarrito = () => {
         itemsCarrito.value = [];
     };
 
-    /** Verifica si un ítem ya está en el carrito */    /**
-     * Alterna el estado seleccionado de un ítem.
-     */
     const toggleSeleccion = (id, tipo) => {
         const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
         if (item) item.seleccionado = !item.seleccionado;
     };
 
-    /** Selecciona todos los ítems */
     const seleccionarTodos = () => {
         itemsCarrito.value.forEach(i => { i.seleccionado = true; });
     };
 
-    /** Deselecciona todos los ítems */
     const deseleccionarTodos = () => {
         itemsCarrito.value.forEach(i => { i.seleccionado = false; });
     };
@@ -121,7 +154,6 @@ export function useCarrito() {
     };
 
     return {
-        // Estado
         itemsCarrito,
         tours,
         productos,
@@ -129,13 +161,11 @@ export function useCarrito() {
         toursSeleccionados,
         productosSeleccionados,
         todoSeleccionado,
-        // Contadores y totales
         cartCount,
         subtotalTours,
         subtotalProductos,
         tarifaEcologica,
         totalFinal,
-        // Acciones
         agregarItem,
         eliminarItem,
         actualizarCantidad,
@@ -144,5 +174,7 @@ export function useCarrito() {
         toggleSeleccion,
         seleccionarTodos,
         deseleccionarTodos,
+        cargarDesdeBackend,
+        resetearCarrito
     };
 }

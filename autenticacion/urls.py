@@ -29,6 +29,8 @@ urlpatterns = [
     path("favoritos/", FavoritoView.as_view(), name="favoritos"),
     path("favoritos/<int:pk>/", FavoritoView.as_view(), name="favorito_detail"),
     path("carrito/", CarritoView.as_view(), name="carrito"),
+    path("carrito/<int:pk>/", CarritoView.as_view(), name="carrito_detail"),
+
     path("catalogo/tours/<int:pk>/", DetalleTourPublico.as_view(), name="detalle_tour_publico"),
     path("catalogo/productos/<int:pk>/", DetalleProductoPublico.as_view(), name="detalle_producto_publico"),
     path("user/stats/", UserStatsView.as_view(), name="user_stats"),

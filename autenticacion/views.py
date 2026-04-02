@@ -263,6 +263,19 @@ class FavoritoView(APIView):
 class CarritoView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        try:
+            carrito, _ = Carrito.objects.get_or_create(usuario=request.user, status=True)
+            items = Items.objects.filter(carrito=carrito).select_related(
+                'producto', 'producto__categorias',
+                'paquetes'
+            ).prefetch_related('producto__imagen_producto', 'paquetes__imagen_paquete')
+            
+            serializer = CarritoItemDetailSerializer(items, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def post(self, request):
         try:
             carrito, _ = Carrito.objects.get_or_create(usuario=request.user, status=True)
@@ -276,8 +289,8 @@ class CarritoView(APIView):
             # Evitar duplicados del mismo paquete en el mismo carrito activo de forma segura
             item = Items.objects.filter(
                 carrito=carrito,
-                producto_id=producto_id if producto_id else None,
-                paquetes_id=paquetes_id if paquetes_id else None
+                producto=producto_id if producto_id else None,
+                paquetes=paquetes_id if paquetes_id else None
             ).first()
             
             created = False
@@ -295,6 +308,23 @@ class CarritoView(APIView):
         except Exception as e:
             print(f"ERROR EN CARRITO: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def delete(self, request, pk=None):
+        try:
+            if pk:
+                # Eliminar un item específico
+                item = get_object_or_404(Items, pk=pk, carrito__usuario=request.user)
+                item.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            else:
+                # Vaciar el carrito completo (opcional, pero útil)
+                carrito = Carrito.objects.filter(usuario=request.user, status=True).first()
+                if carrito:
+                    Items.objects.filter(carrito=carrito).delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class DetalleTourPublico(APIView):
     authentication_classes = []
