@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import axios from 'axios';
+import clienteAxios from '@/api/axios';
 import { useRouter } from 'vue-router';
 
 const router = useRouter()
@@ -20,7 +20,7 @@ const errorCredenciales = ref('')
 const procesarLogin = async () => {
   cargando.value = true
   try{
-    const response = await axios.post('http://127.0.0.1:8000/api/login/',{
+    const response = await clienteAxios.post('api/login/',{
       email: formulario.value.email,
       password: formulario.value.password
     })

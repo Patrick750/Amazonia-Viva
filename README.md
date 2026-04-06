@@ -26,6 +26,14 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 3.4.2 — Centralización de Cliente HTTP y Rutas Dinámicas
+> Archivos: `login.vue`, `signup.vue`, `paneles.vue`, `axios.js`
+
+- **[Refactor] Variables de Entorno**: Configuración dinámica de URL de API para transición local/producción.
+- **[Architecture] Centralización Axios**: Se reemplazaron las instancias de `axios` puro por la global `clienteAxios`.
+- **[Security] Rutas Relativas**: Eliminación de URLs hardcodeadas (`http://127.0.0.1:8000`) en toda la aplicación.
+
+---
 ### 3.4.1 — Aislamiento de Carrito y Sincronización Backend (Bugfix)
 > Archivos: `views.py`, `serializers.py`, `useCarrito.js`, `header.vue`, `useCatalogo.js`
 

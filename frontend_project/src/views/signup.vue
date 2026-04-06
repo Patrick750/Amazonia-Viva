@@ -1,6 +1,6 @@
 <script setup>
     import { ref, computed } from 'vue'
-    import axios from 'axios'
+    import clienteAxios from '@/api/axios'
     import { useRouter } from 'vue-router';
     
 
@@ -39,7 +39,7 @@
       cargando.value = true
       let registrado = false
         try{
-            const respuesta = await axios.post(`http://127.0.0.1:8000/api/signup/${rol}/`, formulario.value);
+            const respuesta = await clienteAxios.post(`api/signup/${rol}/`, formulario.value);
             registrado = respuesta.data.exito
 
             console.log('Formulari enviado: ' + respuesta.data.mensaje)
@@ -53,7 +53,7 @@
     const VerificacionDatos = async () => {
         let existeEmail = false 
         try{
-            const response = await axios.post('http://127.0.0.1:8000/api/verificaremail/',{
+            const response = await clienteAxios.post('api/verificaremail/',{
                 email: formulario.value.email
             })
               existeEmail = response.data.email
@@ -65,7 +65,7 @@
     const VerificacionUsername = async () => {
         let existeUsername = false 
         try{
-            const response = await axios.post('http://127.0.0.1:8000/api/verificaremail/',{
+            const response = await clienteAxios.post('api/verificaremail/',{
                 username: formulario.value.username
             })
             existeUsername = response.data.username
@@ -78,7 +78,7 @@
     const VerificacionIdentidad = async () => {
       let identidadExiste = false
       try{
-        const respuesta = await axios.post('http://127.0.0.1:8000/api/verificaremail/',{
+        const respuesta = await clienteAxios.post('api/verificaremail/',{
           identidad: formulario.value.numero_identidad
         })
           identidadExiste = respuesta.data.identidad
@@ -178,7 +178,7 @@
     const saveTokens = async (pack) => {
       if(pack){
         try{
-          const response = await axios.post('http://127.0.0.1:8000/api/login/',{
+          const response = await clienteAxios.post('api/login/',{
             email: formulario.value.email,
             password: formulario.value.password
           })
