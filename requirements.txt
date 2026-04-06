@@ -28,7 +28,6 @@ sqlparse==0.5.5
 tldextract==5.3.1
 tzdata==2025.3
 urllib3==2.6.3
+whitenoise==6.8.2
 zope.event==6.1
 zope.interface==8.2
-gunicorn
-whitenoise==6.8.2
