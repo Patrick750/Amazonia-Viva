@@ -26,6 +26,14 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 3.4.3 — Configuración de Entorno de Producción Gunicorn / Render
+> Archivos: `settings.py`, `requirements.txt`, `build.sh`
+
+- **[Feature] Configuración de Seguridad y Host Dinámica**: Ajustes para Render de las configuraciones de `ALLOWED_HOSTS` y `DEBUG`, ahora condicionados estrictamente a la existencia de variables de entorno pasadas por el servidor. 
+- **[Architecture] WhiteNoise Middleware**: Agregada la librería e inyección en la capa de seguridad de Django permitiendo el servicio eficiente de archivos estáticos sobre un sistema manejado con Gunicorn.  
+- **[Tooling] Automatización de Build**: Se integró en la base del proyecto `build.sh`, encargado de la descarga limpia de dependencias, recolección de estáticos en almacenamiento virtual y la automatización de migraciones en cada *deploy*.
+
+---
 ### 3.4.2 — Centralización de Cliente HTTP y Rutas Dinámicas
 > Archivos: `login.vue`, `signup.vue`, `paneles.vue`, `axios.js`
 
