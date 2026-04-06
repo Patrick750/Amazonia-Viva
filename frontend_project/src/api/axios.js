@@ -1,10 +1,10 @@
 import axios from 'axios';
 
 // 1. Configuramos la URL base para no tener que escribir 'http://127.0.0.1:8000' en cada petición
+const baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/';
 const clienteAxios = axios.create({
-    baseURL: 'http://127.0.0.1:8000/'
+    baseURL: baseURL
 });
-
 // 2. Aquí creamos el "Guardia de Seguridad" (El Interceptor)
 clienteAxios.interceptors.request.use(
     (config) => {
