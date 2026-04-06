@@ -3,10 +3,16 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status 
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser
 from .serializers import *
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
+import time
+import json
+import os
+from django.conf import settings
+from django.http import JsonResponse
 
 # Create your views here.
 
@@ -363,4 +369,181 @@ class UserStatsView(APIView):
             'favorites_count': fav_count,
             'cart_count': paquetes_unicos + productos_unicos
         })
+
+
+class PerfilView(APIView):
+    """
+    GET  /api/perfil/  → Devuelve el perfil del usuario autenticado según su rol.
+    PATCH /api/perfil/ → Actualiza parcialmente el perfil. Ignora campos bloqueados.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_instance_and_serializer(self, user):
+        """
+        Detecta el rol del usuario y retorna (instancia, clase_serializer).
+        SEGURIDAD: Se utiliza 'user.pk' para garantizar que un usuario solo acceda a su propio perfil.
+        """
+        try:
+            agencia = Agencia.objects.get(pk=user.pk)
+            return agencia, AgenciaPerfilSerializer
+        except Agencia.DoesNotExist:
+            pass
+
+        try:
+            proveedor = Proveedor.objects.get(pk=user.pk)
+            return proveedor, ProveedorPerfilSerializer
+        except Proveedor.DoesNotExist:
+            pass
+
+        try:
+            turista = Turista.objects.get(pk=user.pk)
+            return turista, TuristaPerfilSerializer
+        except Turista.DoesNotExist:
+            pass
+
+        return None, None
+
+    def get(self, request):
+        instance, SerializerClass = self._get_instance_and_serializer(request.user)
+        if instance is None:
+            return Response(
+                {'error': 'No se encontró un perfil asociado a este usuario.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = SerializerClass(instance)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        instance, SerializerClass = self._get_instance_and_serializer(request.user)
+        if instance is None:
+            return Response(
+                {'error': 'No se encontró un perfil asociado a este usuario.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = SerializerClass(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PerfilFotoView(APIView):
+    """
+    POST /api/perfil/foto/ → Sube una imagen a Cloudinary y guarda la referencia
+    en el campo de foto/logotipo del perfil del usuario autenticado.
+    Retorna la URL pública de la imagen subida.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        archivo = request.FILES.get('foto')
+        if not archivo:
+            return Response(
+                {'error': 'No se proporcionó ningún archivo. Usa el campo "foto".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Detectar rol y guardar en el campo correcto
+        try:
+            instance = Agencia.objects.get(pk=request.user.pk)
+            instance.logotipo = archivo
+            instance.save(update_fields=['logotipo'])
+            return Response({'foto_url': instance.logotipo.url}, status=status.HTTP_200_OK)
+        except Agencia.DoesNotExist:
+            pass
+
+        try:
+            instance = Proveedor.objects.get(pk=request.user.pk)
+            instance.foto_perfil = archivo
+            instance.save(update_fields=['foto_perfil'])
+            return Response({'foto_url': instance.foto_perfil.url}, status=status.HTTP_200_OK)
+        except Proveedor.DoesNotExist:
+            pass
+
+        try:
+            instance = Turista.objects.get(pk=request.user.pk)
+            instance.foto_perfil = archivo
+            instance.save(update_fields=['foto_perfil'])
+            return Response({'foto_url': instance.foto_perfil.url}, status=status.HTTP_200_OK)
+        except Turista.DoesNotExist:
+            pass
+
+        return Response(
+            {'error': 'No se encontró un perfil asociado a este usuario.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+# --- VISTA MOCK PARA VALIDACIÓN DE CREDENCIALES LEGALES ---
+class VerificarCredenciales(APIView):
+    """
+    Simula la validación de un NIT o RNT contra una base de datos estatal.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        tipo = request.data.get('tipo', '').upper() # 'NIT' o 'RNT'
+        numero = request.data.get('numero', '')
+
+        if not tipo or not numero:
+            return Response(
+                {"error": "Debe proporcionar el tipo de documento y el número."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 1. Simular latencia de red (2 segundos asíncronos en el cliente)
+        time.sleep(2)
+
+        # 2. Leer base de datos mock
+        fixture_path = os.path.join(settings.BASE_DIR, 'autenticacion', 'fixtures', 'datos_gobierno.json')
+        
+        try:
+            with open(fixture_path, 'r', encoding='utf-8') as f:
+                db_gobierno = json.load(f)
+            
+            # 3. Validar existencia
+            lista_blanca = db_gobierno.get(tipo, [])
+            
+            if str(numero) in [str(x) for x in lista_blanca]:
+                return Response({
+                    "valido": True,
+                    "mensaje": f"El {tipo} {numero} ha sido verificado exitosamente en la base de datos del Estado."
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    "valido": False,
+                    "mensaje": f"No se encontró registro para el {tipo} proporcionado."
+                }, status=status.HTTP_404_NOT_FOUND)
+
+        except FileNotFoundError:
+            return Response(
+                {"error": "Base de datos de gobierno no disponible (Mock file not found)."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Error interno al validar: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class ConfirmarPasswordView(APIView):
+    """
+    Verifica la contraseña del usuario antes de desbloquear secciones sensibles.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        password = request.data.get('password')
+        
+        if not password:
+            return Response(
+                {"error": "La contraseña es obligatoria."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar contra el usuario actual
+        if request.user.check_password(password):
+            return Response({"success": True, "mensaje": "Acceso concedido."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Contraseña incorrecta."}, status=status.HTTP_401_UNAUTHORIZED)
 

@@ -26,12 +26,13 @@ class Agencia(Usuario):
     latitud = models.DecimalField(max_digits=10,decimal_places=8, blank=True,null=True)
     logitud = models.DecimalField(max_digits=10,decimal_places=8, blank=True,null=True)
     numero_telefonico = models.CharField(max_length=20, null=False, blank=False)
-    logotipo = models.CharField(max_length=255, blank=True,null=True)
+    logotipo = CloudinaryField('image', folder='amazonia_viva/perfiles', blank=True, null=True)
     descripcion = models.CharField(max_length=255, blank=True,null=True)
-    red_social = models.URLField(max_length=200, blank=True,null=True)
+    informacion_contacto = models.JSONField(default=dict, blank=True, null=True, help_text="Diccionario de redes sociales: {'instagram': 'url', 'facebook': 'url', 'whatsapp': 'numero'}")
     nit = models.CharField(max_length=20, blank=True,null=True)
     rnt = models.CharField(max_length=20, blank=True,null=True)
     rut = models.CharField(max_length=20, blank=True,null=True)
+    rnt_registrado_at = models.DateTimeField(null=True, blank=True)
     horario_atencion = models.CharField(max_length=100, blank=True,null=True)
 
 
@@ -45,6 +46,10 @@ class Proveedor(Usuario):
     latitud = models.DecimalField(max_digits=10,decimal_places=8, blank=True, null=True)
     logitid = models.DecimalField(max_digits=10,decimal_places=8, blank=True, null=True)
     numero_telefonico = models.CharField(max_length=20, null=False, blank=False)
+    foto_perfil = CloudinaryField('image', folder='amazonia_viva/perfiles', blank=True, null=True)
+    descripcion = models.CharField(max_length=255, blank=True,null=True)
+    informacion_contacto = models.JSONField(default=dict, blank=True, null=True, help_text="Diccionario de redes sociales: {'instagram': 'url', 'facebook': 'url', 'whatsapp': 'numero'}")
+    horario_atencion = models.CharField(max_length=100, blank=True,null=True)
 
     def __str__(self):
         return f'{self.nombre_empresa}'
@@ -52,6 +57,7 @@ class Proveedor(Usuario):
 class Turista(Usuario):
     fecha_nacimiento = models.DateField(blank=False, null=False)
     numero_identidad = models.CharField(max_length=15, blank=False, null=False)
+    foto_perfil = CloudinaryField('image', folder='amazonia_viva/perfiles', blank=True, null=True)
 
 class Categoria(models.Model):
     nombre = models.CharField(

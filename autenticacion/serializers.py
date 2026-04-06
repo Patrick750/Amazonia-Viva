@@ -2,6 +2,8 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import *
 from django.contrib.auth.models import Group
+from django.utils import timezone
+from datetime import timedelta
 
 class CategoriaPaqueteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -509,3 +511,141 @@ class SerializerDetalleTour(serializers.ModelSerializer):
             'actividades_detalle'
         ]
 
+
+# ─── Serializers de Perfil de Usuario ─────────────────────────────────────────
+
+class AgenciaPerfilSerializer(serializers.ModelSerializer):
+    """
+    Lectura y actualización parcial del perfil de una Agencia.
+    - nit, rnt, rut → read_only (bloqueados).
+    - foto_url      → URL pública del logotipo en Cloudinary.
+    - logotipo      → excluido de edición directa (se actualiza vía /perfil/foto/).
+    """
+    foto_url = serializers.SerializerMethodField()
+
+    def get_foto_url(self, obj):
+        if obj.logotipo:
+            return obj.logotipo.url
+        return None
+
+    def validate(self, attrs):
+        instance = self.instance
+        if instance:
+            # --- Regla: NIT y RUT son inmutables después de ser registrados ---
+            for field in ['nit', 'rut']:
+                if field in attrs:
+                    current_val = getattr(instance, field)
+                    if current_val and current_val != attrs[field]:
+                        raise serializers.ValidationError({
+                            field: f"El {field.upper()} ya está registrado y no puede modificarse."
+                        })
+            
+            # --- Regla para RNT: Inmutable durante 300 segundos (5 min) ---
+            if 'rnt' in attrs:
+                current_rnt = getattr(instance, 'rnt')
+                nueva_rnt = attrs['rnt']
+                
+                if current_rnt and current_rnt != nueva_rnt:
+                    # Si ya tiene RNT y está intentando cambiarlo
+                    ahora = timezone.now()
+                    referencia = instance.rnt_registrado_at or instance.date_joined
+                    limite_edicion = referencia + timedelta(days=30)
+                    
+                    if ahora <= limite_edicion:
+                        delta = limite_edicion - ahora
+                        dias = delta.days
+                        horas = delta.seconds // 3600
+                        raise serializers.ValidationError({
+                            "rnt": f"El RNT ya está verificado. Faltan {dias} días y {horas} horas para la próxima renovación obligatoria."
+                        })
+                    else:
+                        # Si ya pasó el tiempo, permitimos el cambio y actualizamos la fecha de registro
+                        attrs['rnt_registrado_at'] = ahora
+                elif not current_rnt and nueva_rnt:
+                    # Es la primera vez que registra el RNT
+                    attrs['rnt_registrado_at'] = timezone.now()
+        return attrs
+
+    class Meta:
+        model = Agencia
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'nombre_agencia', 'numero_telefonico', 'descripcion',
+            'informacion_contacto', 'horario_atencion',
+            'nit', 'rnt', 'rut', 'rnt_registrado_at',
+            'foto_url', 'date_joined',
+        ]
+        read_only_fields = ['id', 'email', 'username', 'foto_url']
+
+
+class ProveedorPerfilSerializer(serializers.ModelSerializer):
+    """
+    Lectura y actualización parcial del perfil de un Proveedor.
+    - nit, rut  → read_only (bloqueados).
+    - foto_url  → URL pública de la foto de perfil en Cloudinary.
+    """
+    foto_url = serializers.SerializerMethodField()
+
+    def get_foto_url(self, obj):
+        if obj.foto_perfil:
+            return obj.foto_perfil.url
+        return None
+
+    def validate(self, attrs):
+        instance = self.instance
+        if instance:
+            # NIT y RUT inmutables después de ser registrados
+            for field in ['nit', 'rut']:
+                if field in attrs:
+                    current_val = getattr(instance, field)
+                    if current_val and current_val != attrs[field]:
+                        raise serializers.ValidationError({
+                            field: f"El {field.upper()} ya está registrado y es inmutable para este perfil."
+                        })
+        return attrs
+
+    class Meta:
+        model = Proveedor
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'nombre_empresa', 'numero_telefonico', 'descripcion',
+            'informacion_contacto', 'horario_atencion',
+            'nit', 'rut',
+            'foto_url',
+        ]
+        read_only_fields = ['id', 'email', 'username', 'foto_url']
+
+
+class TuristaPerfilSerializer(serializers.ModelSerializer):
+    """
+    Lectura y actualización parcial del perfil de un Turista.
+    - numero_identidad → read_only (dato legal inmutable).
+    - foto_url         → URL pública de la foto de perfil en Cloudinary.
+    """
+    foto_url = serializers.SerializerMethodField()
+
+    def get_foto_url(self, obj):
+        if obj.foto_perfil:
+            return obj.foto_perfil.url
+        return None
+
+    def validate(self, attrs):
+        instance = self.instance
+        if instance:
+            field = 'numero_identidad'
+            if field in attrs:
+                current_val = getattr(instance, field)
+                if current_val and current_val != attrs[field]:
+                    raise serializers.ValidationError({
+                        field: "El número de identidad ya está registrado y no puede modificarse."
+                    })
+        return attrs
+
+    class Meta:
+        model = Turista
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'fecha_nacimiento', 'numero_identidad',
+            'foto_url',
+        ]
+        read_only_fields = ['id', 'email', 'username', 'foto_url']

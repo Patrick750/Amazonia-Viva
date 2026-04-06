@@ -93,6 +93,18 @@ const router = createRouter({
       component: CheckoutViajeros,
       meta: { requiresAuth: true, roles: ['turista', 'agencia'] },
     },
+    {
+      path: '/perfil',
+      name: 'perfil_empresa',
+      component: () => import('@/views/perfil-empresa.vue'),
+      meta: { requiresAuth: true, roles: ['agencia', 'proveedor'] },
+    },
+    {
+      path: '/mi-perfil',
+      name: 'mi_perfil',
+      component: () => import('@/views/perfil-turista.vue'),
+      meta: { requiresAuth: true, roles: ['turista'] },
+    },
   ],
 })
 
