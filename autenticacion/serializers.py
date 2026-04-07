@@ -4,6 +4,7 @@ from .models import *
 from django.contrib.auth.models import Group
 from django.utils import timezone
 from datetime import timedelta
+from django.db.models import Sum
 
 class CategoriaPaqueteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -191,10 +192,20 @@ class SerializersImagenes(serializers.ModelSerializer):
 
 class SerializersPaquetes(serializers.ModelSerializer):
     imagen_paquete = SerializersImages(many=True, read_only=True)
+    ventas_totales = serializers.SerializerMethodField()
+
+    def get_ventas_totales(self, obj):
+        resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
+        return resultado['total'] or 0
 
     class Meta:
         model = PaqueteTuristico
-        fields = '__all__'
+        fields = [
+            'id', 'activo', 'nombre', 'descripcion', 'precio', 
+            'duracion', 'capacidad', 'ubicacion', 'itinerario', 
+            'incluido', 'rating', 'agencia', 'actividades',
+            'categoria_paquete', 'imagen_paquete', 'ventas_totales'
+        ]
 
 
 class SerializerCatalogoTour(serializers.ModelSerializer):
@@ -528,6 +539,13 @@ class AgenciaPerfilSerializer(serializers.ModelSerializer):
             return obj.logotipo.url
         return None
 
+    foto_portada_url = serializers.SerializerMethodField()
+
+    def get_foto_portada_url(self, obj):
+        if obj.foto_portada:
+            return obj.foto_portada.url
+        return None
+
     def validate(self, attrs):
         instance = self.instance
         if instance:
@@ -573,9 +591,9 @@ class AgenciaPerfilSerializer(serializers.ModelSerializer):
             'nombre_agencia', 'numero_telefonico', 'descripcion',
             'informacion_contacto', 'horario_atencion',
             'nit', 'rnt', 'rut', 'rnt_registrado_at',
-            'foto_url', 'date_joined',
+            'foto_url', 'foto_portada_url', 'date_joined',
         ]
-        read_only_fields = ['id', 'email', 'username', 'foto_url']
+        read_only_fields = ['id', 'email', 'username', 'foto_url', 'foto_portada_url']
 
 
 class ProveedorPerfilSerializer(serializers.ModelSerializer):
@@ -589,6 +607,13 @@ class ProveedorPerfilSerializer(serializers.ModelSerializer):
     def get_foto_url(self, obj):
         if obj.foto_perfil:
             return obj.foto_perfil.url
+        return None
+
+    foto_portada_url = serializers.SerializerMethodField()
+
+    def get_foto_portada_url(self, obj):
+        if obj.foto_portada:
+            return obj.foto_portada.url
         return None
 
     def validate(self, attrs):
@@ -611,9 +636,9 @@ class ProveedorPerfilSerializer(serializers.ModelSerializer):
             'nombre_empresa', 'numero_telefonico', 'descripcion',
             'informacion_contacto', 'horario_atencion',
             'nit', 'rut',
-            'foto_url',
+            'foto_url', 'foto_portada_url'
         ]
-        read_only_fields = ['id', 'email', 'username', 'foto_url']
+        read_only_fields = ['id', 'email', 'username', 'foto_url', 'foto_portada_url']
 
 
 class TuristaPerfilSerializer(serializers.ModelSerializer):

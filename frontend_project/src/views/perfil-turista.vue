@@ -56,98 +56,110 @@
       </div>
     </div>
 
-    <!-- ═══ CARD PRINCIPAL ═══ -->
-    <div class="max-w-2xl mx-auto px-4 -mt-10 pb-16">
-      <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+    <!-- ═══ LAYOUT CON SIDEBAR ═══ -->
+    <div class="max-w-5xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
+      
+      <!-- Menú Lateral -->
+      <MenuLateralPerfil v-model="currentView" />
 
-        <div class="px-6 sm:px-8 pt-6 pb-4 border-b border-slate-100">
-          <h2 class="text-base font-semibold text-slate-800 flex items-center gap-2">
-            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-            Mis datos personales
-          </h2>
-          <p class="text-slate-500 text-sm mt-0.5">Mantén tu información actualizada para una mejor experiencia.</p>
-        </div>
-
-        <form @submit.prevent="guardar" class="p-6 sm:p-8 space-y-5">
-
-          <!-- Nombre + Apellido -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1.5">Nombre</label>
-              <input id="first-name" v-model="form.first_name" type="text"
-                class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                placeholder="Tu nombre" />
+      <!-- CONTENIDO DINÁMICO -->
+      <div class="flex-1">
+        <transition name="fade" mode="out-in">
+          
+          <!-- ── INFORMACIÓN CUENTA ── -->
+          <div v-if="currentView === 'info'" key="info" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 sm:px-8 pt-6 pb-4 border-b border-slate-100">
+              <h2 class="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                Configuración de cuenta
+              </h2>
+              <p class="text-slate-500 text-sm mt-0.5">Gestiona tus datos personales y preferencias de seguridad.</p>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1.5">Apellido</label>
-              <input id="last-name" v-model="form.last_name" type="text"
-                class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                placeholder="Tu apellido" />
-            </div>
+
+            <form @submit.prevent="guardar" class="p-6 sm:p-8 space-y-6">
+              <!-- Nombre + Apellido -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Nombre</label>
+                  <input id="first-name" v-model="form.first_name" type="text"
+                    class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
+                    placeholder="Tu nombre" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Apellido</label>
+                  <input id="last-name" v-model="form.last_name" type="text"
+                    class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
+                    placeholder="Tu apellido" />
+                </div>
+              </div>
+
+              <!-- Email (bloqueado) -->
+              <div>
+                <div class="flex items-center gap-2 mb-2 ml-1">
+                  <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Correo electrónico</label>
+                  <span class="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter">Privado</span>
+                </div>
+                <div class="relative group">
+                  <input id="email" :value="perfil.email" type="email" disabled
+                    class="w-full rounded-2xl border border-slate-200 bg-slate-100/50 px-4 py-3 text-sm text-slate-400 cursor-not-allowed font-medium" />
+                  <div class="absolute right-4 top-1/2 -translate-y-1/2">
+                    <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fecha nacimiento -->
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Fecha de nacimiento</label>
+                <input id="fecha-nacimiento" v-model="form.fecha_nacimiento" type="date"
+                  class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium" />
+              </div>
+
+              <!-- Número de identidad -->
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Número de identidad</label>
+                <div class="relative">
+                  <template v-if="perfil.numero_identidad">
+                    <input id="campo-identidad" :value="perfil.numero_identidad" type="text" disabled
+                      class="w-full rounded-2xl border border-slate-200 bg-slate-100/50 px-4 py-3 text-sm text-slate-400 cursor-not-allowed pr-10 font-medium" />
+                    <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  </template>
+                  <template v-else>
+                    <input id="edit-identidad" v-model="form.numero_identidad" type="text"
+                      placeholder="Ingresa tu número de identidad"
+                      class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium shadow-inner" />
+                  </template>
+                </div>
+                <p v-if="perfil.numero_identidad" class="text-[11px] text-slate-400 mt-2 font-medium">Este dato ha sido verificado y no puede cambiarse. Si hay un error, contacta a soporte.</p>
+                <p v-else class="text-[11px] text-emerald-600 mt-2 font-bold animate-pulse">✓ Este dato se bloqueará una vez sea guardado.</p>
+              </div>
+
+              <!-- Botón guardar -->
+              <div class="pt-4 flex items-center gap-4">
+                <button id="btn-guardar-turista" type="submit" :disabled="isLoading"
+                  class="inline-flex items-center gap-2 px-8 py-3 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white text-sm font-bold rounded-2xl shadow-xl shadow-slate-900/10 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0">
+                  <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                  <span>{{ isLoading ? 'Guardando...' : 'Aplicar cambios' }}</span>
+                </button>
+                <transition name="fade">
+                  <div v-if="successMsg" class="flex items-center gap-2 text-emerald-600 font-bold text-sm">
+                    <div class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+                    ¡Actualizado!
+                  </div>
+                  <p v-else-if="errorMsg" class="text-red-500 text-sm font-bold">{{ errorMsg }}</p>
+                </transition>
+              </div>
+            </form>
           </div>
 
-          <!-- Email (bloqueado) -->
-          <div>
-            <div class="flex items-center gap-2 mb-1.5">
-              <label class="text-sm font-medium text-slate-700">Correo electrónico</label>
-              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            </div>
-            <input id="email" :value="perfil.email" type="email" disabled
-              class="w-full rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed" />
-            <p class="text-xs text-slate-400 mt-1">El correo está vinculado a tu cuenta y no puede modificarse aquí.</p>
-          </div>
-
-          <!-- Fecha nacimiento -->
-          <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1.5">Fecha de nacimiento</label>
-            <input id="fecha-nacimiento" v-model="form.fecha_nacimiento" type="date"
-              class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition" />
-          </div>
-
-          <!-- Número de identidad -->
-          <div>
-            <div class="flex items-center gap-2 mb-1.5">
-              <label class="text-sm font-medium text-slate-700">Número de identidad</label>
-              <svg class="w-3.5 h-3.5" :class="perfil.numero_identidad ? 'text-amber-500' : 'text-emerald-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path v-if="perfil.numero_identidad" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-              </svg>
-            </div>
-            <div class="relative">
-              <!-- Solo lectura si ya existe -->
-              <template v-if="perfil.numero_identidad">
-                <input id="campo-identidad" :value="perfil.numero_identidad" type="text" disabled
-                  class="w-full rounded-lg border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed pr-10" />
-                <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-              </template>
-              <!-- Editable si está vacío -->
-              <template v-else>
-                <input id="edit-identidad" v-model="form.numero_identidad" type="text"
-                  placeholder="Ingresa tu número de identidad"
-                  class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" />
-              </template>
-            </div>
-            <p v-if="perfil.numero_identidad" class="text-xs text-slate-400 mt-1">Dato legal registrado. Contáctanos en soporte@amazoniaviva.co para corregirlo.</p>
-            <p v-else class="text-xs text-emerald-600 mt-1">Este dato se bloqueará una vez guardado.</p>
-          </div>
-
-          <!-- Botón guardar -->
-          <div class="pt-2 flex items-center gap-4">
-            <button id="btn-guardar-turista" type="submit" :disabled="isLoading"
-              class="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg shadow transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed">
-              <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
-              <span>{{ isLoading ? 'Guardando...' : 'Guardar cambios' }}</span>
-            </button>
-            <transition name="fade">
-              <p v-if="successMsg" class="text-emerald-600 text-sm font-medium flex items-center gap-1">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                ¡Datos actualizados!
-              </p>
-              <p v-else-if="errorMsg" class="text-red-500 text-sm">{{ errorMsg }}</p>
-            </transition>
-          </div>
-
-        </form>
+          <!-- ── VISTA PERFIL (PREVIEW SOCIAL COMMERCE) ── -->
+          <VistaPerfilPublico 
+            v-else 
+            key="view" 
+            :perfil="perfil" 
+            rol-label="Turista" 
+          />
+        </transition>
       </div>
     </div>
   </div>
@@ -156,7 +168,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import clienteAxios from '@/api/axios.js'
+import MenuLateralPerfil from '@/components/perfil/MenuLateralPerfil.vue'
+import VistaPerfilPublico from '@/components/perfil/VistaPerfilPublico.vue'
 
+const currentView = ref('info')
 const isLoading  = ref(false)
 const successMsg = ref(false)
 const errorMsg   = ref('')

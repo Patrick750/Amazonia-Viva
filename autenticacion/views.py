@@ -155,13 +155,27 @@ class DeletePack(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PaquetesTuristicos(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         try:
-            paquetes = PaqueteTuristico.objects.all()
+            agencia_id = request.query_params.get('agencia_id', None)
+            
+            # Si se solicita una agencia específica (uso público/previsualización)
+            if agencia_id:
+                paquetes = PaqueteTuristico.objects.filter(agencia_id=agencia_id)
+            # Si no hay ID, pero el usuario es una agencia, mostrar solo SUS paquetes
+            elif hasattr(request.user, 'agencia'):
+                paquetes = PaqueteTuristico.objects.filter(agencia=request.user.agencia)
+            else:
+                # Para otros roles sin ID específico, no mostramos nada por seguridad
+                # O podríamos mostrar todos si es admin, pero por ahora aislamos.
+                paquetes = PaqueteTuristico.objects.none()
+                
             serializers = SerializersPaquetes(paquetes, many=True)
             return Response(serializers.data)
         except Exception as e:
-            return Response({'mensaje':'Hubo un error'})
+            return Response({'mensaje': 'Hubo un error al obtener los paquetes', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CatalogoTours(APIView):
@@ -429,50 +443,59 @@ class PerfilView(APIView):
 
 class PerfilFotoView(APIView):
     """
-    POST /api/perfil/foto/ → Sube una imagen a Cloudinary y guarda la referencia
-    en el campo de foto/logotipo del perfil del usuario autenticado.
-    Retorna la URL pública de la imagen subida.
+    POST /api/perfil/foto/ → Sube una imagen a Cloudinary.
+    - query param ?tipo=portada  → Sube a foto_portada
+    - default o ?tipo=perfil     → Sube a logotipo / foto_perfil
     """
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        archivo = request.FILES.get('foto')
+        tipo = request.query_params.get('tipo', 'perfil')
+        archivo = request.FILES.get('foto') or request.FILES.get('portada')
+        
         if not archivo:
             return Response(
-                {'error': 'No se proporcionó ningún archivo. Usa el campo "foto".'},
+                {'error': 'No se proporcionó ningún archivo. Usa el campo "foto" o "portada".'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Detectar rol y guardar en el campo correcto
         try:
-            instance = Agencia.objects.get(pk=request.user.pk)
-            instance.logotipo = archivo
-            instance.save(update_fields=['logotipo'])
-            return Response({'foto_url': instance.logotipo.url}, status=status.HTTP_200_OK)
-        except Agencia.DoesNotExist:
-            pass
+            # Identificar la instancia del perfil
+            instance = None
+            if hasattr(request.user, 'agencia'):
+                instance = request.user.agencia
+            elif hasattr(request.user, 'proveedor'):
+                instance = request.user.proveedor
+            elif hasattr(request.user, 'turista'):
+                instance = request.user.turista
 
-        try:
-            instance = Proveedor.objects.get(pk=request.user.pk)
-            instance.foto_perfil = archivo
-            instance.save(update_fields=['foto_perfil'])
-            return Response({'foto_url': instance.foto_perfil.url}, status=status.HTTP_200_OK)
-        except Proveedor.DoesNotExist:
-            pass
+            if not instance:
+                return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            instance = Turista.objects.get(pk=request.user.pk)
-            instance.foto_perfil = archivo
-            instance.save(update_fields=['foto_perfil'])
-            return Response({'foto_url': instance.foto_perfil.url}, status=status.HTTP_200_OK)
-        except Turista.DoesNotExist:
-            pass
+            # Decidir qué campo actualizar
+            if tipo == 'portada':
+                if hasattr(instance, 'foto_portada'):
+                    instance.foto_portada = archivo
+                    instance.save(update_fields=['foto_portada'])
+                    return Response({'foto_url': instance.foto_portada.url}, status=status.HTTP_200_OK)
+                else:
+                    return Response({'error': 'Este tipo de perfil no admite fotos de portada.'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                # Perfil / Logotipo
+                if hasattr(instance, 'logotipo'): # Agencia
+                    instance.logotipo = archivo
+                    instance.save(update_fields=['logotipo'])
+                    return Response({'foto_url': instance.logotipo.url}, status=status.HTTP_200_OK)
+                elif hasattr(instance, 'foto_perfil'): # Proveedor / Turista
+                    instance.foto_perfil = archivo
+                    instance.save(update_fields=['foto_perfil'])
+                    return Response({'foto_url': instance.foto_perfil.url}, status=status.HTTP_200_OK)
+                
+            return Response({'error': 'No se pudo determinar el campo de imagen.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(
-            {'error': 'No se encontró un perfil asociado a este usuario.'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- VISTA MOCK PARA VALIDACIÓN DE CREDENCIALES LEGALES ---
 class VerificarCredenciales(APIView):

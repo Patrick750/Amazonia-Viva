@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Productos, ProductoImagen, Proveedor
+from .models import Productos, ProductoImagen, Proveedor, Detalles_Venta
+from django.db.models import Sum
 
 class ProductoImagenSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
@@ -48,13 +49,19 @@ class ProductoSerializer(serializers.ModelSerializer):
                     return item.get('valor', '')
         return ''
 
+    ventas_totales = serializers.SerializerMethodField()
+
+    def get_ventas_totales(self, obj):
+        resultado = Detalles_Venta.objects.filter(producto=obj.id).aggregate(total=Sum('cantidad'))
+        return resultado['total'] or 0
+
     class Meta:
         model = Productos
         fields = [
             'id', 'nombre', 'sku', 'caracteristicas', 'stock', 'precio', 
-            'disponible', 'categorias', 'proveedor', 'tipo_catalogo',
+            'disponible', 'categorias', 'proveedor', 'tipo_catalogo', 'rating',
             'imagen_producto', 'archivos_subidos', 'imagenes_eliminar',
-            'nombre_categoria', 'marca', 'modelo'
+            'nombre_categoria', 'marca', 'modelo', 'ventas_totales'
         ]
 
     def create(self, validated_data):

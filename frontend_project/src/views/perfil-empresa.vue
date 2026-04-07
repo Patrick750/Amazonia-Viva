@@ -62,125 +62,126 @@
       </div>
     </div>
 
-    <!-- ═══ CONTENIDO PRINCIPAL ═══ -->
-    <div class="max-w-4xl mx-auto px-4 -mt-10 pb-16">
-      <div class="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+    <!-- ═══ LAYOUT CON SIDEBAR ═══ -->
+    <div class="max-w-6xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
+      
+      <!-- Menú Lateral -->
+      <MenuLateralPerfil v-model="currentView" />
 
-        <!-- Tab Nav -->
-        <div class="flex border-b border-slate-200">
-          <button
-            @click="activeTab = 'basica'"
-            :class="[
-              'flex-1 py-4 px-6 text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2',
-              activeTab === 'basica'
-                ? 'text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50/60'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            ]"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-            Información Básica
-          </button>
-          <button
-            @click="handleTabChange('avanzada')"
-            :class="[
-              'flex-1 py-4 px-6 text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2',
-              activeTab === 'avanzada'
-                ? 'text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50/60'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            ]"
-          >
-            <svg v-if="!isUnlocked" class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
-            <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            Información Avanzada
-          </button>
-        </div>
-
-        <!-- ═══ TAB: INFORMACIÓN BÁSICA ═══ -->
+      <!-- CONTENIDO DINÁMICO -->
+      <div class="flex-1">
         <transition name="fade" mode="out-in">
-          <div v-if="activeTab === 'basica'" key="basica" class="p-6 sm:p-8">
-            <p class="text-slate-500 text-sm mb-6">Esta información es <strong class="text-slate-700">visible para los turistas</strong> en tu perfil público.</p>
+          
+          <!-- ── INFORMACIÓN CUENTA (Consolida las tabs existentes) ── -->
+          <div v-if="currentView === 'info'" key="info" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+            <!-- Tab Nav -->
+            <div class="flex border-b border-slate-100 bg-slate-50/50">
+              <button
+                @click="activeTab = 'basica'"
+                :class="[
+                  'flex-1 py-4 px-6 text-xs font-bold uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-2',
+                  activeTab === 'basica'
+                    ? 'text-emerald-700 bg-white border-b-2 border-emerald-600'
+                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50'
+                ]"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                Info Básica
+              </button>
+              <button
+                @click="handleTabChange('avanzada')"
+                :class="[
+                  'flex-1 py-4 px-6 text-xs font-bold uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-2',
+                  activeTab === 'avanzada'
+                    ? 'text-emerald-700 bg-white border-b-2 border-emerald-600'
+                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100/50'
+                ]"
+              >
+                <svg v-if="!isUnlocked" class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Info Avanzada
+              </button>
+            </div>
 
-            <form @submit.prevent="guardar" class="space-y-5">
+            <!-- Tab Content -->
+            <transition name="fade" mode="out-in">
+              <div v-if="activeTab === 'basica'" key="basica" class="p-6 sm:p-8">
+                <p class="text-slate-400 text-xs font-semibold mb-8 flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  Esta información es pública para los clientes que visiten tu catálogo.
+                </p>
 
-              <!-- Nombre empresa -->
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">
-                  {{ rol === 'agencia' ? 'Nombre de la Agencia' : 'Nombre de la Empresa' }}
-                </label>
-                <input id="nombre-empresa" v-model="form.nombreEmpresa" type="text"
-                  class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  placeholder="Ej: Amazonia Tours S.A.S." />
-              </div>
-
-              <!-- Teléfono -->
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Teléfono de contacto público</label>
-                <input id="telefono" v-model="form.numero_telefonico" type="tel"
-                  class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  placeholder="+57 300 123 4567" />
-              </div>
-
-              <!-- Descripción -->
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Descripción comercial</label>
-                <textarea id="descripcion" v-model="form.descripcion" rows="4"
-                  class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition resize-none"
-                  placeholder="Cuéntale a los viajeros quiénes son, qué los hace únicos y qué experiencias ofrecen...">
-                </textarea>
-                <p class="text-xs text-slate-400 mt-1">{{ (form.descripcion || '').length }}/255 caracteres</p>
-              </div>
-
-              <!-- Horario (Agencias y Proveedores) -->
-              <div v-if="normalizedRol === 'agencia' || normalizedRol === 'proveedor'">
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">Horario de atención</label>
-                <input id="horario" v-model="form.horario_atencion" type="text"
-                  class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition"
-                  placeholder="Ej: Lun-Vie 8am–6pm, Sáb 9am–1pm" />
-              </div>
-
-              <!-- Redes sociales (Agencias y Proveedores) -->
-              <div v-if="normalizedRol === 'agencia' || normalizedRol === 'proveedor'">
-                <label class="block text-sm font-medium text-slate-700 mb-3">Redes sociales y canales de contacto</label>
-                <div class="space-y-3">
-                  <div v-for="red in redesDisponibles" :key="red.key" class="flex items-center gap-3">
-                    <div class="flex items-center gap-2 w-36 shrink-0">
-                      <span class="w-5 h-5 text-slate-500 shrink-0" v-html="red.icon"></span>
-                      <span class="text-sm text-slate-600 font-medium">{{ red.label }}</span>
-                    </div>
-                    <input :id="`red-${red.key}`" v-model="form.informacion_contacto[red.key]"
-                      type="text" :placeholder="red.placeholder"
-                      class="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition" />
+                <form @submit.prevent="guardar" class="space-y-6">
+                  <!-- Nombre empresa -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">
+                      {{ rol === 'agencia' ? 'Nombre de la Agencia' : 'Nombre de la Empresa' }}
+                    </label>
+                    <input id="nombre-empresa" v-model="form.nombreEmpresa" type="text"
+                      class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
+                      placeholder="Ej: Amazonia Tours S.A.S." />
                   </div>
-                </div>
+
+                  <!-- Teléfono -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Teléfono de contacto</label>
+                    <input id="telefono" v-model="form.numero_telefonico" type="tel"
+                      class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
+                      placeholder="+57 300 123 4567" />
+                  </div>
+
+                  <!-- Descripción -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Descripción comercial</label>
+                    <textarea id="descripcion" v-model="form.descripcion" rows="4"
+                      class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium resize-none shadow-inner"
+                      placeholder="Cuéntale a los viajeros quiénes son...">
+                    </textarea>
+                    <div class="flex justify-end mt-2">
+                      <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">{{ (form.descripcion || '').length }}/255</span>
+                    </div>
+                  </div>
+
+                  <!-- Redes -->
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div v-for="red in redesDisponibles" :key="red.key" class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                      <span class="w-5 h-5 text-slate-400 shrink-0" v-html="red.icon"></span>
+                      <input v-model="form.informacion_contacto[red.key]"
+                        type="text" :placeholder="red.label"
+                        class="bg-transparent border-none outline-none text-xs w-full text-slate-600 font-medium placeholder:text-slate-300" />
+                    </div>
+                  </div>
+
+                  <!-- Botón guardar -->
+                  <div class="pt-4 flex items-center gap-4">
+                    <button id="btn-guardar-basica" type="submit" :disabled="isLoading"
+                      class="inline-flex items-center gap-2 px-8 py-3 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white text-sm font-bold rounded-2xl shadow-xl shadow-slate-900/10 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed hover:-translate-y-0.5">
+                      <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                      <span>Guardar perfil público</span>
+                    </button>
+                    <transition name="fade">
+                      <p v-if="successMsg" class="text-emerald-600 text-xs font-black uppercase tracking-tighter flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        ¡Sincronizado!
+                      </p>
+                    </transition>
+                  </div>
+                </form>
               </div>
-
-              <!-- Botón guardar -->
-              <div class="pt-2 flex items-center gap-4">
-                <button id="btn-guardar-basica" type="submit" :disabled="isLoading"
-                  class="inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg shadow transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed">
-                  <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
-                  <span>{{ isLoading ? 'Guardando...' : 'Guardar cambios' }}</span>
-                </button>
-                <transition name="fade">
-                  <p v-if="successMsg" class="text-emerald-600 text-sm font-medium flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                    ¡Cambios guardados!
-                  </p>
-                  <p v-else-if="errorMsg" class="text-red-500 text-sm font-medium">{{ errorMsg }}</p>
-                </transition>
+              <div v-else-if="activeTab === 'avanzada'" key="avanzada" class="p-6 sm:p-8">
+                <InformacionAvanzada v-model:perfil-data="perfil" :rol="normalizedRol" />
               </div>
-
-            </form>
+            </transition>
           </div>
-        </transition>
 
-        <!-- ═══ TAB: INFORMACIÓN AVANZADA ═══ -->
-        <transition name="fade" mode="out-in">
-          <div v-if="activeTab === 'avanzada'" key="avanzada" class="p-6 sm:p-8">
-            <InformacionAvanzada v-model:perfil-data="perfil" :rol="normalizedRol" />
-          </div>
+          <!-- ── VISTA PERFIL (PREVIEW SOCIAL COMMERCE) ── -->
+          <VistaPerfilPublico 
+            v-else 
+            key="view" 
+            :perfil="perfil" 
+            :rol-label="rolLabel" 
+          />
         </transition>
-
       </div>
     </div>
   </div>
@@ -227,8 +228,10 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import clienteAxios from '@/api/axios.js'
 import InformacionAvanzada from '@/components/perfil/InformacionAvanzada.vue'
+import MenuLateralPerfil from '@/components/perfil/MenuLateralPerfil.vue'
+import VistaPerfilPublico from '@/components/perfil/VistaPerfilPublico.vue'
 
-// ─── Estado de Seguridad ──────────────────────────────────
+const currentView = ref('info')
 const showPasswordModal = ref(false)
 const isUnlocked = ref(false)
 const isVerifyingPassword = ref(false)

@@ -27,6 +27,7 @@ class Agencia(Usuario):
     logitud = models.DecimalField(max_digits=10,decimal_places=8, blank=True,null=True)
     numero_telefonico = models.CharField(max_length=20, null=False, blank=False)
     logotipo = CloudinaryField('image', folder='amazonia_viva/perfiles', blank=True, null=True)
+    foto_portada = CloudinaryField('image', folder='amazonia_viva/portadas', blank=True, null=True)
     descripcion = models.CharField(max_length=255, blank=True,null=True)
     informacion_contacto = models.JSONField(default=dict, blank=True, null=True, help_text="Diccionario de redes sociales: {'instagram': 'url', 'facebook': 'url', 'whatsapp': 'numero'}")
     nit = models.CharField(max_length=20, blank=True,null=True)
@@ -47,6 +48,7 @@ class Proveedor(Usuario):
     logitid = models.DecimalField(max_digits=10,decimal_places=8, blank=True, null=True)
     numero_telefonico = models.CharField(max_length=20, null=False, blank=False)
     foto_perfil = CloudinaryField('image', folder='amazonia_viva/perfiles', blank=True, null=True)
+    foto_portada = CloudinaryField('image', folder='amazonia_viva/portadas', blank=True, null=True)
     descripcion = models.CharField(max_length=255, blank=True,null=True)
     informacion_contacto = models.JSONField(default=dict, blank=True, null=True, help_text="Diccionario de redes sociales: {'instagram': 'url', 'facebook': 'url', 'whatsapp': 'numero'}")
     horario_atencion = models.CharField(max_length=100, blank=True,null=True)
@@ -198,6 +200,7 @@ class Productos(models.Model):
     categorias = models.ForeignKey(Categorias, on_delete=models.CASCADE, related_name='producto_categorias')
     proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='producto_proveedor')
     tipo_catalogo = models.CharField(max_length=20, choices=TIPO_CATALOGO_CHOICES, default='turistas')
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
 
 class ProductoImagen(models.Model):
     imagen = CloudinaryField('image', folder='amazonia_viva/productos')
