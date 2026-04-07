@@ -278,6 +278,16 @@ const getNombreActividad = (id) => {
                             </div>
 
                             <div class="flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                                </div>
+                                <div class="flex flex-col">
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Éxito en Ventas</p>
+                                    <p class="text-sm font-black text-emerald-700">{{ paquete?.ventas_totales || 0 }} unidades</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3">
                                 <div class="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                                 </div>

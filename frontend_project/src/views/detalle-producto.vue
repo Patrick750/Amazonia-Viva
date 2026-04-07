@@ -307,6 +307,19 @@ const getCaracteristica = (claveBuscada) => {
                                 </p>
                             </div>
                         </div>
+
+                        <!-- Ventas Totales -->
+                        <div class="bg-teal-600 p-4 rounded-2xl shadow-lg shadow-teal-100 flex items-center gap-4 text-white">
+                            <div class="p-3 bg-white/20 rounded-xl">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-[10px] opacity-80 font-bold uppercase tracking-widest leading-none mb-1">Total Vendidos</p>
+                                <p class="text-lg font-black">{{ producto.ventas_totales || 0 }}</p>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Descripción Larga / Resumen -->

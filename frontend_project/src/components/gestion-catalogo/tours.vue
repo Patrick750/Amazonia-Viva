@@ -29,6 +29,7 @@
                 <th class="pb-3">Precio</th>
                 <th class="pb-3">Capacidad</th>
                 <th class="pb-3">Calificación</th>
+                <th class="pb-3 text-center">Ventas</th>
                 <th class="pb-3 text-center">Acciones</th>
                 </tr>
             </thead>
@@ -79,6 +80,9 @@
                     <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     {{ tour.capacidad }}
                     </div>
+                </td>
+                <td class="py-4 text-sm text-center font-bold text-emerald-700 bg-emerald-50/30 rounded-lg">
+                    {{ tour.ventas_totales || 0 }}
                 </td>
                 <td class="py-4 text-sm text-slate-800">
                     <div class="flex items-center gap-1">

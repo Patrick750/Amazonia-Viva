@@ -26,6 +26,16 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 3.7.0 — Métricas de Negocio y Filtros Avanzados (SCRUM-58, SCRUM-59)
+> Archivos: `serializers.py`, `catalogo.vue`, `perfil-empresa.vue`, `detalle-paquete.vue`, `detalle-producto.vue`
+
+- **[Feature] Analítica de Ventas en Tiempo Real (SCRUM-58)**: Integración de métricas de `ventas_totales` en todos los serializadores de catálogo y detalles. Ahora las agencias y proveedores pueden monitorizar el éxito de sus items directamente desde sus tablas de gestión.
+- **[Feature] Resumen de Rendimiento de Negocio**: Adición de una tarjeta de estadísticas en el perfil de empresa que muestra el total acumulado de ventas, proporcionando una visión global inmediata del desempeño comercial.
+- **[UX/UI] Filtro por Calificación (SCRUM-59)**: Implementación de un selector de estrellas reactivo ("4+ Estrellas", etc.) mediante chips visuales de color ámbar, permitiendo a los turistas filtrar por calidad percibida.
+- **[UX] Ordenamiento por Popularidad**: Nueva opción de ordenamiento por "Más vendidos" que utiliza los datos agregados para destacar los productos y tours con mayor tracción en la plataforma.
+- **[UI] Social Proof Inmersivo**: Los indicadores de ventas ("X vendidos") ahora son visibles en las tarjetas públicas del catálogo y en las vistas de detalle, reforzando la confianza del comprador.
+- **[FIX] Visibilidad de Cambios**: Optimización de la lógica de renderizado para mostrar "0 vendidos" en items nuevos, asegurando que la funcionalidad sea visible desde el primer momento.
+
 ### 3.6.0 — Perfiles Públicos, Navegación Contextual y Verificación Legal
 > Archivos: `perfil-publico.vue`, `VistaPerfilPublico.vue`, `tarjeta-tour.vue`, `tarjeta-producto.vue`, `serializers.py`, `views.py`
 

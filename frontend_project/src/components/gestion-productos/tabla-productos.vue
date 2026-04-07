@@ -46,6 +46,7 @@ const deleteProducto = (id) => {
             <th class="pb-3">SKU</th>
             <th class="pb-3">Precio</th>
             <th class="pb-3">Stock</th>
+            <th class="pb-3 text-center">Ventas</th>
             <th class="pb-3 text-center">Acciones</th>
             </tr>
         </thead>
@@ -88,6 +89,9 @@ const deleteProducto = (id) => {
                 <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
                 <span :class="prod.stock < 5 ? 'text-rose-500 font-bold' : ''">{{ prod.stock }}</span>
                 </div>
+            </td>
+            <td class="py-4 text-sm text-center font-bold text-teal-700 bg-teal-50/30 rounded-lg">
+                {{ prod.ventas_totales || 0 }}
             </td>
             <td class="py-4">
                 <div class="flex items-center justify-center gap-2">
