@@ -13,6 +13,8 @@ import json
 import os
 from django.conf import settings
 from django.http import JsonResponse
+from django.db import transaction
+from django.core.mail import send_mail
 
 # Create your views here.
 
@@ -606,4 +608,96 @@ class ConfirmarPasswordView(APIView):
             return Response({"success": True, "mensaje": "Acceso concedido."}, status=status.HTTP_200_OK)
         else:
             return Response({"error": "Contraseña incorrecta."}, status=status.HTTP_401_UNAUTHORIZED)
+
+class ProcesarPagoView(APIView):
+    """
+    Endpoint para procesar la transacción final, guardar en DB, reducir stock y vaciar el carrito.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        try:
+            data = request.data
+            total = data.get('total', 0)
+            novedades = data.get('novedades_turistas', [])
+            items = data.get('items', [])
+            
+            # Crear la Venta
+            venta = Venta.objects.create(
+                usuario=request.user,
+                total=total,
+                novedades_turistas=novedades,
+                estado='Completado'
+            )
+            
+            # Prevenir items id = 0 
+            # Procesar items y generar Detalles_Venta
+            for it in items:
+                tipo = it.get('tipo')
+                item_id = it.get('id')
+                cantidad = int(it.get('cantidad', 1))
+                precio = it.get('precio', 0)
+                
+                if tipo == 'producto':
+                    producto = get_object_or_404(Productos, pk=item_id)
+                    # Reducir stock
+                    if producto.stock >= cantidad:
+                        producto.stock -= cantidad
+                    else:
+                        producto.stock = 0
+                    producto.save()
+                    
+                    Detalles_Venta.objects.create(
+                        venta=venta,
+                        producto=producto.id,
+                        paquete=0,
+                        cantidad=cantidad,
+                        precio_unitario=precio
+                    )
+                elif tipo == 'paquete':
+                    paquete = get_object_or_404(PaqueteTuristico, pk=item_id)
+                    Detalles_Venta.objects.create(
+                        venta=venta,
+                        producto=0,
+                        paquete=paquete.id,
+                        cantidad=cantidad,
+                        precio_unitario=precio
+                    )
+
+            # Vaciar el Carrito en base de datos
+            carrito = Carrito.objects.filter(usuario=request.user, status=True).first()
+            if carrito:
+                Items.objects.filter(carrito=carrito).delete()
+                
+            # Enviar correo de confirmación
+            try:
+                msg_body = (
+                    f"¡Hola {request.user.username}!\n\n"
+                    f"Gracias por confiar en Amazonia Viva.\n"
+                    f"Te confirmamos que hemos recibido exitosamente el pago por tu compra.\n\n"
+                    f"💳 Total de la compra: ${total}\n"
+                    f"✅ Estado de transacción: Pagado\n\n"
+                    f"¡Prepárate para la aventura de tu vida!\n"
+                    f"Atentamente, el equipo de Amazonia Viva."
+                )
+                
+                send_mail(
+                    subject="Confirmación de tu reserva - Amazonia Viva",
+                    message=msg_body,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[request.user.email],
+                    fail_silently=True,  # Prevenir que pete el checkout si falla la red SMTP
+                )
+            except Exception as e:
+                print(f"Error despachando correo de venta: {e}")
+                
+            return Response({
+                'exito': True, 
+                'mensaje': 'Pago procesado y compra guardada exitosamente.',
+                'venta_id': venta.id
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

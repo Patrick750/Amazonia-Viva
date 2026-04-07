@@ -20,6 +20,15 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# --- Configuración de Correo Electrónico SMTP ---
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'ortizpatrick750@gmail.com'
+# Le decimos al código que busque la clave en el servidor de Render
+EMAIL_HOST_PASSWORD = os.environ.get('PASSWORD_CORREO')
+DEFAULT_FROM_EMAIL = 'ortizpatrick750@gmail.com'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/

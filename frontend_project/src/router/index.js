@@ -11,6 +11,7 @@ import DetalleProducto from '@/views/detalle-producto.vue'
 import MisFavoritos from '@/views/favoritos.vue'
 import Carrito from '@/views/carrito.vue'
 import CheckoutViajeros from '@/views/checkout-viajeros.vue'
+import Pago from '@/views/pago.vue'
 import home from '@/views/home.vue'
 
 const router = createRouter({
@@ -91,6 +92,12 @@ const router = createRouter({
       path: '/checkout/viajeros',
       name: 'checkout_viajeros',
       component: CheckoutViajeros,
+      meta: { requiresAuth: true, roles: ['turista', 'agencia'] },
+    },
+    {
+      path: '/pago',
+      name: 'pago',
+      component: Pago,
       meta: { requiresAuth: true, roles: ['turista', 'agencia'] },
     },
     {

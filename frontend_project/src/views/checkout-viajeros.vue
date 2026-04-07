@@ -27,6 +27,7 @@ const crearViajero = () => ({
     tipo_doc: 'Cédula de Ciudadanía',
     num_doc: '',
     edad: '',
+    novedades: '',
     completado: false,
 });
 
@@ -44,8 +45,30 @@ onMounted(() => {
         router.push('/carrito');
         return;
     }
+    
+    // Intentar recuperar si existen datos previos (usuario dio click a 'Volver' desde Pago)
+    const guardados = sessionStorage.getItem('checkout_viajeros');
+    if (guardados) {
+        try {
+            const parsed = JSON.parse(guardados);
+            // Asegurarnos que la cant de personas sigue siendo igual antes de cargar ciegamente
+            if (Array.isArray(parsed) && parsed.length === n) {
+                viajeros.value = parsed;
+                return;
+            }
+        } catch (e) {
+            console.error("Error leyendo cache de viajeros:", e);
+        }
+    }
+
+    // Si no hay guardados o cambió la cantidad, iniciar limpios.
     viajeros.value = Array.from({ length: n }, crearViajero);
 });
+
+// Guardar reactivamente cada cambio a sessionStorage por si el usuario navega fuera inesperadamente
+watch(viajeros, (nuevosViajeros) => {
+    sessionStorage.setItem('checkout_viajeros', JSON.stringify(nuevosViajeros));
+}, { deep: true });
 
 // Si el carrito cambia externamente, recalcular
 watch(totalPersonas, (nuevo) => {
@@ -390,6 +413,20 @@ const nombreViajero = (v, idx) => {
                           Requerido para el seguro médico de aventura en zonas protegidas.
                         </p>
                       </div>
+                    </div>
+                    
+                    <!-- Novedades / Observaciones -->
+                    <div class="sm:col-span-2 mt-2">
+                      <label class="block text-white/50 text-xs font-semibold mb-1.5 uppercase tracking-wider">
+                        Novedades u Observaciones
+                      </label>
+                      <textarea
+                        v-model="viajero.novedades"
+                        @input="onCampoChange(idx)"
+                        placeholder="Alergias, condiciones médicas, restricciones alimentarias..."
+                        rows="3"
+                        class="w-full bg-white/8 border border-white/15 text-white placeholder-white/25 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-500/60 focus:bg-white/10 transition-all resize-none"
+                      ></textarea>
                     </div>
                   </div>
 

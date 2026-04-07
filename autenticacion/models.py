@@ -230,6 +230,7 @@ class Venta(models.Model):
     total = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='venta_usuario')
     fotograficas = models.JSONField(default=dict, null=True)
+    novedades_turistas = models.JSONField(default=list, blank=True, null=True, help_text="Almacena el listado de viajeros y sus novedades registradas en el checkout en formato JSON.")
     estado = models.CharField(max_length=40, null=False, blank=False)
 
 class Detalles_Venta(models.Model):
