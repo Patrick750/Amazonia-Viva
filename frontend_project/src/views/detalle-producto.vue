@@ -232,12 +232,12 @@ const getCaracteristica = (claveBuscada) => {
                             <h1 class="text-3xl sm:text-4xl font-black text-gray-900 leading-tight">
                                 {{ producto.nombre }}
                             </h1>
-                            <p class="text-teal-700 font-semibold flex items-center gap-2">
+                            <router-link :to="{ name: 'perfil_publico', params: { id: producto.proveedor_id }, query: { tipo: 'proveedor' } }" class="text-teal-700 hover:text-teal-800 transition-colors font-semibold flex items-center gap-2 w-max cursor-pointer decoration-2 underline-offset-4 hover:underline">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                 </svg>
                                 Distribuido por {{ producto.nombre_proveedor }}
-                            </p>
+                            </router-link>
                             <!-- Descripción Corta (Desde características o genérica) -->
                             <p class="text-gray-600 text-sm leading-relaxed mt-2 italic">
                                 {{ getCaracteristica('descripcion') || getCaracteristica('Descripción') || 'Producto de alta calidad disponible en Amazonia Viva.' }}

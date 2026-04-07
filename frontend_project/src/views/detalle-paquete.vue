@@ -255,12 +255,12 @@ const formatTime = (timeStr) => {
                             <h1 class="text-3xl sm:text-4xl font-black text-gray-900 leading-tight">
                                 {{ tour.nombre }}
                             </h1>
-                            <p class="text-emerald-700 font-semibold flex items-center gap-2">
+                            <router-link :to="{ name: 'perfil_publico', params: { id: tour.agencia_id }, query: { tipo: 'agencia' } }" class="text-emerald-700 hover:text-emerald-800 transition-colors font-semibold flex items-center gap-2 w-max cursor-pointer decoration-2 underline-offset-4 hover:underline">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m4 0h1m-5 10h5m-5 4h5" />
                                 </svg>
                                 Organizado por {{ tour.nombre_agencia }}
-                            </p>
+                            </router-link>
                             <!-- Descripción Corta/Quick View -->
                             <p class="text-gray-600 text-sm leading-relaxed mt-2 italic">
                                 {{ tour.descripcion }}

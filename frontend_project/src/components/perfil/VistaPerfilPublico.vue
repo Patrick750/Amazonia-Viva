@@ -1,10 +1,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import tarjetaTour from '@/components/catalogo/tarjeta-tour.vue'
+import tarjetaProducto from '@/components/catalogo/tarjeta-producto.vue'
 
 const props = defineProps({
   perfil: {
     type: Object,
     required: true
+  },
+  esPropietario: {
+    type: Boolean,
+    default: true
   },
   rolLabel: {
     type: String,
@@ -75,43 +81,25 @@ onMounted(async () => {
     // Fetch only the authenticated user's products/packages 
     // depending on their role context
     if (rol === 'agencia') {
-      const res = await clienteAxios.get(`api/pack/?agencia_id=${props.perfil.id}`)
-      dataFetch = res.data.map(p => {
-        // Encontrar la imagen de portada o la primera disponible
-        const imgObj = (p.imagen_paquete || []).find(img => img.es_portada) || (p.imagen_paquete || [])[0]
-        return {
-          id: p.id,
-          tipo: 'tour',
-          titulo: p.nombre,
-          precio: formatearMoneda(p.precio),
-          rating: p.rating || 0,
-          ventas: p.ventas_totales || 0,
-          img: imgObj ? imgObj.url : null,
-          categoria: p.categoria_paquete_nombre || p.categoria_nombre || 'Tours Selváticos'
-        }
-      })
+      const res = await clienteAxios.get(`api/catalogo/tours/?agencia_id=${props.perfil.id}`)
+      dataFetch = res.data.map(p => ({
+        ...p,
+        tipo: 'tour',
+        categoria_unificada: p.categoria_paquete_nombre || p.categoria_nombre || 'Tours Selváticos'
+      }))
     } else if (rol === 'proveedor') {
-      const res = await clienteAxios.get(`api/productos/?proveedor_id=${props.perfil.id}`)
-      dataFetch = res.data.map(p => {
-        // Encontrar la imagen de portada o la primera disponible
-        const imgObj = (p.imagen_producto || []).find(img => img.es_portada) || (p.imagen_producto || [])[0]
-        return {
-          id: p.id,
-          tipo: 'producto',
-          titulo: p.nombre,
-          precio: formatearMoneda(p.precio),
-          rating: p.rating || 0,
-          ventas: p.ventas_totales || 0,
-          img: imgObj ? imgObj.url : null,
-          categoria: p.nombre_categoria || 'Equipamiento'
-        }
-      })
+      const res = await clienteAxios.get(`api/catalogo/productos/?proveedor_id=${props.perfil.id}`)
+      dataFetch = res.data.map(p => ({
+        ...p,
+        tipo: 'producto',
+        categoria_unificada: p.nombre_categoria || 'Equipamiento'
+      }))
     }
     
     items.value = dataFetch
     
     // Extraer categorias únicas reales del catálogo del usuario
-    const catSpecs = new Set(dataFetch.map(i => i.categoria))
+    const catSpecs = new Set(dataFetch.map(i => i.categoria_unificada))
     categorias.value = ['Todos', ...Array.from(catSpecs)]
     
   } catch (err) {
@@ -125,12 +113,12 @@ const itemsFiltrados = computed(() => {
   let list = items.value
 
   if (categoriaActiva.value !== 'Todos') {
-    list = list.filter(item => item.categoria === categoriaActiva.value)
+    list = list.filter(item => item.categoria_unificada === categoriaActiva.value)
   }
 
   if (filtroBusqueda.value) {
     const term = filtroBusqueda.value.toLowerCase()
-    list = list.filter(item => item.titulo.toLowerCase().includes(term))
+    list = list.filter(item => (item.nombre || item.titulo || '').toLowerCase().includes(term))
   }
   return list
 })
@@ -175,12 +163,12 @@ const tagUsuario = computed(() => {
           </svg>
         </div>
              
-        <div @click="triggerPortadaInput" class="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 backdrop-blur text-white text-[10px] uppercase font-bold px-3 py-1.5 rounded flex items-center gap-2 cursor-pointer transition-all border border-white/20 z-10">
+        <div v-if="esPropietario" @click="triggerPortadaInput" class="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 backdrop-blur text-white text-[10px] uppercase font-bold px-3 py-1.5 rounded flex items-center gap-2 cursor-pointer transition-all border border-white/20 z-10">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           Editar portada
         </div>
         
-        <input id="input-portada" type="file" accept="image/*" class="hidden" @change="onPortadaSeleccionada">
+        <input v-if="esPropietario" id="input-portada" type="file" accept="image/*" class="hidden" @change="onPortadaSeleccionada">
         
         <div class="absolute top-4 right-4 animate-pulse bg-black/60 backdrop-blur text-white text-[9px] uppercase font-bold tracking-widest px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-lg">
           <svg class="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
@@ -234,7 +222,7 @@ const tagUsuario = computed(() => {
           </div>
           
           <div class="flex items-center gap-2">
-            <button class="flex-1 md:flex-none px-8 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-xl shadow-slate-900/20 active:scale-95 transition-all">
+            <button v-if="!esPropietario" class="flex-1 md:flex-none px-8 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-xl shadow-slate-900/20 active:scale-95 transition-all">
               Contactar
             </button>
           </div>
@@ -274,8 +262,10 @@ const tagUsuario = computed(() => {
       </div>
     </header>
 
-    <!-- BLOQUE 2: Barra de Control y Búsqueda (Sticky) -->
-    <div class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-100 pb-2 pt-2">
+    <!-- CONTENEDOR COMERCIAL: Solo se muestra para Agencias y Proveedores -->
+    <div v-if="['agencia', 'proveedor'].includes((rolLabel || '').toLowerCase())">
+      <!-- BLOQUE 2: Barra de Control y Búsqueda (Sticky) -->
+      <div class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-100 pb-2 pt-2">
       <div class="px-4 flex items-center gap-3">
         <!-- Input Buscador Minimalista -->
         <div class="relative flex-1">
@@ -311,7 +301,7 @@ const tagUsuario = computed(() => {
     </div>
 
     <!-- BLOQUE 3: Feed de Catálogo (Visual Grid) -->
-    <main class="p-1 sm:p-4 max-w-4xl mx-auto">
+    <main class="p-1 sm:p-4 max-w-7xl mx-auto">
       <div v-if="itemsFiltrados.length === 0" class="flex flex-col items-center justify-center py-20 text-center px-6">
         <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
           <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
@@ -320,55 +310,14 @@ const tagUsuario = computed(() => {
         <p class="text-xs text-slate-400 mt-1 max-w-xs">No se encontraron productos o tours en este momento.</p>
       </div>
 
-      <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-1 sm:gap-4">
-        <!-- ITEM CARD -->
-        <article 
-          v-for="item in itemsFiltrados" :key="item.id"
-          class="relative bg-black rounded-lg sm:rounded-2xl overflow-hidden aspect-[3/4] group cursor-pointer"
-        >
-          <!-- Media (Imagen) -->
-          <img v-if="item.img" :src="item.img" :alt="item.titulo" class="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700">
-          <div v-else class="w-full h-full bg-slate-800 flex items-center justify-center opacity-90 group-hover:scale-105 transition-transform duration-700">
-            <svg class="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          </div>
-          
-          <!-- Gradiente Overlay (Oscurecimiento inferior para el texto) -->
-          <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
-
-
-
-          <!-- Badges Sup-Derecha (Icono Tipo) -->
-          <div class="absolute top-2 right-2 sm:top-3 sm:right-3 w-6 h-6 rounded-full bg-black/40 backdrop-blur flex items-center justify-center">
-            <svg v-if="item.tipo === 'tour'" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/></svg>
-            <svg v-else class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-          </div>
-
-          <!-- Información Inferior (Absoluta) -->
-          <div class="absolute bottom-0 left-0 w-full p-2.5 sm:p-4 pt-10 flex flex-col justify-end">
-            <!-- Calificación y Ventas -->
-            <div class="flex items-center gap-2 mb-1.5 flex-wrap">
-              <div class="flex items-center gap-1 bg-white/20 backdrop-blur text-white text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded shadow-sm w-max">
-                <svg class="w-2.5 h-2.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                {{ Number(item.rating || 0).toFixed(1) }}
-              </div>
-              <div class="text-[9px] sm:text-[10px] font-bold text-slate-300 uppercase tracking-wider bg-black/40 px-1.5 py-0.5 rounded">
-                {{ item.ventas || 0 }} vendidos
-              </div>
-            </div>
-            
-            <h3 class="text-white text-[11px] sm:text-sm font-bold leading-tight line-clamp-2 drop-shadow-sm mb-1.5 group-hover:text-amber-200 transition-colors">
-              {{ item.titulo }}
-            </h3>
-
-            <div class="flex items-end justify-between mt-auto">
-              <p class="text-amber-300 text-[13px] sm:text-base font-black drop-shadow tracking-tight">
-                {{ item.precio }}
-              </p>
-            </div>
-          </div>
-        </article>
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <template v-for="item in itemsFiltrados" :key="item.id">
+          <tarjeta-tour v-if="item.tipo === 'tour'" :tour="item" />
+          <tarjeta-producto v-else-if="item.tipo === 'producto'" :producto="item" />
+        </template>
       </div>
     </main>
+    </div>
   </div>
 </template>
 

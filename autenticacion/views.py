@@ -184,9 +184,12 @@ class CatalogoTours(APIView):
 
     def get(self, request):
         try:
+            agencia_id = request.query_params.get('agencia_id', None)
             tours = PaqueteTuristico.objects.filter(activo=True).prefetch_related(
                 'imagen_paquete', 'actividades'
             ).select_related('agencia', 'categoria_paquete')
+            if agencia_id:
+                tours = tours.filter(agencia_id=agencia_id)
             serializer = SerializerCatalogoTour(tours, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -220,11 +223,14 @@ class CatalogoProductos(APIView):
     def get(self, request):
         try:
             tipo = request.query_params.get('tipo', None)
+            proveedor_id = request.query_params.get('proveedor_id', None)
             productos = Productos.objects.filter(disponible=True).prefetch_related(
                 'imagen_producto'
             ).select_related('proveedor', 'categorias')
             if tipo:
                 productos = productos.filter(tipo_catalogo=tipo)
+            if proveedor_id:
+                productos = productos.filter(proveedor_id=proveedor_id)
             serializer = SerializerCatalogoProducto(productos, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -383,6 +389,37 @@ class UserStatsView(APIView):
             'favorites_count': fav_count,
             'cart_count': paquetes_unicos + productos_unicos
         })
+
+
+class PerfilPublicoView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, id):
+        tipo = request.query_params.get('tipo')
+        
+        if tipo == 'agencia' or not tipo:
+            try:
+                agencia = Agencia.objects.get(pk=id)
+                serializer = AgenciaPerfilSerializer(agencia)
+                data = serializer.data
+                data['es_agencia'] = True
+                return Response(data)
+            except Agencia.DoesNotExist:
+                if tipo == 'agencia':
+                    return Response({'error': 'Agencia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if tipo == 'proveedor' or not tipo:
+            try:
+                proveedor = Proveedor.objects.get(pk=id)
+                serializer = ProveedorPerfilSerializer(proveedor)
+                data = serializer.data
+                data['es_proveedor'] = True
+                return Response(data)
+            except Proveedor.DoesNotExist:
+                pass
+                
+        return Response({'error': 'Perfil público no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class PerfilView(APIView):

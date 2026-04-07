@@ -211,6 +211,7 @@ class SerializersPaquetes(serializers.ModelSerializer):
 class SerializerCatalogoTour(serializers.ModelSerializer):
     imagen_portada = serializers.SerializerMethodField()
     nombre_agencia = serializers.CharField(source='agencia.nombre_agencia', read_only=True)
+    agencia_id = serializers.ReadOnlyField(source='agencia.id')
     ciudad = serializers.CharField(source='ubicacion', read_only=True)
     nivel_riesgo = serializers.SerializerMethodField()
     num_calificaciones = serializers.SerializerMethodField()
@@ -232,13 +233,17 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
     def get_num_calificaciones(self, obj):
         return 0  # Placeholder until rating system is implemented
 
+    proveedor_validado = serializers.SerializerMethodField()
+    def get_proveedor_validado(self, obj):
+        return bool(obj.agencia.nit or obj.agencia.rut or obj.agencia.rnt)
+
     class Meta:
         model = PaqueteTuristico
         fields = [
             'id', 'nombre', 'descripcion', 'precio', 'duracion',
             'ubicacion', 'ciudad', 'rating', 'num_calificaciones',
-            'imagen_portada', 'nombre_agencia', 'nivel_riesgo', 'activo',
-            'categoria_paquete_nombre', 'categoria_paquete'
+            'imagen_portada', 'nombre_agencia', 'agencia_id', 'nivel_riesgo', 'activo',
+            'categoria_paquete_nombre', 'categoria_paquete', 'proveedor_validado'
         ]
 
 
@@ -258,6 +263,7 @@ class SerializerCatalogoProductoImagen(serializers.ModelSerializer):
 class SerializerCatalogoProducto(serializers.ModelSerializer):
     imagen_portada = serializers.SerializerMethodField()
     nombre_proveedor = serializers.CharField(source='proveedor.nombre_empresa', read_only=True)
+    proveedor_id = serializers.ReadOnlyField(source='proveedor.id')
     nombre_categoria = serializers.CharField(source='categorias.nombre', read_only=True)
     num_calificaciones = serializers.SerializerMethodField()
     descripcion_corta = serializers.SerializerMethodField()
@@ -272,6 +278,10 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
         if portada and portada.imagen:
             return portada.imagen.url
         return None
+
+    proveedor_validado = serializers.SerializerMethodField()
+    def get_proveedor_validado(self, obj):
+        return bool(obj.proveedor.nit or obj.proveedor.rut)
 
     def get_num_calificaciones(self, obj):
         return 0
@@ -306,13 +316,14 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
         fields = [
             'id', 'nombre', 'descripcion_corta', 'precio', 'stock',
             'disponible', 'tipo_catalogo', 'nombre_categoria',
-            'imagen_portada', 'nombre_proveedor', 'rating', 'num_calificaciones',
-            'marca', 'modelo'
+            'imagen_portada', 'nombre_proveedor', 'proveedor_id', 'rating', 'num_calificaciones',
+            'marca', 'modelo', 'proveedor_validado'
         ]
 
 class SerializerDetalleProducto(serializers.ModelSerializer):
     imagen_producto = SerializerCatalogoProductoImagen(many=True, read_only=True)
     nombre_proveedor = serializers.CharField(source='proveedor.nombre_empresa', read_only=True)
+    proveedor_id = serializers.ReadOnlyField(source='proveedor.id')
     nombre_categoria = serializers.CharField(source='categorias.nombre', read_only=True)
     num_calificaciones = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
@@ -328,7 +339,7 @@ class SerializerDetalleProducto(serializers.ModelSerializer):
         fields = [
             'id', 'nombre', 'sku', 'caracteristicas', 'precio', 'stock',
             'disponible', 'tipo_catalogo', 'nombre_categoria',
-            'imagen_producto', 'nombre_proveedor', 'rating', 'num_calificaciones'
+            'imagen_producto', 'nombre_proveedor', 'proveedor_id', 'rating', 'num_calificaciones'
         ]
 
 class FavoritoSerializer(serializers.ModelSerializer):
