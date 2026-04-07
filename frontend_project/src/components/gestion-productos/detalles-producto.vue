@@ -187,12 +187,19 @@ onUnmounted(stopAuto);
                     </span>
                     <span class="text-3xl font-black text-emerald-600">${{ formatedPrice }} <span class="text-sm text-emerald-600/60 font-medium">COP</span></span>
                 </div>
-                <div class="bg-white border-2 border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm md:col-span-2">
+                <div class="bg-white border-2 border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                        Stock Disponible
+                        Stock
                     </span>
-                    <span class="text-3xl font-black text-slate-700">{{ producto.stock }} <span class="text-sm text-slate-400 font-medium">unidades</span></span>
+                    <span class="text-2xl font-black text-slate-700">{{ producto.stock }}</span>
+                </div>
+                <div class="bg-white border-2 border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center shadow-sm">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                        Ventas
+                    </span>
+                    <span class="text-2xl font-black text-teal-700">{{ producto.ventas_totales || 0 }}</span>
                 </div>
             </div>
             

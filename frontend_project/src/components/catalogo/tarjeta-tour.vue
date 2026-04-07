@@ -60,6 +60,23 @@ const puedeComprar = props.rol !== 'proveedor';
     <!-- ── MITAD INFERIOR: Info ── -->
     <div class="flex flex-col flex-1 p-5 gap-2.5">
 
+      <!-- Agencia -->
+      <div class="flex items-center justify-between">
+        <router-link :to="{ name: 'perfil_publico', params: { id: tour.agencia_id }, query: { tipo: 'agencia' } }" class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-emerald-600 transition-colors w-max">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span class="font-medium text-gray-500 hover:text-emerald-700 transition-colors">{{ tour.nombre_agencia }}</span>
+        </router-link>
+        
+        <span v-if="tour.proveedor_validado" class="flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full" title="Toda la documentación legal de esta agencia está verificada.">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          Verificación legal
+        </span>
+        <span v-else class="flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-rose-500 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full" title="Esta agencia aún no adjunta su RNT o RUT oficial.">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+          Sin verificar
+        </span>
+      </div>
+
       <!-- 1. Calificación con estrellas -->
       <div class="flex items-center gap-1.5">
         <div class="flex gap-0.5">
@@ -79,6 +96,12 @@ const puedeComprar = props.rol !== 'proveedor';
           </template>
         </div>
         <span class="text-xs text-gray-400">{{ Number(tour.rating).toFixed(1) }} · {{ tour.num_calificaciones }} reseñas</span>
+        
+        <!-- Contador de Ventas (Social Proof) -->
+        <span class="ml-auto flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+          {{ tour.ventas_totales || 0 }} vendidos
+        </span>
       </div>
 
       <!-- 2. Título destacado -->

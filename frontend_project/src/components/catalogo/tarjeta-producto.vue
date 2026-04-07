@@ -15,7 +15,6 @@ const estrellas = (rating) => {
         return 'empty';
     });
 };
-const puedeComprar = props.rol !== 'proveedor';
 </script>
 
 <template>
@@ -40,9 +39,20 @@ const puedeComprar = props.rol !== 'proveedor';
     <!-- Contenido -->
     <div class="p-5 flex flex-col flex-1 gap-3">
       <!-- Proveedor -->
-      <div class="flex items-center gap-1.5 text-xs text-slate-400">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-        <span class="font-medium text-slate-500">{{ producto.nombre_proveedor }}</span>
+      <div class="flex items-center justify-between">
+        <router-link :to="{ name: 'perfil_publico', params: { id: producto.proveedor_id }, query: { tipo: 'proveedor' } }" class="flex items-center gap-1.5 text-xs text-slate-400 hover:text-teal-600 transition-colors w-max">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          <span class="font-medium text-slate-500 hover:text-teal-700 transition-colors">{{ producto.nombre_proveedor }}</span>
+        </router-link>
+
+        <span v-if="producto.proveedor_validado" class="flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full" title="Toda la documentación legal de este proveedor está verificada.">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          Verificación legal
+        </span>
+        <span v-else class="flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-rose-500 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full" title="Este proveedor aún no adjunta su RUT oficial oficial.">
+          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+          Sin verificar
+        </span>
       </div>
 
       <!-- Nombre -->
@@ -64,6 +74,12 @@ const puedeComprar = props.rol !== 'proveedor';
           </template>
         </div>
         <span class="text-xs text-slate-400">{{ Number(producto.rating).toFixed(1) }} ({{ producto.num_calificaciones }})</span>
+        
+        <!-- Social Proof: Ventas -->
+        <span class="ml-auto flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-100">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+            {{ producto.ventas_totales || 0 }} vendidos
+        </span>
       </div>
 
       <!-- Stock info -->
@@ -83,10 +99,6 @@ const puedeComprar = props.rol !== 'proveedor';
           <button @click="router.push(`/catalogo/producto/${producto.id}`)"
             class="px-3 py-2 text-sm border border-teal-200 text-teal-700 rounded-xl hover:bg-teal-50 transition-colors font-medium">
             Ver +
-          </button>
-          <button v-if="puedeComprar"
-            class="px-3 py-2 text-sm bg-teal-600 hover:bg-teal-700 text-white rounded-xl transition-colors font-medium shadow-sm">
-            Añadir
           </button>
         </div>
       </div>

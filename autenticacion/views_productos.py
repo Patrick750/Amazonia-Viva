@@ -11,12 +11,17 @@ class ProductosAPIView(APIView):
 
     def get(self, request):
         tipo_catalogo = request.query_params.get('tipo_catalogo', None)
+        proveedor_id = request.query_params.get('proveedor_id', None)
         
-        # Si el usuario es proveedor, solo ve sus productos
-        if hasattr(request.user, 'proveedor'):
+        # Filtro base
+        if proveedor_id:
+            # Si se solicita explícitamente un proveedor (uso público/previsualización)
+            productos = Productos.objects.filter(proveedor_id=proveedor_id)
+        elif hasattr(request.user, 'proveedor'):
+            # Si el usuario es proveedor y no hay ID, solo ve sus productos
             productos = Productos.objects.filter(proveedor=request.user.proveedor)
         else:
-            # Para otros roles (admin/turista/agencia en ciertos contextos) ven todo o segun filtro
+            # Para otros roles sin ID específico
             productos = Productos.objects.all()
             
         if tipo_catalogo:

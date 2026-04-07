@@ -2,6 +2,9 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import *
 from django.contrib.auth.models import Group
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Sum
 
 class CategoriaPaqueteSerializer(serializers.ModelSerializer):
     class Meta:
@@ -189,20 +192,36 @@ class SerializersImagenes(serializers.ModelSerializer):
 
 class SerializersPaquetes(serializers.ModelSerializer):
     imagen_paquete = SerializersImages(many=True, read_only=True)
+    ventas_totales = serializers.SerializerMethodField()
+
+    def get_ventas_totales(self, obj):
+        resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
+        return resultado['total'] or 0
 
     class Meta:
         model = PaqueteTuristico
-        fields = '__all__'
+        fields = [
+            'id', 'activo', 'nombre', 'descripcion', 'precio', 
+            'duracion', 'capacidad', 'ubicacion', 'itinerario', 
+            'incluido', 'rating', 'agencia', 'actividades',
+            'categoria_paquete', 'imagen_paquete', 'ventas_totales'
+        ]
 
 
 class SerializerCatalogoTour(serializers.ModelSerializer):
     imagen_portada = serializers.SerializerMethodField()
     nombre_agencia = serializers.CharField(source='agencia.nombre_agencia', read_only=True)
+    agencia_id = serializers.ReadOnlyField(source='agencia.id')
     ciudad = serializers.CharField(source='ubicacion', read_only=True)
     nivel_riesgo = serializers.SerializerMethodField()
     num_calificaciones = serializers.SerializerMethodField()
+    ventas_totales = serializers.SerializerMethodField()
 
     categoria_paquete_nombre = serializers.CharField(source='categoria_paquete.nombre', read_only=True)
+
+    def get_ventas_totales(self, obj):
+        resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
+        return resultado['total'] or 0
 
     def get_imagen_portada(self, obj):
         portada = obj.imagen_paquete.filter(es_portada=True).first()
@@ -219,13 +238,17 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
     def get_num_calificaciones(self, obj):
         return 0  # Placeholder until rating system is implemented
 
+    proveedor_validado = serializers.SerializerMethodField()
+    def get_proveedor_validado(self, obj):
+        return bool(obj.agencia.nit or obj.agencia.rut or obj.agencia.rnt)
+
     class Meta:
         model = PaqueteTuristico
         fields = [
             'id', 'nombre', 'descripcion', 'precio', 'duracion',
             'ubicacion', 'ciudad', 'rating', 'num_calificaciones',
-            'imagen_portada', 'nombre_agencia', 'nivel_riesgo', 'activo',
-            'categoria_paquete_nombre', 'categoria_paquete'
+            'imagen_portada', 'nombre_agencia', 'agencia_id', 'nivel_riesgo', 'activo',
+            'categoria_paquete_nombre', 'categoria_paquete', 'proveedor_validado', 'ventas_totales'
         ]
 
 
@@ -245,12 +268,18 @@ class SerializerCatalogoProductoImagen(serializers.ModelSerializer):
 class SerializerCatalogoProducto(serializers.ModelSerializer):
     imagen_portada = serializers.SerializerMethodField()
     nombre_proveedor = serializers.CharField(source='proveedor.nombre_empresa', read_only=True)
+    proveedor_id = serializers.ReadOnlyField(source='proveedor.id')
     nombre_categoria = serializers.CharField(source='categorias.nombre', read_only=True)
     num_calificaciones = serializers.SerializerMethodField()
     descripcion_corta = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
     marca = serializers.SerializerMethodField()
     modelo = serializers.SerializerMethodField()
+    ventas_totales = serializers.SerializerMethodField()
+
+    def get_ventas_totales(self, obj):
+        resultado = Detalles_Venta.objects.filter(producto=obj.id).aggregate(total=Sum('cantidad'))
+        return resultado['total'] or 0
 
     def get_imagen_portada(self, obj):
         portada = obj.imagen_producto.filter(es_portada=True).first()
@@ -259,6 +288,10 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
         if portada and portada.imagen:
             return portada.imagen.url
         return None
+
+    proveedor_validado = serializers.SerializerMethodField()
+    def get_proveedor_validado(self, obj):
+        return bool(obj.proveedor.nit or obj.proveedor.rut)
 
     def get_num_calificaciones(self, obj):
         return 0
@@ -293,16 +326,22 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
         fields = [
             'id', 'nombre', 'descripcion_corta', 'precio', 'stock',
             'disponible', 'tipo_catalogo', 'nombre_categoria',
-            'imagen_portada', 'nombre_proveedor', 'rating', 'num_calificaciones',
-            'marca', 'modelo'
+            'imagen_portada', 'nombre_proveedor', 'proveedor_id', 'rating', 'num_calificaciones',
+            'marca', 'modelo', 'proveedor_validado', 'ventas_totales'
         ]
 
 class SerializerDetalleProducto(serializers.ModelSerializer):
     imagen_producto = SerializerCatalogoProductoImagen(many=True, read_only=True)
     nombre_proveedor = serializers.CharField(source='proveedor.nombre_empresa', read_only=True)
+    proveedor_id = serializers.ReadOnlyField(source='proveedor.id')
     nombre_categoria = serializers.CharField(source='categorias.nombre', read_only=True)
     num_calificaciones = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
+    ventas_totales = serializers.SerializerMethodField()
+
+    def get_ventas_totales(self, obj):
+        resultado = Detalles_Venta.objects.filter(producto=obj.id).aggregate(total=Sum('cantidad'))
+        return resultado['total'] or 0
 
     def get_num_calificaciones(self, obj):
         return 0
@@ -315,7 +354,7 @@ class SerializerDetalleProducto(serializers.ModelSerializer):
         fields = [
             'id', 'nombre', 'sku', 'caracteristicas', 'precio', 'stock',
             'disponible', 'tipo_catalogo', 'nombre_categoria',
-            'imagen_producto', 'nombre_proveedor', 'rating', 'num_calificaciones'
+            'imagen_producto', 'nombre_proveedor', 'proveedor_id', 'rating', 'num_calificaciones', 'ventas_totales'
         ]
 
 class FavoritoSerializer(serializers.ModelSerializer):
@@ -498,6 +537,11 @@ class SerializerDetalleTour(serializers.ModelSerializer):
     nombre_agencia = serializers.CharField(source='agencia.nombre_agencia', read_only=True)
     categoria_paquete_nombre = serializers.CharField(source='categoria_paquete.nombre', read_only=True)
     actividades_detalle = SerializersActividades(source='actividades', many=True, read_only=True)
+    ventas_totales = serializers.SerializerMethodField()
+
+    def get_ventas_totales(self, obj):
+        resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
+        return resultado['total'] or 0
 
     class Meta:
         model = PaqueteTuristico
@@ -506,6 +550,158 @@ class SerializerDetalleTour(serializers.ModelSerializer):
             'ubicacion', 'latitud', 'longitud', 'capacidad', 
             'itinerario', 'incluido', 'rating',
             'imagen_paquete', 'nombre_agencia', 'categoria_paquete_nombre',
-            'actividades_detalle'
+            'actividades_detalle', 'ventas_totales'
         ]
 
+
+# ─── Serializers de Perfil de Usuario ─────────────────────────────────────────
+
+class AgenciaPerfilSerializer(serializers.ModelSerializer):
+    """
+    Lectura y actualización parcial del perfil de una Agencia.
+    - nit, rnt, rut → read_only (bloqueados).
+    - foto_url      → URL pública del logotipo en Cloudinary.
+    - logotipo      → excluido de edición directa (se actualiza vía /perfil/foto/).
+    """
+    foto_url = serializers.SerializerMethodField()
+
+    def get_foto_url(self, obj):
+        if obj.logotipo:
+            return obj.logotipo.url
+        return None
+
+    foto_portada_url = serializers.SerializerMethodField()
+
+    def get_foto_portada_url(self, obj):
+        if obj.foto_portada:
+            return obj.foto_portada.url
+        return None
+
+    def validate(self, attrs):
+        instance = self.instance
+        if instance:
+            # --- Regla: NIT y RUT son inmutables después de ser registrados ---
+            for field in ['nit', 'rut']:
+                if field in attrs:
+                    current_val = getattr(instance, field)
+                    if current_val and current_val != attrs[field]:
+                        raise serializers.ValidationError({
+                            field: f"El {field.upper()} ya está registrado y no puede modificarse."
+                        })
+            
+            # --- Regla para RNT: Inmutable durante 300 segundos (5 min) ---
+            if 'rnt' in attrs:
+                current_rnt = getattr(instance, 'rnt')
+                nueva_rnt = attrs['rnt']
+                
+                if current_rnt and current_rnt != nueva_rnt:
+                    # Si ya tiene RNT y está intentando cambiarlo
+                    ahora = timezone.now()
+                    referencia = instance.rnt_registrado_at or instance.date_joined
+                    limite_edicion = referencia + timedelta(days=30)
+                    
+                    if ahora <= limite_edicion:
+                        delta = limite_edicion - ahora
+                        dias = delta.days
+                        horas = delta.seconds // 3600
+                        raise serializers.ValidationError({
+                            "rnt": f"El RNT ya está verificado. Faltan {dias} días y {horas} horas para la próxima renovación obligatoria."
+                        })
+                    else:
+                        # Si ya pasó el tiempo, permitimos el cambio y actualizamos la fecha de registro
+                        attrs['rnt_registrado_at'] = ahora
+                elif not current_rnt and nueva_rnt:
+                    # Es la primera vez que registra el RNT
+                    attrs['rnt_registrado_at'] = timezone.now()
+        return attrs
+
+    class Meta:
+        model = Agencia
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'nombre_agencia', 'numero_telefonico', 'descripcion',
+            'informacion_contacto', 'horario_atencion',
+            'nit', 'rnt', 'rut', 'rnt_registrado_at',
+            'foto_url', 'foto_portada_url', 'date_joined',
+        ]
+        read_only_fields = ['id', 'email', 'username', 'foto_url', 'foto_portada_url']
+
+
+class ProveedorPerfilSerializer(serializers.ModelSerializer):
+    """
+    Lectura y actualización parcial del perfil de un Proveedor.
+    - nit, rut  → read_only (bloqueados).
+    - foto_url  → URL pública de la foto de perfil en Cloudinary.
+    """
+    foto_url = serializers.SerializerMethodField()
+
+    def get_foto_url(self, obj):
+        if obj.foto_perfil:
+            return obj.foto_perfil.url
+        return None
+
+    foto_portada_url = serializers.SerializerMethodField()
+
+    def get_foto_portada_url(self, obj):
+        if obj.foto_portada:
+            return obj.foto_portada.url
+        return None
+
+    def validate(self, attrs):
+        instance = self.instance
+        if instance:
+            # NIT y RUT inmutables después de ser registrados
+            for field in ['nit', 'rut']:
+                if field in attrs:
+                    current_val = getattr(instance, field)
+                    if current_val and current_val != attrs[field]:
+                        raise serializers.ValidationError({
+                            field: f"El {field.upper()} ya está registrado y es inmutable para este perfil."
+                        })
+        return attrs
+
+    class Meta:
+        model = Proveedor
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'nombre_empresa', 'numero_telefonico', 'descripcion',
+            'informacion_contacto', 'horario_atencion',
+            'nit', 'rut',
+            'foto_url', 'foto_portada_url'
+        ]
+        read_only_fields = ['id', 'email', 'username', 'foto_url', 'foto_portada_url']
+
+
+class TuristaPerfilSerializer(serializers.ModelSerializer):
+    """
+    Lectura y actualización parcial del perfil de un Turista.
+    - numero_identidad → read_only (dato legal inmutable).
+    - foto_url         → URL pública de la foto de perfil en Cloudinary.
+    """
+    foto_url = serializers.SerializerMethodField()
+
+    def get_foto_url(self, obj):
+        if obj.foto_perfil:
+            return obj.foto_perfil.url
+        return None
+
+    def validate(self, attrs):
+        instance = self.instance
+        if instance:
+            field = 'numero_identidad'
+            if field in attrs:
+                current_val = getattr(instance, field)
+                if current_val and current_val != attrs[field]:
+                    raise serializers.ValidationError({
+                        field: "El número de identidad ya está registrado y no puede modificarse."
+                    })
+        return attrs
+
+    class Meta:
+        model = Turista
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'fecha_nacimiento', 'numero_identidad',
+            'foto_url',
+        ]
+        read_only_fields = ['id', 'email', 'username', 'foto_url']

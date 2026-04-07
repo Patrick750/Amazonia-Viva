@@ -3,10 +3,16 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status 
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser
 from .serializers import *
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
+import time
+import json
+import os
+from django.conf import settings
+from django.http import JsonResponse
 
 # Create your views here.
 
@@ -149,13 +155,27 @@ class DeletePack(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PaquetesTuristicos(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         try:
-            paquetes = PaqueteTuristico.objects.all()
+            agencia_id = request.query_params.get('agencia_id', None)
+            
+            # Si se solicita una agencia específica (uso público/previsualización)
+            if agencia_id:
+                paquetes = PaqueteTuristico.objects.filter(agencia_id=agencia_id)
+            # Si no hay ID, pero el usuario es una agencia, mostrar solo SUS paquetes
+            elif hasattr(request.user, 'agencia'):
+                paquetes = PaqueteTuristico.objects.filter(agencia=request.user.agencia)
+            else:
+                # Para otros roles sin ID específico, no mostramos nada por seguridad
+                # O podríamos mostrar todos si es admin, pero por ahora aislamos.
+                paquetes = PaqueteTuristico.objects.none()
+                
             serializers = SerializersPaquetes(paquetes, many=True)
             return Response(serializers.data)
         except Exception as e:
-            return Response({'mensaje':'Hubo un error'})
+            return Response({'mensaje': 'Hubo un error al obtener los paquetes', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CatalogoTours(APIView):
@@ -164,9 +184,12 @@ class CatalogoTours(APIView):
 
     def get(self, request):
         try:
+            agencia_id = request.query_params.get('agencia_id', None)
             tours = PaqueteTuristico.objects.filter(activo=True).prefetch_related(
                 'imagen_paquete', 'actividades'
             ).select_related('agencia', 'categoria_paquete')
+            if agencia_id:
+                tours = tours.filter(agencia_id=agencia_id)
             serializer = SerializerCatalogoTour(tours, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -200,11 +223,14 @@ class CatalogoProductos(APIView):
     def get(self, request):
         try:
             tipo = request.query_params.get('tipo', None)
+            proveedor_id = request.query_params.get('proveedor_id', None)
             productos = Productos.objects.filter(disponible=True).prefetch_related(
                 'imagen_producto'
             ).select_related('proveedor', 'categorias')
             if tipo:
                 productos = productos.filter(tipo_catalogo=tipo)
+            if proveedor_id:
+                productos = productos.filter(proveedor_id=proveedor_id)
             serializer = SerializerCatalogoProducto(productos, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -363,4 +389,221 @@ class UserStatsView(APIView):
             'favorites_count': fav_count,
             'cart_count': paquetes_unicos + productos_unicos
         })
+
+
+class PerfilPublicoView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, id):
+        tipo = request.query_params.get('tipo')
+        
+        if tipo == 'agencia' or not tipo:
+            try:
+                agencia = Agencia.objects.get(pk=id)
+                serializer = AgenciaPerfilSerializer(agencia)
+                data = serializer.data
+                data['es_agencia'] = True
+                return Response(data)
+            except Agencia.DoesNotExist:
+                if tipo == 'agencia':
+                    return Response({'error': 'Agencia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if tipo == 'proveedor' or not tipo:
+            try:
+                proveedor = Proveedor.objects.get(pk=id)
+                serializer = ProveedorPerfilSerializer(proveedor)
+                data = serializer.data
+                data['es_proveedor'] = True
+                return Response(data)
+            except Proveedor.DoesNotExist:
+                pass
+                
+        return Response({'error': 'Perfil público no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class PerfilView(APIView):
+    """
+    GET  /api/perfil/  → Devuelve el perfil del usuario autenticado según su rol.
+    PATCH /api/perfil/ → Actualiza parcialmente el perfil. Ignora campos bloqueados.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_instance_and_serializer(self, user):
+        """
+        Detecta el rol del usuario y retorna (instancia, clase_serializer).
+        SEGURIDAD: Se utiliza 'user.pk' para garantizar que un usuario solo acceda a su propio perfil.
+        """
+        try:
+            agencia = Agencia.objects.get(pk=user.pk)
+            return agencia, AgenciaPerfilSerializer
+        except Agencia.DoesNotExist:
+            pass
+
+        try:
+            proveedor = Proveedor.objects.get(pk=user.pk)
+            return proveedor, ProveedorPerfilSerializer
+        except Proveedor.DoesNotExist:
+            pass
+
+        try:
+            turista = Turista.objects.get(pk=user.pk)
+            return turista, TuristaPerfilSerializer
+        except Turista.DoesNotExist:
+            pass
+
+        return None, None
+
+    def get(self, request):
+        instance, SerializerClass = self._get_instance_and_serializer(request.user)
+        if instance is None:
+            return Response(
+                {'error': 'No se encontró un perfil asociado a este usuario.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = SerializerClass(instance)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        instance, SerializerClass = self._get_instance_and_serializer(request.user)
+        if instance is None:
+            return Response(
+                {'error': 'No se encontró un perfil asociado a este usuario.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = SerializerClass(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PerfilFotoView(APIView):
+    """
+    POST /api/perfil/foto/ → Sube una imagen a Cloudinary.
+    - query param ?tipo=portada  → Sube a foto_portada
+    - default o ?tipo=perfil     → Sube a logotipo / foto_perfil
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        tipo = request.query_params.get('tipo', 'perfil')
+        archivo = request.FILES.get('foto') or request.FILES.get('portada')
+        
+        if not archivo:
+            return Response(
+                {'error': 'No se proporcionó ningún archivo. Usa el campo "foto" o "portada".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Identificar la instancia del perfil
+            instance = None
+            if hasattr(request.user, 'agencia'):
+                instance = request.user.agencia
+            elif hasattr(request.user, 'proveedor'):
+                instance = request.user.proveedor
+            elif hasattr(request.user, 'turista'):
+                instance = request.user.turista
+
+            if not instance:
+                return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Decidir qué campo actualizar
+            if tipo == 'portada':
+                if hasattr(instance, 'foto_portada'):
+                    instance.foto_portada = archivo
+                    instance.save(update_fields=['foto_portada'])
+                    return Response({'foto_url': instance.foto_portada.url}, status=status.HTTP_200_OK)
+                else:
+                    return Response({'error': 'Este tipo de perfil no admite fotos de portada.'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                # Perfil / Logotipo
+                if hasattr(instance, 'logotipo'): # Agencia
+                    instance.logotipo = archivo
+                    instance.save(update_fields=['logotipo'])
+                    return Response({'foto_url': instance.logotipo.url}, status=status.HTTP_200_OK)
+                elif hasattr(instance, 'foto_perfil'): # Proveedor / Turista
+                    instance.foto_perfil = archivo
+                    instance.save(update_fields=['foto_perfil'])
+                    return Response({'foto_url': instance.foto_perfil.url}, status=status.HTTP_200_OK)
+                
+            return Response({'error': 'No se pudo determinar el campo de imagen.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# --- VISTA MOCK PARA VALIDACIÓN DE CREDENCIALES LEGALES ---
+class VerificarCredenciales(APIView):
+    """
+    Simula la validación de un NIT o RNT contra una base de datos estatal.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        tipo = request.data.get('tipo', '').upper() # 'NIT' o 'RNT'
+        numero = request.data.get('numero', '')
+
+        if not tipo or not numero:
+            return Response(
+                {"error": "Debe proporcionar el tipo de documento y el número."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 1. Simular latencia de red (2 segundos asíncronos en el cliente)
+        time.sleep(2)
+
+        # 2. Leer base de datos mock
+        fixture_path = os.path.join(settings.BASE_DIR, 'autenticacion', 'fixtures', 'datos_gobierno.json')
+        
+        try:
+            with open(fixture_path, 'r', encoding='utf-8') as f:
+                db_gobierno = json.load(f)
+            
+            # 3. Validar existencia
+            lista_blanca = db_gobierno.get(tipo, [])
+            
+            if str(numero) in [str(x) for x in lista_blanca]:
+                return Response({
+                    "valido": True,
+                    "mensaje": f"El {tipo} {numero} ha sido verificado exitosamente en la base de datos del Estado."
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    "valido": False,
+                    "mensaje": f"No se encontró registro para el {tipo} proporcionado."
+                }, status=status.HTTP_404_NOT_FOUND)
+
+        except FileNotFoundError:
+            return Response(
+                {"error": "Base de datos de gobierno no disponible (Mock file not found)."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Error interno al validar: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class ConfirmarPasswordView(APIView):
+    """
+    Verifica la contraseña del usuario antes de desbloquear secciones sensibles.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        password = request.data.get('password')
+        
+        if not password:
+            return Response(
+                {"error": "La contraseña es obligatoria."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar contra el usuario actual
+        if request.user.check_password(password):
+            return Response({"success": True, "mensaje": "Acceso concedido."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Contraseña incorrecta."}, status=status.HTTP_401_UNAUTHORIZED)
 

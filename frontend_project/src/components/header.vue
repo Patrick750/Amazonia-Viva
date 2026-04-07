@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useUserStats } from '@/composables/useUserStats';
 import { useCarrito } from '@/composables/useCarrito';
@@ -10,14 +10,21 @@ const menuAbierto   = ref(false);
 const mobileAbierto = ref(false);
 const route         = useRoute();
 
-const rol            = ref(localStorage.getItem('rol')).value;
-const token          = ref(localStorage.getItem('token')).value;
-const nombre_usuario = computed(() => {
-  if (rol === 'turista')   return localStorage.getItem('nombre');
-  if (rol === 'agencia')   return localStorage.getItem('nombre_agencia');
-  if (rol === 'proveedor') return localStorage.getItem('nombre_empresa');
-  return 'Invitado';
-});
+const rolRaw = localStorage.getItem('rol') || '';
+const rol    = rolRaw.toLowerCase();
+const token = localStorage.getItem('token');
+
+// ── Nombre reactivo (se actualiza en tiempo real desde la página de perfil) ──
+const nombreRef = ref(
+  rol === 'agencia'   ? (localStorage.getItem('nombre_agencia') || '') :
+  rol === 'proveedor' ? (localStorage.getItem('nombre_empresa')  || '') :
+  rol === 'turista'   ? (localStorage.getItem('nombre')          || '') : ''
+);
+
+// ── Foto de perfil reactiva ──
+const fotoUrlHeader = ref(localStorage.getItem('foto_url') || null);
+
+const nombre_usuario = computed(() => nombreRef.value || 'Invitado');
 
 const iniciales = computed(() => {
   const n = nombre_usuario.value || '';
@@ -36,11 +43,26 @@ const rolConfig = computed(() => {
 const { favoritesCount, updateStats } = useUserStats();
 const { cartCount, cargarDesdeBackend, resetearCarrito } = useCarrito();
 
+// ── Handlers de eventos del módulo de Perfil ──
+function onNombreActualizado(e) {
+  nombreRef.value = e.detail.nombre;
+}
+function onFotoActualizada(e) {
+  fotoUrlHeader.value = e.detail.foto_url;
+}
+
 onMounted(() => {
   if (token) {
     updateStats();
     cargarDesdeBackend();
   }
+  window.addEventListener('perfil:nombre-actualizado', onNombreActualizado);
+  window.addEventListener('perfil:foto-actualizada',   onFotoActualizada);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('perfil:nombre-actualizado', onNombreActualizado);
+  window.removeEventListener('perfil:foto-actualizada',   onFotoActualizada);
 });
 
 const cerrarSesion = async () => {
@@ -51,11 +73,10 @@ const cerrarSesion = async () => {
     console.error(e);
   } finally {
     localStorage.clear();
-    resetearCarrito(); // Reiniciar estado reactivo para el próximo usuario
+    resetearCarrito();
     window.location.href = '/';
   }
 };
-
 
 const isActive = (path) => {
   if (path === '/') return route.path === '/';
@@ -159,9 +180,10 @@ const isActive = (path) => {
                 menuAbierto ? 'bg-white/12' : 'hover:bg-white/10'
               ]"
             >
-              <!-- Avatar -->
-              <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[11px] font-black shadow-md">
-                {{ iniciales }}
+              <!-- Avatar (botón) -->
+              <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[11px] font-black shadow-md overflow-hidden">
+                <img v-if="fotoUrlHeader" :src="fotoUrlHeader" class="w-full h-full object-cover" alt="Foto" />
+                <span v-else>{{ iniciales }}</span>
               </div>
               <!-- Nombre (solo en pantallas lg+) -->
               <span class="hidden lg:block text-slate-200 text-sm font-semibold max-w-[100px] truncate">
@@ -194,8 +216,9 @@ const isActive = (path) => {
               >
                 <!-- Perfil mini en el header del dropdown -->
                 <div class="px-4 py-3.5 flex items-center gap-3 border-b border-white/8 bg-white/4">
-                  <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-sm shadow">
-                    {{ iniciales }}
+                  <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-sm shadow overflow-hidden">
+                    <img v-if="fotoUrlHeader" :src="fotoUrlHeader" class="w-full h-full object-cover" alt="Foto" />
+                    <span v-else>{{ iniciales }}</span>
                   </div>
                   <div class="min-w-0">
                     <p class="text-white text-sm font-bold truncate">{{ nombre_usuario }}</p>
@@ -207,7 +230,9 @@ const isActive = (path) => {
 
                 <!-- Items -->
                 <div class="py-1.5">
-                  <router-link to="/perfil" @click="menuAbierto = false"
+                  <router-link
+                    :to="rol === 'turista' ? '/mi-perfil' : '/perfil'"
+                    @click="menuAbierto = false"
                     class="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/8 transition-colors">
                     <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                     Mi Perfil
