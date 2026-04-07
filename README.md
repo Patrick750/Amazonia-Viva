@@ -26,6 +26,16 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 3.6.0 — Perfiles Públicos, Navegación Contextual y Verificación Legal
+> Archivos: `perfil-publico.vue`, `VistaPerfilPublico.vue`, `tarjeta-tour.vue`, `tarjeta-producto.vue`, `serializers.py`, `views.py`
+
+- **[Feature] Perfiles Públicos Universales**: Implementación de una vista unificada (`/perfil/:id`) para visualizar la identidad de cualquier usuario (Agencia, Proveedor o Turista) con diseño premium adaptativo.
+- **[Feature] Catálogo Integrado en Perfil**: Los perfiles comerciales (Agencia/Proveedor) ahora proyectan sus productos y tours activos directamente, utilizando las tarjetas estándar del catálogo para mantener la paridad visual.
+- **[Feature] Insignias de Legalidad**: Sistema de validación visual automática: "Verificación legal" (verde) para empresas con NIT/RUT/RNT registrado y "Sin verificar" (rojo) para perfiles en proceso de formalización.
+- **[UX] Navegación de "Valla a Valla"**: Integración de enlaces profundos en los nombres de agencias y proveedores dentro de las vistas de detalle (`detalle-paquete`, `detalle-producto`), permitiendo una exploración fluida de la oferta de cada autor.
+- **[Architecture] Paridad de Datos API**: Extensión de los endpoints de catálogo (`/api/catalogo/`) para soportar filtrado por ID de empresa, asegurando que la información de riesgo, estrellas y portadas sea idéntica en todas las vistas.
+- **[UI/UX] Optimización de Grid**: Expansión del contenedor de ítems a `max-w-7xl` y retiro de botones transaccionales ("Añadir") en favor de una experiencia de exploración ("Ver +") coherente con un perfil de presentación.
+ 
 ### 3.5.0 — Seguridad de Datos Legales y Unificación de Perfiles
 > Archivos: `models.py`, `serializers.py`, `InformacionAvanzada.vue`, `perfil-empresa.vue`, `views.py`
 
