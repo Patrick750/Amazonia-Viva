@@ -490,16 +490,18 @@ class PerfilFotoView(APIView):
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        tipo = request.query_params.get('tipo', 'perfil')
-        archivo = request.FILES.get('foto') or request.FILES.get('portada')
-        
-        if not archivo:
-            return Response(
-                {'error': 'No se proporcionó ningún archivo. Usa el campo "foto" o "portada".'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         try:
+            tipo = request.query_params.get('tipo', 'perfil')
+            archivo = request.FILES.get('foto') or request.FILES.get('portada')
+            
+            print(f"DEBUG: Intento de carga de imagen - Tipo: {tipo}, Usuario: {request.user.email}")
+            
+            if not archivo:
+                return Response(
+                    {'error': 'No se proporcionó ningún archivo. Usa el campo "foto" o "portada".'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             # Identificar la instancia del perfil
             instance = None
             if hasattr(request.user, 'agencia'):
@@ -510,6 +512,7 @@ class PerfilFotoView(APIView):
                 instance = request.user.turista
 
             if not instance:
+                print(f"ERROR: Perfil no encontrado para el usuario {request.user.id}")
                 return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
             # Decidir qué campo actualizar
@@ -517,6 +520,8 @@ class PerfilFotoView(APIView):
                 if hasattr(instance, 'foto_portada'):
                     instance.foto_portada = archivo
                     instance.save(update_fields=['foto_portada'])
+                    # Refetch to ensure we have the processed Cloudinary URL
+                    instance.refresh_from_db()
                     return Response({'foto_url': instance.foto_portada.url}, status=status.HTTP_200_OK)
                 else:
                     return Response({'error': 'Este tipo de perfil no admite fotos de portada.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -525,16 +530,23 @@ class PerfilFotoView(APIView):
                 if hasattr(instance, 'logotipo'): # Agencia
                     instance.logotipo = archivo
                     instance.save(update_fields=['logotipo'])
+                    instance.refresh_from_db()
                     return Response({'foto_url': instance.logotipo.url}, status=status.HTTP_200_OK)
                 elif hasattr(instance, 'foto_perfil'): # Proveedor / Turista
                     instance.foto_perfil = archivo
                     instance.save(update_fields=['foto_perfil'])
+                    instance.refresh_from_db()
                     return Response({'foto_url': instance.foto_perfil.url}, status=status.HTTP_200_OK)
                 
-            return Response({'error': 'No se pudo determinar el campo de imagen.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'No se pudo determinar el campo de imagen para este perfil.'}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            msg_error = str(e)
+            print(f"CRITICAL ERROR EN CARGA DE IMAGEN: {msg_error}")
+            return Response({
+                'error': 'Error interno al procesar la imagen.',
+                'detalle': msg_error
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- VISTA MOCK PARA VALIDACIÓN DE CREDENCIALES LEGALES ---
 class VerificarCredenciales(APIView):
