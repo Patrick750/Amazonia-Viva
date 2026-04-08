@@ -92,11 +92,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "https://amazonia-viva-web.onrender.com",
-    "https://amazonia-viva.onrender.com" # Agregado para evitar bloqueos CORS
-]
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 
 ROOT_URLCONF = 'amazoniaviva.urls'

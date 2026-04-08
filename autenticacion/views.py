@@ -734,14 +734,13 @@ class ProcesarPagoView(APIView):
             
         except ValueError as ve:
             print(f"ERROR DE VALIDACIÓN EN VENTA: {str(ve)}")
-            transaction.set_rollback(True)
             return Response({'error': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             msg_error = str(e)
             print(f"CRITICAL ERROR EN VENTA: {msg_error}")
-            transaction.set_rollback(True)
             return Response({
                 'error': 'Error interno del servidor al procesar el pago.',
                 'detalle': msg_error
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
