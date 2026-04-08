@@ -12,7 +12,7 @@ const {
   tarifaEcologica,
   toursSeleccionados, // Tours del carrito
   productosSeleccionados, // Productos físicos en el carrito (asumido para el composable)
-  itemsCarrito,
+  itemsSeleccionados,
   vaciarCarrito
 } = useCarrito();
 
@@ -133,7 +133,7 @@ const confirmarYPagar = async () => {
             const payload = {
                 total: totalFinal.value,
                 novedades_turistas: JSON.parse(sessionStorage.getItem('checkout_viajeros') || '[]'),
-                items: itemsCarrito.value.map(i => ({
+                items: itemsSeleccionados.value.map(i => ({
                     id: i.id,
                     tipo: i.tipo,
                     cantidad: i.cantidad,

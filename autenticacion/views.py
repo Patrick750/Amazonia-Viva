@@ -622,12 +622,17 @@ class ProcesarPagoView(APIView):
             print(f"DEBUG: Procesando pago para usuario {request.user.email}")
             print(f"DEBUG: Payload recibido: {data}")
             
-            total = data.get('total', 0)
+            # Asegurar que el total sea un número decimal válido
+            try:
+                total = round(float(data.get('total', 0)), 2)
+            except (ValueError, TypeError):
+                total = 0
+
             novedades = data.get('novedades_turistas', [])
             items = data.get('items', [])
 
             if not items:
-                return Response({'error': 'No hay items para procesar.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'No hay items seleccionados para procesar.'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Crear la Venta
             venta = Venta.objects.create(
@@ -642,14 +647,22 @@ class ProcesarPagoView(APIView):
                 tipo = it.get('tipo')
                 item_id = it.get('id')
                 cantidad = int(it.get('cantidad', 1))
-                precio = it.get('precio', 0)
+                
+                # Asegurar que el precio sea un número
+                try:
+                    precio = round(float(it.get('precio', 0)), 2)
+                except (ValueError, TypeError):
+                    precio = 0
                 
                 if not item_id or item_id == 0:
-                    print(f"WARNING: Item skiped due to invalid ID: {it}")
+                    print(f"WARNING: Item saltado por ID inválido: {it}")
                     continue
 
                 if tipo == 'producto':
-                    producto = get_object_or_404(Productos, pk=item_id)
+                    producto = Productos.objects.filter(pk=item_id).first()
+                    if not producto:
+                         raise ValueError(f"El producto con ID {item_id} no existe en la base de datos.")
+
                     # Reducir stock
                     if producto.stock >= cantidad:
                         producto.stock -= cantidad
@@ -664,8 +677,11 @@ class ProcesarPagoView(APIView):
                         cantidad=cantidad,
                         precio_unitario=precio
                     )
-                elif tipo == 'paquete' or tipo == 'tour': # Manejar ambos nombres por si acaso
-                    paquete = get_object_or_404(PaqueteTuristico, pk=item_id)
+                elif tipo == 'paquete' or tipo == 'tour':
+                    paquete = PaqueteTuristico.objects.filter(pk=item_id).first()
+                    if not paquete:
+                         raise ValueError(f"El paquete/tour con ID {item_id} no existe en la base de datos.")
+
                     Detalles_Venta.objects.create(
                         venta=venta,
                         producto=0,
@@ -707,10 +723,16 @@ class ProcesarPagoView(APIView):
                 'venta_id': venta.id
             }, status=status.HTTP_201_CREATED)
             
-        except Exception as e:
-            print(f"CRITICAL ERROR EN VENTA: {str(e)}")
-            # Forzamos rollback al re-lanzar la excepción si estamos en transaction.atomic
-            # pero devolvemos una respuesta controlada.
+        except ValueError as ve:
+            print(f"ERROR DE VALIDACIÓN EN VENTA: {str(ve)}")
             transaction.set_rollback(True)
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            msg_error = str(e)
+            print(f"CRITICAL ERROR EN VENTA: {msg_error}")
+            transaction.set_rollback(True)
+            return Response({
+                'error': 'Error interno del servidor al procesar el pago.',
+                'detalle': msg_error
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
