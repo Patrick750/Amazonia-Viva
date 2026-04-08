@@ -25,10 +25,11 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'ortizpatrick750@gmail.com'
-# Le decimos al código que busque la clave en el servidor de Render
-EMAIL_HOST_PASSWORD = os.environ.get('PASSWORD_CORREO')
-DEFAULT_FROM_EMAIL = 'ortizpatrick750@gmail.com'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ortizpatrick750@gmail.com')
+# Se unifica para usar la variable que tienes en Render
+EMAIL_HOST_PASSWORD = os.environ.get('PASSWORD_CORREO') or os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = f"Amazonia Viva <{EMAIL_HOST_USER}>"
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -42,8 +43,10 @@ DEBUG = 'RENDER' not in os.environ
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',    
-    'amazonia-viva-web.onrender.com'
+    'amazonia-viva-web.onrender.com',
+    'amazonia-viva.onrender.com' # Agregado para coincidir con la URL de producción real
 ]
+
 
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME:
@@ -91,8 +94,10 @@ MIDDLEWARE = [
 ]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    "https://amazonia-viva-web.onrender.com"
+    "https://amazonia-viva-web.onrender.com",
+    "https://amazonia-viva.onrender.com" # Agregado para evitar bloqueos CORS
 ]
+
 
 ROOT_URLCONF = 'amazoniaviva.urls'
 
@@ -180,12 +185,3 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Modelos propios
 # Le dice a Django: "Olvida tu usuario por defecto y usa el mío"
 AUTH_USER_MODEL = 'autenticacion.Usuario'
-
-# Configuración de Correo Electrónico (SMTP)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'amazonia.viva.sender@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = f"Amazonia Viva <{EMAIL_HOST_USER}>"
