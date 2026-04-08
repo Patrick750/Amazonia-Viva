@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'django.contrib.staticfiles',
     'cloudinary',
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist'
 ]
@@ -89,7 +90,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173/",
+    "http://localhost:5173",
     "https://amazonia-viva-web.onrender.com"
 ]
 

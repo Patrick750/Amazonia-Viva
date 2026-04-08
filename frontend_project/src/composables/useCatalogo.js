@@ -17,7 +17,7 @@ const errorProductos = ref(null);
 
 export function useCatalogo() {
     const { mostrarNotificacion } = useNotificacion();
-    const { agregarItem } = useCarrito();
+    const { agregarItem, itemsCarrito } = useCarrito();
 
     const cargarTours = async () => {
         if (tours.value.length > 0) return; // Evitar recargar

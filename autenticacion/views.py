@@ -619,9 +619,15 @@ class ProcesarPagoView(APIView):
     def post(self, request):
         try:
             data = request.data
+            print(f"DEBUG: Procesando pago para usuario {request.user.email}")
+            print(f"DEBUG: Payload recibido: {data}")
+            
             total = data.get('total', 0)
             novedades = data.get('novedades_turistas', [])
             items = data.get('items', [])
+
+            if not items:
+                return Response({'error': 'No hay items para procesar.'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Crear la Venta
             venta = Venta.objects.create(
@@ -631,7 +637,6 @@ class ProcesarPagoView(APIView):
                 estado='Completado'
             )
             
-            # Prevenir items id = 0 
             # Procesar items y generar Detalles_Venta
             for it in items:
                 tipo = it.get('tipo')
@@ -639,6 +644,10 @@ class ProcesarPagoView(APIView):
                 cantidad = int(it.get('cantidad', 1))
                 precio = it.get('precio', 0)
                 
+                if not item_id or item_id == 0:
+                    print(f"WARNING: Item skiped due to invalid ID: {it}")
+                    continue
+
                 if tipo == 'producto':
                     producto = get_object_or_404(Productos, pk=item_id)
                     # Reducir stock
@@ -650,17 +659,17 @@ class ProcesarPagoView(APIView):
                     
                     Detalles_Venta.objects.create(
                         venta=venta,
-                        producto=producto.id,
+                        producto=int(item_id),
                         paquete=0,
                         cantidad=cantidad,
                         precio_unitario=precio
                     )
-                elif tipo == 'paquete':
+                elif tipo == 'paquete' or tipo == 'tour': # Manejar ambos nombres por si acaso
                     paquete = get_object_or_404(PaqueteTuristico, pk=item_id)
                     Detalles_Venta.objects.create(
                         venta=venta,
                         producto=0,
-                        paquete=paquete.id,
+                        paquete=int(item_id),
                         cantidad=cantidad,
                         precio_unitario=precio
                     )
@@ -687,7 +696,7 @@ class ProcesarPagoView(APIView):
                     message=msg_body,
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[request.user.email],
-                    fail_silently=True,  # Prevenir que pete el checkout si falla la red SMTP
+                    fail_silently=True,  
                 )
             except Exception as e:
                 print(f"Error despachando correo de venta: {e}")
@@ -699,5 +708,9 @@ class ProcesarPagoView(APIView):
             }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
+            print(f"CRITICAL ERROR EN VENTA: {str(e)}")
+            # Forzamos rollback al re-lanzar la excepción si estamos en transaction.atomic
+            # pero devolvemos una respuesta controlada.
+            transaction.set_rollback(True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
