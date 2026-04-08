@@ -615,10 +615,10 @@ class ProcesarPagoView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    @transaction.atomic
     def post(self, request):
         try:
-            data = request.data
+            with transaction.atomic():
+                data = request.data
             print(f"DEBUG: Procesando pago para usuario {request.user.email}")
             print(f"DEBUG: Payload recibido: {data}")
             
