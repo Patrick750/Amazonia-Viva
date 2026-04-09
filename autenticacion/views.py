@@ -816,7 +816,6 @@ class ProcesarPagoView(APIView):
                             return Response({
                                 'error': f'No hay suficientes cupos para "{paquete.nombre}" en la fecha {fecha_reserva}. Disponibles: {cupos}.'
                             }, status=status.HTTP_400_BAD_REQUEST)
->>>>>>> SCRUM-61-Edicion-de-proceso-de-gestion-de-paquetes-turisticos
 
                     Detalles_Venta.objects.create(
                         venta=venta,

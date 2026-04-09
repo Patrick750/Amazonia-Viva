@@ -152,16 +152,6 @@ const confirmarYPagar = () => {
             finalizarProcesoDePago();
         } else {
             mostrarModalTerminos.value = true;
-            
-            // Mostrar modal de éxito
-            mostrarModalExito.value = true;
-
-        } catch (error) {
-            console.error("Error al procesar el pago:", error);
-            alert("Hubo un error procesando el pago. Inténtalo de nuevo.");
-        } finally {
-            cargandoPago.value = false;
->>>>>>> SCRUM-61-Edicion-de-proceso-de-gestion-de-paquetes-turisticos
         }
     }
 };
