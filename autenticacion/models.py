@@ -263,11 +263,26 @@ class Venta(models.Model):
     estado = models.CharField(max_length=40, null=False, blank=False)
 
 class Detalles_Venta(models.Model):
+    ESTADO_PRODUCTO_CHOICES = [
+        ('Pendiente de Empaque', 'Pendiente de Empaque'),
+        ('Enviado', 'Enviado'),
+        ('Cancelado', 'Cancelado'),
+        ('Reembolsado', 'Reembolsado'),
+        ('En Tránsito', 'En Tránsito'),
+        ('Entregado', 'Entregado'),
+    ]
+    ESTADO_PAQUETE_CHOICES = [
+        ('Confirmado', 'Confirmado'),
+        ('Cancelado', 'Cancelado'),
+        ('Reembolso', 'Reembolso'),
+    ]
+
     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='detalles_venta')
     producto = models.IntegerField(null=False, blank=False)
     paquete = models.IntegerField(null=False, blank=False)
     cantidad = models.IntegerField(null=False, blank=False)
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
+    estado = models.CharField(max_length=40, default='Pendiente de Empaque', verbose_name="Estado del Item")
 
 
 class ReservaFecha(models.Model):

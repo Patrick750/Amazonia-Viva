@@ -713,7 +713,8 @@ class ProcesarPagoView(APIView):
                         producto=producto.id,
                         paquete=0,
                         cantidad=cantidad,
-                        precio_unitario=precio
+                        precio_unitario=precio,
+                        estado='Pendiente de Empaque'
                     )
                 elif tipo == 'paquete':
                     paquete = get_object_or_404(PaqueteTuristico, pk=item_id)
@@ -746,7 +747,8 @@ class ProcesarPagoView(APIView):
                         producto=0,
                         paquete=paquete.id,
                         cantidad=cantidad,
-                        precio_unitario=precio
+                        precio_unitario=precio,
+                        estado='Confirmado'
                     )
 
                     # Registrar la reserva por fecha

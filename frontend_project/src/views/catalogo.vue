@@ -137,7 +137,7 @@ const toursFiltrados = computed(() => {
   if (orden.value === 'precio_asc')   lista.sort((a,b) => a.precio - b.precio);
   else if (orden.value === 'precio_desc') lista.sort((a,b) => b.precio - a.precio);
   else if (orden.value === 'rating_desc') lista.sort((a,b) => b.rating - a.rating);
-  else if (orden.value === 'ventas_desc') lista.sort((a,b) => (b.ventas_totales || 0) - (a.ventas_totales || 0));
+  else if (orden.value === 'ventas_desc') lista.sort((a,b) => (b.reservas_totales || 0) - (a.reservas_totales || 0));
   return lista;
 });
 

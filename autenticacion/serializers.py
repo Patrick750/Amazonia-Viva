@@ -206,10 +206,10 @@ class SerializersImagenes(serializers.ModelSerializer):
 
 class SerializersPaquetes(serializers.ModelSerializer):
     imagen_paquete = SerializersImages(many=True, read_only=True)
-    ventas_totales = serializers.SerializerMethodField()
+    reservas_totales = serializers.SerializerMethodField()
     cupos_disponibles = serializers.SerializerMethodField()
 
-    def get_ventas_totales(self, obj):
+    def get_reservas_totales(self, obj):
         resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
         return resultado['total'] or 0
 
@@ -222,7 +222,7 @@ class SerializersPaquetes(serializers.ModelSerializer):
             'id', 'activo', 'nombre', 'descripcion', 'precio', 
             'duracion', 'capacidad', 'ubicacion', 'itinerario', 
             'incluido', 'rating', 'agencia', 'actividades',
-            'categoria_paquete', 'imagen_paquete', 'ventas_totales',
+            'categoria_paquete', 'imagen_paquete', 'reservas_totales',
             'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles'
         ]
 
@@ -234,11 +234,11 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
     ciudad = serializers.CharField(source='ubicacion', read_only=True)
     nivel_riesgo = serializers.SerializerMethodField()
     num_calificaciones = serializers.SerializerMethodField()
-    ventas_totales = serializers.SerializerMethodField()
+    reservas_totales = serializers.SerializerMethodField()
 
     categoria_paquete_nombre = serializers.CharField(source='categoria_paquete.nombre', read_only=True)
 
-    def get_ventas_totales(self, obj):
+    def get_reservas_totales(self, obj):
         resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
         return resultado['total'] or 0
 
@@ -272,7 +272,7 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
             'id', 'nombre', 'descripcion', 'precio', 'duracion',
             'ubicacion', 'ciudad', 'rating', 'num_calificaciones',
             'imagen_portada', 'nombre_agencia', 'agencia_id', 'nivel_riesgo', 'activo',
-            'categoria_paquete_nombre', 'categoria_paquete', 'proveedor_validado', 'ventas_totales',
+            'categoria_paquete_nombre', 'categoria_paquete', 'proveedor_validado', 'reservas_totales',
             'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles'
         ]
 
@@ -563,10 +563,10 @@ class SerializerDetalleTour(serializers.ModelSerializer):
     nombre_agencia = serializers.CharField(source='agencia.nombre_agencia', read_only=True)
     categoria_paquete_nombre = serializers.CharField(source='categoria_paquete.nombre', read_only=True)
     actividades_detalle = SerializersActividades(source='actividades', many=True, read_only=True)
-    ventas_totales = serializers.SerializerMethodField()
+    reservas_totales = serializers.SerializerMethodField()
     cupos_disponibles = serializers.SerializerMethodField()
 
-    def get_ventas_totales(self, obj):
+    def get_reservas_totales(self, obj):
         resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
         return resultado['total'] or 0
 
@@ -580,7 +580,7 @@ class SerializerDetalleTour(serializers.ModelSerializer):
             'ubicacion', 'latitud', 'longitud', 'capacidad', 
             'itinerario', 'incluido', 'rating',
             'imagen_paquete', 'nombre_agencia', 'categoria_paquete_nombre',
-            'actividades_detalle', 'ventas_totales',
+            'actividades_detalle', 'reservas_totales',
             'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles'
         ]
 

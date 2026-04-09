@@ -409,8 +409,8 @@ const formatTime = (timeStr) => {
                                 </svg>
                             </div>
                             <div>
-                                <p class="text-[10px] opacity-80 font-bold uppercase tracking-widest leading-none mb-1">Total Vendidos</p>
-                                <p class="text-lg font-black">{{ tour.ventas_totales || 0 }}</p>
+                                <p class="text-[10px] opacity-80 font-bold uppercase tracking-widest leading-none mb-1">Total Reservados</p>
+                                <p class="text-lg font-black">{{ tour.reservas_totales || 0 }}</p>
                             </div>
                         </div>
                     </div>

@@ -59,7 +59,12 @@
                     </div>
                     <div class="flex items-center gap-1.5 font-bold text-emerald-700">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        {{ tour.ventas_totales || 0 }} Ventas
+                        {{ tour.reservas_totales || 0 }} Reservas
+                    </div>
+                    <div class="flex items-center gap-1.5 font-bold"
+                      :class="tour.cupos_disponibles === 0 ? 'text-red-600' : tour.cupos_disponibles <= 5 ? 'text-amber-600' : 'text-blue-600'">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        {{ tour.cupos_disponibles ?? tour.capacidad }} Cupos
                     </div>
                 </div>
                 
@@ -90,7 +95,8 @@
                         <th class="px-5 py-4">Duración</th>
                         <th class="px-5 py-4">Precio</th>
                         <th class="px-5 py-4">Capacidad</th>
-                        <th class="px-5 py-4 text-center">Ventas</th>
+                        <th class="px-5 py-4 text-center">Cupos</th>
+                        <th class="px-5 py-4 text-center">Reservas</th>
                         <th class="px-5 py-4 text-center">Calificación</th>
                         <th class="px-5 py-4 text-center">Acciones</th>
                     </tr>
@@ -160,10 +166,19 @@
                             </div>
                         </td>
 
-                        <!-- Columna: Ventas (Arreglado el orden) -->
+                        <!-- Columna: Cupos Disponibles -->
+                        <td class="px-5 py-4">
+                            <div class="mx-auto w-fit flex items-center justify-center gap-1.5 px-3 py-1 rounded-full border"
+                              :class="tour.cupos_disponibles === 0 ? 'bg-red-50 border-red-100' : tour.cupos_disponibles <= 5 ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'">
+                                <svg class="w-3 h-3" :class="tour.cupos_disponibles === 0 ? 'text-red-500' : tour.cupos_disponibles <= 5 ? 'text-amber-500' : 'text-blue-500'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                <span class="text-xs font-bold" :class="tour.cupos_disponibles === 0 ? 'text-red-700' : tour.cupos_disponibles <= 5 ? 'text-amber-700' : 'text-blue-700'">{{ tour.cupos_disponibles ?? tour.capacidad }}</span>
+                            </div>
+                        </td>
+
+                        <!-- Columna: Reservas -->
                         <td class="px-5 py-4">
                             <div class="mx-auto w-fit flex items-center justify-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
-                                <span class="text-xs font-bold text-emerald-700">{{ tour.ventas_totales || 0 }}</span>
+                                <span class="text-xs font-bold text-emerald-700">{{ tour.reservas_totales || 0 }}</span>
                             </div>
                         </td>
 

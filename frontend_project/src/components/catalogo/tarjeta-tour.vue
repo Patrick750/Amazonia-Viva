@@ -121,7 +121,7 @@ const alertaCupos = (cupos) => cupos !== null && cupos !== undefined && cupos <=
         <!-- Contador de Ventas (Social Proof) -->
         <span class="ml-auto flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-          {{ tour.ventas_totales || 0 }} vendidos
+          {{ tour.reservas_totales || 0 }} reservados
         </span>
       </div>
 

@@ -26,6 +26,15 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 3.8.0 — Estados Diferenciados de Venta y Cupos por Paquete
+> Archivos: `models.py`, `views.py`, `serializers.py`, `tours.vue`, `tarjeta-tour.vue`, `detalle-paquete.vue`, `detalles-tour.vue`, `catalogo.vue`
+
+- **[Feature] Estados por Tipo de Item**: Nuevo campo `estado` en `Detalles_Venta` que diferencia el flujo de estados según el tipo de ítem comprado. **Productos**: `Pendiente de Empaque` → `Enviado` → `En Tránsito` → `Entregado` / `Cancelado` / `Reembolsado`. **Paquetes**: `Confirmado` / `Cancelado` / `Reembolso`.
+- **[Feature] Cupos Disponibles en Gestión**: Nueva columna "Cupos" en la tabla de gestión de tours que muestra los cupos disponibles por paquete con badges codificados por color: **azul** (suficientes), **ámbar** (≤5 cupos), **rojo** (agotado).
+- **[UX/UI] Etiqueta "Reservados"**: Refactorización de la terminología en todas las vistas de tours. El conteo de paquetes vendidos ahora se muestra como **"X reservados"** en lugar de "X vendidos", reflejando la naturaleza de reserva de los paquetes turísticos.
+- **[Architecture] Serializers Bifurcados**: Renombrado de `ventas_totales` → `reservas_totales` en los serializers de paquetes (`SerializersPaquetes`, `SerializerCatalogoTour`, `SerializerDetalleTour`), manteniendo `ventas_totales` intacto para los serializers de productos.
+- **[Fix] Ordenamiento de Catálogo**: Actualización del sorting "Más vendidos" en la vista de catálogo de tours para utilizar el campo renombrado `reservas_totales`.
+
 ### 3.7.0 — Métricas de Negocio y Filtros Avanzados (SCRUM-58, SCRUM-59)
 > Archivos: `serializers.py`, `catalogo.vue`, `perfil-empresa.vue`, `detalle-paquete.vue`, `detalle-producto.vue`
 
