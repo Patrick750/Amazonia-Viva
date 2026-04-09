@@ -100,6 +100,14 @@ export function useCatalogo() {
      * @param {Object} extra - Datos adicionales { nombre, imagen, subtitulo, fecha_reserva }
      */
     const agregarAlCarrito = (id, precio, tipo = 'paquete', extra = {}) => {
+        const { estaEnCarrito } = useCarrito();
+        
+        // 0. Verificar si ya existe para evitar duplicados según requerimiento
+        if (estaEnCarrito(id, tipo)) {
+             mostrarNotificacion('Este paquete ya está en tu maleta.', 'info');
+             return false;
+        }
+
         // 1. Agregar localmente para feedback inmediato
         agregarItem({
             id,

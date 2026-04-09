@@ -100,13 +100,20 @@ export function useCarrito() {
     };
 
     const agregarItem = (item) => {
-        // Solo agrupamos productos. Paquetes se mantienen individuales para tener fechas propias.
-        const yaExiste = item.tipo === 'producto' && itemsCarrito.value.find(
-            i => i.id === item.id && i.tipo === 'producto'
+        // Agrupamos por ID y Tipo para evitar duplicados en la lista (tanto productos como paquetes)
+        const yaExiste = itemsCarrito.value.find(
+            i => i.id === item.id && i.tipo === item.tipo
         );
         
         if (yaExiste) {
+            // Si ya existe, simplemente incrementamos la cantidad
             yaExiste.cantidad = (yaExiste.cantidad || 1) + 1;
+            
+            // Si tiene db_id, sincronizar con backend (opcional, pero recomendado para persistencia)
+            if (yaExiste.db_id) {
+                axios.patch(`api/carrito/${yaExiste.db_id}/`, { cantidad: yaExiste.cantidad })
+                .catch(err => console.error('Error al sincronizar cantidad extra:', err));
+            }
         } else {
             itemsCarrito.value = [
                 ...itemsCarrito.value,

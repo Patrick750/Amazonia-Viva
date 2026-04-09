@@ -26,6 +26,11 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 3.9.1 — Control de Duplicados en el Carrito
+> Archivos: `useCarrito.js`, `useCatalogo.js`
+
+- **[Feature] Prevención de Reservas Duplicadas**: Implementación de un bloqueo que impide añadir el mismo paquete turístico varias veces desde la vista de detalle. Ahora el sistema detecta si el ítem ya existe en la maleta y orienta al usuario a gestionar las cantidades directamente en el carrito para una experiencia más limpia.
+
 ### 3.9.0 — Persistencia de Cantidades y Consistencia de Cupos
 > Archivos: `models.py`, `views.py`, `serializers.py`, `useCarrito.js`, `pago.vue`
 
