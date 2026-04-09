@@ -544,7 +544,7 @@ const volverInicio = () => {
             
             <h3 class="text-2xl font-black text-white mb-2">¡Compra Exitosa!</h3>
             <p class="text-white/60 text-sm mb-8 leading-relaxed">
-                Tu transacción se procesó de manera segura y tus reservas han quedado guardadas. Te hemos enviado un recibo y los detalles al correo.
+                Tu transacción se procesó de manera segura y tus reservas han quedado guardadas. ¡Gracias por tu compra!
             </p>
             
             <button @click="volverInicio"

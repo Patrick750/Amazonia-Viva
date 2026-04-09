@@ -707,24 +707,7 @@ class ProcesarPagoView(APIView):
             if carrito:
                 Items.objects.filter(carrito=carrito).delete()
                 
-            # Enviar correo de confirmación
-            msg_body = (
-                f"¡Hola {request.user.username}!\n\n"
-                f"Gracias por confiar en Amazonia Viva.\n"
-                f"Te confirmamos que hemos recibido exitosamente el pago por tu compra.\n\n"
-                f"💳 Total de la compra: ${total}\n"
-                f"✅ Estado de transacción: Pagado\n\n"
-                f"¡Prepárate para la aventura de tu vida!\n"
-                f"Atentamente, el equipo de Amazonia Viva."
-            )
-            
-            send_mail(
-                subject="Confirmación de tu reserva - Amazonia Viva",
-                message=msg_body,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[request.user.email],
-                fail_silently=False,  # Cambiado a False para depuración
-            )
+
                 
             return Response({
                 'exito': True, 
