@@ -8,4 +8,9 @@ const app = createApp(App)
 
 app.use(router)
 
+// Evitar que el navegador restaure la posición del scroll al recargar
+if ('scrollRestoration' in window.history) {
+    window.history.scrollRestoration = 'manual';
+}
+
 app.mount('#app')

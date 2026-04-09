@@ -3,6 +3,8 @@ import { ref, computed, watch } from 'vue';
 import axios from '@/api/axios';
 import { useRouter } from 'vue-router';
 import { useCarrito } from '@/composables/useCarrito';
+import { useCatalogo } from '@/composables/useCatalogo';
+
 
 const router = useRouter();
 const { 
@@ -12,11 +14,19 @@ const {
   tarifaEcologica,
   toursSeleccionados, // Tours del carrito
   productosSeleccionados, // Productos físicos en el carrito (asumido para el composable)
-  itemsCarrito,
+  itemsSeleccionados,
   vaciarCarrito
 } = useCarrito();
 
+const { actualizarStockLocal } = useCatalogo();
+
+
 const mostrarModalExito = ref(false);
+const mostrarModalTerminos = ref(false);
+const omitirModalTerminos = ref(false);
+const haOmitidoTerminos = ref(localStorage.getItem('omitirTerminosModal') === 'true');
+
+
 
 // Determinar si hay productos físicos en el carrito para mostrar el formulario de envío
 const requiereEnvio = computed(() => {
@@ -125,42 +135,69 @@ const getClassInput = (esValido) => {
 // --- ACCIÓN PRINCIPAL ---
 const cargandoPago = ref(false);
 
-const confirmarYPagar = async () => {
+const confirmarYPagar = () => {
     formTocado.value = true;
     if (todoValido.value) {
-        cargandoPago.value = true;
-        try {
-            const payload = {
-                total: totalFinal.value,
-                novedades_turistas: JSON.parse(sessionStorage.getItem('checkout_viajeros') || '[]'),
-                items: itemsCarrito.value.map(i => ({
-                    id: i.id,
-                    tipo: i.tipo,
-                    cantidad: i.cantidad,
-                    precio: i.precio
-                }))
-            };
-
-            await axios.post('api/venta/procesar/', payload);
-            
-            // Limpieza local de frontend
-            vaciarCarrito();
-            sessionStorage.removeItem('checkout_viajeros');
-            sessionStorage.removeItem('checkout_envio');
-            sessionStorage.removeItem('checkout_metodo');
-            sessionStorage.removeItem('checkout_forms_pago');
-            
-            // Mostrar modal de éxito
-            mostrarModalExito.value = true;
-
-        } catch (error) {
-            console.error("Error al procesar el pago:", error);
-            alert("Hubo un error procesando el pago. Inténtalo de nuevo.");
-        } finally {
-            cargandoPago.value = false;
+        // Verificar si el usuario ha marcado "No volver a mostrar" anteriormente
+        const skipModal = localStorage.getItem('omitirTerminosModal') === 'true';
+        
+        if (skipModal) {
+            finalizarProcesoDePago();
+        } else {
+            mostrarModalTerminos.value = true;
         }
     }
 };
+
+const aceptarTerminosYProceder = () => {
+    // Si marcó la casilla, guardar preferencia en localStorage
+    if (omitirModalTerminos.value) {
+        localStorage.setItem('omitirTerminosModal', 'true');
+        haOmitidoTerminos.value = true;
+    }
+    mostrarModalTerminos.value = false;
+    finalizarProcesoDePago();
+};
+
+
+const finalizarProcesoDePago = async () => {
+    cargandoPago.value = true;
+    try {
+        const payload = {
+            total: totalFinal.value,
+            novedades_turistas: JSON.parse(sessionStorage.getItem('checkout_viajeros') || '[]'),
+            items: itemsSeleccionados.value.map(i => ({
+                id: i.id,
+                tipo: i.tipo,
+                cantidad: i.cantidad,
+                precio: i.precio
+            }))
+        };
+
+        await axios.post('api/venta/procesar/', payload);
+        
+        // Actualizar stock y ventas en el frontend para feedback inmediato (UX)
+        actualizarStockLocal(itemsSeleccionados.value);
+
+        // Limpieza local de frontend
+
+        vaciarCarrito();
+        sessionStorage.removeItem('checkout_viajeros');
+        sessionStorage.removeItem('checkout_envio');
+        sessionStorage.removeItem('checkout_metodo');
+        sessionStorage.removeItem('checkout_forms_pago');
+        
+        // Mostrar modal de éxito
+        mostrarModalExito.value = true;
+
+    } catch (error) {
+        console.error("Error al procesar el pago:", error);
+        alert("Hubo un error procesando el pago. Inténtalo de nuevo.");
+    } finally {
+        cargandoPago.value = false;
+    }
+};
+
 
 const volverInicio = () => {
     mostrarModalExito.value = false;
@@ -516,6 +553,17 @@ const volverInicio = () => {
                       </template>
                   </button>
 
+                  <!-- Botón para ver términos si ya fueron omitidos -->
+                  <button v-if="haOmitidoTerminos" 
+                          @click="mostrarModalTerminos = true" 
+                          class="w-full mt-3 py-3 border border-dashed border-white/20 hover:border-emerald-500/40 hover:bg-emerald-500/5 text-white/40 hover:text-emerald-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Ver Términos y Condiciones de Compra
+                  </button>
+
+
                   <p class="text-center text-[10px] font-medium text-white/30 mt-4 leading-relaxed">
                       Tus transacciones están encriptadas con seguridad SSL de 256 bits. No guardamos información de tus tarjetas sensibles.
                   </p>
@@ -526,6 +574,106 @@ const volverInicio = () => {
 
       </div>
     </main>
+
+    <!-- MODAL DE TÉRMINOS Y CONDICIONES Y POLÍTICAS DE CANCELACIÓN -->
+    <div v-if="mostrarModalTerminos" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <!-- Overlay blur -->
+        <div class="absolute inset-0 bg-[#0a1a0f]/90 backdrop-blur-md transition-opacity" @click="mostrarModalTerminos = false"></div>
+        
+        <!-- Contenido Modal -->
+        <div class="relative bg-[#0f2318] border border-white/10 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-fade-in-up">
+            
+            <!-- Header -->
+            <div class="p-6 border-b border-white/10 flex items-center justify-between bg-white/5">
+                <h3 class="text-xl font-black text-white flex items-center gap-3">
+                    <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Términos y Condiciones de Compra
+                </h3>
+                <button @click="mostrarModalTerminos = false" class="text-white/40 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="p-8 overflow-y-auto space-y-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                
+                <p class="text-white/60 text-sm leading-relaxed">
+                    Antes de proceder con el pago, por favor lee detenidamente nuestras políticas de cancelación y devoluciones. Al continuar, aceptas los siguientes términos:
+                </p>
+
+                <!-- Paquetes -->
+                <div class="space-y-4">
+                    <h4 class="text-emerald-400 font-bold uppercase tracking-widest text-xs flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2m0 0a2 2 0 012 2v1a2 2 0 011.21 1.17M14.243 11a4.5 4.5 0 119 0H21m-6-1.5l1.5 1.5-1.5 1.5" /></svg>
+                        Servicios y Paquetes Turísticos
+                    </h4>
+                    <div class="bg-white/5 border border-white/5 rounded-2xl p-5 space-y-3">
+                        <p class="text-white/80 text-sm font-medium">Las penalizaciones por cancelación se aplican según la anticipación a la fecha del viaje:</p>
+                        <ul class="space-y-2.5">
+                            <li class="flex items-center gap-3 text-sm text-white/50">
+                                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                <span class="flex-1"><strong class="text-white">Más de 30 días:</strong> Sin penalización (Reembolso 100%).</span>
+                            </li>
+                            <li class="flex items-center gap-3 text-sm text-white/50">
+                                <div class="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
+                                <span class="flex-1"><strong class="text-white">29 a 15 días:</strong> Reembolso del 80% del valor pagado.</span>
+                            </li>
+                            <li class="flex items-center gap-3 text-sm text-white/50">
+                                <div class="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                <span class="flex-1"><strong class="text-white">14 a 7 días:</strong> Reembolso del 40% del valor pagado.</span>
+                            </li>
+                            <li class="flex items-center gap-3 text-sm text-white/50">
+                                <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                                <span class="flex-1"><strong class="text-white">Menos de 3 días:</strong> No cuenta con reembolso.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Productos -->
+                <div class="space-y-4">
+                    <h4 class="text-emerald-400 font-bold uppercase tracking-widest text-xs flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                        Productos Físicos
+                    </h4>
+                    <div class="bg-white/5 border border-white/5 rounded-2xl p-5 space-y-3">
+                        <ul class="space-y-4">
+                            <li class="flex items-start gap-4">
+                                <svg class="w-5 h-5 text-emerald-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <p class="text-sm text-white/50 leading-relaxed">Solo se permitirá la cancelación si el producto se encuentra en estado <span class="text-white font-bold">"Pendiente de empaque"</span>.</p>
+                            </li>
+                            <li class="flex items-start gap-4">
+                                <svg class="w-5 h-5 text-orange-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                <p class="text-sm text-white/50 leading-relaxed">En caso de estar <span class="text-white font-bold">"En tránsito"</span>, deberás esperar la entrega y tramitar una devolución asumiendo los costos de envío respectivos.</p>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Checkbox Omitir -->
+                <label class="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl cursor-pointer group hover:bg-emerald-500/10 transition-all">
+                    <input type="checkbox" v-model="omitirModalTerminos" class="w-5 h-5 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-500 cursor-pointer">
+                    <span class="text-sm text-white/70 font-medium group-hover:text-white transition-colors">No volver a mostrar en futuras reservas</span>
+                </label>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="p-6 bg-white/5 border-t border-white/10 flex flex-col sm:flex-row gap-4">
+                <button @click="mostrarModalTerminos = false" 
+                        class="flex-1 px-8 py-4 rounded-xl border border-white/10 text-white/60 font-bold hover:bg-white/5 hover:text-white transition-all order-2 sm:order-1">
+                    Cancelar
+                </button>
+                <button @click="aceptarTerminosYProceder" 
+                        class="flex-1 px-8 py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all order-1 sm:order-2">
+                    Aceptar y Proceder al Pago
+                </button>
+            </div>
+            
+        </div>
+    </div>
 
     <!-- MODAL DE ÉXITO -->
     <div v-if="mostrarModalExito" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -544,7 +692,7 @@ const volverInicio = () => {
             
             <h3 class="text-2xl font-black text-white mb-2">¡Compra Exitosa!</h3>
             <p class="text-white/60 text-sm mb-8 leading-relaxed">
-                Tu transacción se procesó de manera segura y tus reservas han quedado guardadas. Te hemos enviado un recibo y los detalles al correo.
+                Tu transacción se procesó de manera segura y tus reservas han quedado guardadas. ¡Gracias por tu compra!
             </p>
             
             <button @click="volverInicio"

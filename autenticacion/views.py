@@ -490,16 +490,18 @@ class PerfilFotoView(APIView):
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        tipo = request.query_params.get('tipo', 'perfil')
-        archivo = request.FILES.get('foto') or request.FILES.get('portada')
-        
-        if not archivo:
-            return Response(
-                {'error': 'No se proporcionó ningún archivo. Usa el campo "foto" o "portada".'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         try:
+            tipo = request.query_params.get('tipo', 'perfil')
+            archivo = request.FILES.get('foto') or request.FILES.get('portada')
+            
+            print(f"DEBUG: Intento de carga de imagen - Tipo: {tipo}, Usuario: {request.user.email}")
+            
+            if not archivo:
+                return Response(
+                    {'error': 'No se proporcionó ningún archivo. Usa el campo "foto" o "portada".'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             # Identificar la instancia del perfil
             instance = None
             if hasattr(request.user, 'agencia'):
@@ -510,6 +512,7 @@ class PerfilFotoView(APIView):
                 instance = request.user.turista
 
             if not instance:
+                print(f"ERROR: Perfil no encontrado para el usuario {request.user.id}")
                 return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
             # Decidir qué campo actualizar
@@ -517,6 +520,8 @@ class PerfilFotoView(APIView):
                 if hasattr(instance, 'foto_portada'):
                     instance.foto_portada = archivo
                     instance.save(update_fields=['foto_portada'])
+                    # Refetch to ensure we have the processed Cloudinary URL
+                    instance.refresh_from_db()
                     return Response({'foto_url': instance.foto_portada.url}, status=status.HTTP_200_OK)
                 else:
                     return Response({'error': 'Este tipo de perfil no admite fotos de portada.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -525,16 +530,23 @@ class PerfilFotoView(APIView):
                 if hasattr(instance, 'logotipo'): # Agencia
                     instance.logotipo = archivo
                     instance.save(update_fields=['logotipo'])
+                    instance.refresh_from_db()
                     return Response({'foto_url': instance.logotipo.url}, status=status.HTTP_200_OK)
                 elif hasattr(instance, 'foto_perfil'): # Proveedor / Turista
                     instance.foto_perfil = archivo
                     instance.save(update_fields=['foto_perfil'])
+                    instance.refresh_from_db()
                     return Response({'foto_url': instance.foto_perfil.url}, status=status.HTTP_200_OK)
                 
-            return Response({'error': 'No se pudo determinar el campo de imagen.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'No se pudo determinar el campo de imagen para este perfil.'}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            msg_error = str(e)
+            print(f"CRITICAL ERROR EN CARGA DE IMAGEN: {msg_error}")
+            return Response({
+                'error': 'Error interno al procesar la imagen.',
+                'detalle': msg_error
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- VISTA MOCK PARA VALIDACIÓN DE CREDENCIALES LEGALES ---
 class VerificarCredenciales(APIView):
@@ -615,13 +627,24 @@ class ProcesarPagoView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    @transaction.atomic
     def post(self, request):
         try:
-            data = request.data
-            total = data.get('total', 0)
+            with transaction.atomic():
+                data = request.data
+            print(f"DEBUG: Procesando pago para usuario {request.user.email}")
+            print(f"DEBUG: Payload recibido: {data}")
+            
+            # Asegurar que el total sea un número decimal válido
+            try:
+                total = round(float(data.get('total', 0)), 2)
+            except (ValueError, TypeError):
+                total = 0
+
             novedades = data.get('novedades_turistas', [])
             items = data.get('items', [])
+
+            if not items:
+                return Response({'error': 'No hay items seleccionados para procesar.'}, status=status.HTTP_400_BAD_REQUEST)
             
             # Crear la Venta
             venta = Venta.objects.create(
@@ -631,16 +654,27 @@ class ProcesarPagoView(APIView):
                 estado='Completado'
             )
             
-            # Prevenir items id = 0 
             # Procesar items y generar Detalles_Venta
             for it in items:
                 tipo = it.get('tipo')
                 item_id = it.get('id')
                 cantidad = int(it.get('cantidad', 1))
-                precio = it.get('precio', 0)
                 
+                # Asegurar que el precio sea un número
+                try:
+                    precio = round(float(it.get('precio', 0)), 2)
+                except (ValueError, TypeError):
+                    precio = 0
+                
+                if not item_id or item_id == 0:
+                    print(f"WARNING: Item saltado por ID inválido: {it}")
+                    continue
+
                 if tipo == 'producto':
-                    producto = get_object_or_404(Productos, pk=item_id)
+                    producto = Productos.objects.filter(pk=item_id).first()
+                    if not producto:
+                         raise ValueError(f"El producto con ID {item_id} no existe en la base de datos.")
+
                     # Reducir stock
                     if producto.stock >= cantidad:
                         producto.stock -= cantidad
@@ -650,17 +684,20 @@ class ProcesarPagoView(APIView):
                     
                     Detalles_Venta.objects.create(
                         venta=venta,
-                        producto=producto.id,
+                        producto=int(item_id),
                         paquete=0,
                         cantidad=cantidad,
                         precio_unitario=precio
                     )
-                elif tipo == 'paquete':
-                    paquete = get_object_or_404(PaqueteTuristico, pk=item_id)
+                elif tipo == 'paquete' or tipo == 'tour':
+                    paquete = PaqueteTuristico.objects.filter(pk=item_id).first()
+                    if not paquete:
+                         raise ValueError(f"El paquete/tour con ID {item_id} no existe en la base de datos.")
+
                     Detalles_Venta.objects.create(
                         venta=venta,
                         producto=0,
-                        paquete=paquete.id,
+                        paquete=int(item_id),
                         cantidad=cantidad,
                         precio_unitario=precio
                     )
@@ -670,27 +707,7 @@ class ProcesarPagoView(APIView):
             if carrito:
                 Items.objects.filter(carrito=carrito).delete()
                 
-            # Enviar correo de confirmación
-            try:
-                msg_body = (
-                    f"¡Hola {request.user.username}!\n\n"
-                    f"Gracias por confiar en Amazonia Viva.\n"
-                    f"Te confirmamos que hemos recibido exitosamente el pago por tu compra.\n\n"
-                    f"💳 Total de la compra: ${total}\n"
-                    f"✅ Estado de transacción: Pagado\n\n"
-                    f"¡Prepárate para la aventura de tu vida!\n"
-                    f"Atentamente, el equipo de Amazonia Viva."
-                )
-                
-                send_mail(
-                    subject="Confirmación de tu reserva - Amazonia Viva",
-                    message=msg_body,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[request.user.email],
-                    fail_silently=True,  # Prevenir que pete el checkout si falla la red SMTP
-                )
-            except Exception as e:
-                print(f"Error despachando correo de venta: {e}")
+
                 
             return Response({
                 'exito': True, 
@@ -698,6 +715,15 @@ class ProcesarPagoView(APIView):
                 'venta_id': venta.id
             }, status=status.HTTP_201_CREATED)
             
+        except ValueError as ve:
+            print(f"ERROR DE VALIDACIÓN EN VENTA: {str(ve)}")
+            return Response({'error': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            msg_error = str(e)
+            print(f"CRITICAL ERROR EN VENTA: {msg_error}")
+            return Response({
+                'error': 'Error interno del servidor al procesar el pago.',
+                'detalle': msg_error
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 

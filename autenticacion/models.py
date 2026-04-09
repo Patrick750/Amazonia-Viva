@@ -60,6 +60,7 @@ class Turista(Usuario):
     fecha_nacimiento = models.DateField(blank=False, null=False)
     numero_identidad = models.CharField(max_length=15, blank=False, null=False)
     foto_perfil = CloudinaryField('image', folder='amazonia_viva/perfiles', blank=True, null=True)
+    foto_portada = CloudinaryField('image', folder='amazonia_viva/portadas', blank=True, null=True)
 
 class Categoria(models.Model):
     nombre = models.CharField(

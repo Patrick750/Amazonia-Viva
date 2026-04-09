@@ -26,6 +26,18 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 3.8.0 — Políticas de Cancelación, UX Reactiva y Seguridad de Sesión (SCRUM-57)
+> Archivos: `pago.vue`, `checkout-viajeros.vue`, `useCatalogo.js`, `axios.js`, `router/index.js`, `main.js`
+
+- **[Feature] Modal de Términos y Condiciones**: Implementación de una validación obligatoria antes del pago que detalla las políticas de cancelación para servicios (reembolsos escalonados) y productos físicos (según estado de envío).
+- **[Feature] Persistencia de Preferencias**: Opción para omitir el modal de términos en futuras reservas mediante `localStorage`, mejorando la velocidad de compra para usuarios recurrentes.
+- **[Feature] Consulta Manual de Políticas**: Adición de un botón de acceso rápido en el resumen de compra para consultar los términos de cancelación en cualquier momento si han sido previamente omitidos.
+- **[UX] Sincronización de Inventario Inmediata**: Actualización reactiva del catálogo en el frontend (stock y ventas totales) tras un pago exitoso, proporcionando feedback visual "en tiempo real" sin recargar la página.
+- **[Security] Interceptor de Sesión Caducada**: Implementación de lógica de cierre de sesión automático al detectar errores `401 Unauthorized`, redirigiendo al usuario al login y limpiando estados para mayor seguridad.
+- **[UX] Control de Scroll Global**: Configuración de `scrollBehavior` en el router y restauración manual en el navegador para garantizar que todas las vistas carguen siempre desde la parte superior.
+- **[Refactor] Optimización Post-Pago**: Eliminación del envío automático de correos de verificación y simplificación del modal de éxito para un flujo de cierre de venta más limpio.
+- **[UI/UX] Pulido de Botón Transaccional**: Rediseño y organización de estilos del botón "Continuar al Pago Seguro" con degradados premium, estados de carga (loading) y tipografía optimizada.
+
 ### 3.7.0 — Métricas de Negocio y Filtros Avanzados (SCRUM-58, SCRUM-59)
 > Archivos: `serializers.py`, `catalogo.vue`, `perfil-empresa.vue`, `detalle-paquete.vue`, `detalle-producto.vue`
 
