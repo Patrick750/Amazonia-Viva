@@ -56,8 +56,12 @@ const newTour = reactive({
     itinerario: [{ time: '', activity: '' }],
     incluido: [{ item: '' }],
     imagen: [],   // nuevas imágenes locales { file, url, name }
-    categoria_paquete: ''
+    categoria_paquete: '',
+    fecha_realizacion: '',
 });
+
+// Tipo calculado en tiempo real
+const tipoPaqueteAuto = computed(() => newTour.fecha_realizacion ? 'fijo' : 'flexible');
 
 const categorias = ref([]);
 const fetchCategorias = async () => {
@@ -90,6 +94,7 @@ watch(() => props.paquete, (paqueteAEditar) => {
         if (!newTour.itinerario || newTour.itinerario.length === 0) newTour.itinerario = [{ time: '', activity: '' }];
         if (!newTour.incluido || newTour.incluido.length === 0) newTour.incluido = [{ item: '' }];
         newTour.imagen = [];
+        newTour.fecha_realizacion = paqueteAEditar.fecha_realizacion || '';
         // Cargar imágenes existentes
         imagenesExistentes.value = paqueteAEditar.imagen_paquete
             ? paqueteAEditar.imagen_paquete.map(i => ({ ...i }))
@@ -99,6 +104,7 @@ watch(() => props.paquete, (paqueteAEditar) => {
         newTour.itinerario = [{ time: '', activity: '' }];
         newTour.incluido = [{ item: '' }];
         newTour.imagen = [];
+        newTour.fecha_realizacion = '';
         imagenesExistentes.value = [];
     }
     imagenesAEliminar.value = [];
@@ -115,6 +121,7 @@ const limpiarFormulario = () => {
     newTour.incluido = [{ item: '' }];
     newTour.imagen = [];
     newTour.actividades = [];
+    newTour.fecha_realizacion = '';
     imagenesExistentes.value = [];
     imagenesAEliminar.value = [];
     searchQuery.value = '';
@@ -327,11 +334,18 @@ const Enviar = async () => {
                 if (newTour[key] !== null && newTour[key] !== undefined) {
                     if (key === 'latitud' || key === 'longitud') {
                         formData.append(key, Number(newTour[key]).toFixed(6));
+                    } else if (key === 'fecha_realizacion') {
+                        // Solo enviar si tiene valor; si está vacío, enviar string vacío para limpiarla
+                        formData.append(key, newTour[key] || '');
                     } else {
                         formData.append(key, newTour[key]);
                     }
                 }
             }
+        }
+        // Si fecha_realizacion está vacía, enviarla explícitamente para que el backend la limpie
+        if (!newTour.fecha_realizacion) {
+            formData.set('fecha_realizacion', '');
         }
         const itFiltrado = newTour.itinerario.filter(i => i.time.trim() || i.activity.trim());
         formData.append('itinerario', JSON.stringify(itFiltrado));
@@ -474,7 +488,7 @@ const Enviar = async () => {
               </div>
 
               <!-- Grid: Precio + Duración + Capacidad -->
-              <div class="grid grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-4">
                 <div>
                   <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Precio (COP) <span class="text-emerald-500">*</span></label>
                   <div class="relative">
@@ -498,6 +512,37 @@ const Enviar = async () => {
                     :class="['w-full bg-slate-50 border-2 rounded-2xl px-4 py-3 text-slate-800 font-semibold focus:outline-none focus:bg-white transition-all placeholder:text-slate-300',
                     errores.capacidad ? 'border-red-400' : 'border-slate-200 focus:border-emerald-500']">
                   <p v-if="errores.capacidad" class="text-xs text-red-500 mt-1 ml-1">{{ errores.capacidad }}</p>
+                </div>
+              </div>
+
+              <!-- ─── FECHA DE REALIZACIÓN ─── -->
+              <div class="mt-5 p-5 rounded-2xl border-2 transition-all"
+                :class="tipoPaqueteAuto === 'fijo' ? 'border-blue-300 bg-blue-50/60' : 'border-slate-200 bg-slate-50'">
+                <div class="flex items-center justify-between mb-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de Realización</label>
+                    <p class="text-xs text-slate-400 mt-0.5">Si estableces una fecha, el paquete será <strong>Fijo</strong>. Si está vacía, será <strong>Flexible</strong>.</p>
+                  </div>
+                  <!-- Badge dinámico -->
+                  <span :class="['inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all',
+                    tipoPaqueteAuto === 'fijo'
+                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                      : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                  ]">
+                    <svg v-if="tipoPaqueteAuto === 'fijo'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {{ tipoPaqueteAuto === 'fijo' ? '📅 Fijo' : '✨ Flexible' }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <input v-model="newTour.fecha_realizacion" type="date"
+                    class="flex-1 bg-white border-2 border-slate-200 rounded-2xl px-4 py-3 text-slate-800 font-medium focus:outline-none focus:border-blue-400 transition-all"
+                  >
+                  <button v-if="newTour.fecha_realizacion" @click.prevent="newTour.fecha_realizacion = ''"
+                    class="px-4 py-3 rounded-2xl bg-red-50 text-red-500 border-2 border-red-100 hover:bg-red-100 hover:border-red-200 transition-all text-xs font-bold flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Quitar fecha
+                  </button>
                 </div>
               </div>
             </section>
@@ -566,8 +611,8 @@ const Enviar = async () => {
                   {{ newTour.actividades.length }} seleccionadas
                 </span>
               </div>
-              <div :class="['grid grid-cols-2 gap-2 max-h-56 overflow-y-auto form-scroll rounded-2xl border-2 p-3',
-                errores.actividades ? 'border-red-300 bg-red-50/50' : 'border-slate-200 bg-slate-50']">
+              <div :class="['grid grid-cols-1 md:grid-cols-2 gap-2 max-h-56 overflow-y-auto form-scroll rounded-2xl border-2 p-3',
+                errores.actividades ? 'border-red-400 focus-within:border-red-500 bg-red-50' : 'border-slate-200 focus-within:border-emerald-500 bg-slate-50']">
                 <label v-for="actividad in actividades" :key="actividad.id"
                   :class="['flex items-start gap-3 p-3 rounded-xl cursor-pointer border-2 transition-all select-none',
                   newTour.actividades.includes(actividad.id)

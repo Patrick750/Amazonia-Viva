@@ -6,6 +6,25 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Sum
 
+
+def calcular_cupos_disponibles(paquete, fecha=None):
+    """Calcula cupos disponibles para un paquete en una fecha dada.
+    Si el paquete es fijo, usa su propia fecha. Si es flexible, requiere una fecha."""
+    if not fecha and paquete.tipo_paquete == 'fijo':
+        fecha = paquete.fecha_realizacion
+    if not fecha:
+        return paquete.capacidad  # flexible sin fecha consultada = capacidad completa
+    
+    # Solo contamos reservas de ventas que están 'Completado'
+    reservas = ReservaFecha.objects.filter(
+        paquete=paquete, 
+        fecha=fecha,
+        venta__estado='Completado'
+    ).aggregate(
+        total=Sum('cantidad')
+    )['total'] or 0
+    return max(0, paquete.capacidad - reservas)
+
 class CategoriaPaqueteSerializer(serializers.ModelSerializer):
     class Meta:
         model = CategoriaPaquete
@@ -136,8 +155,9 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
             'ubicacion', 'latitud', 'longitud', 'capacidad', 
             'actividades', 'itinerario', 'incluido', 
             'imagen_paquete', 'archivos_subidos', 'imagenes_eliminar', 'agencia',
-            'categoria_paquete'
+            'categoria_paquete', 'fecha_realizacion', 'tipo_paquete'
         ]
+        read_only_fields = ['tipo_paquete']
 
     def create(self, validated_data):
         archivos = validated_data.pop('archivos_subidos', [])
@@ -192,11 +212,15 @@ class SerializersImagenes(serializers.ModelSerializer):
 
 class SerializersPaquetes(serializers.ModelSerializer):
     imagen_paquete = SerializersImages(many=True, read_only=True)
-    ventas_totales = serializers.SerializerMethodField()
+    reservas_totales = serializers.SerializerMethodField()
+    cupos_disponibles = serializers.SerializerMethodField()
 
-    def get_ventas_totales(self, obj):
+    def get_reservas_totales(self, obj):
         resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
         return resultado['total'] or 0
+
+    def get_cupos_disponibles(self, obj):
+        return calcular_cupos_disponibles(obj)
 
     class Meta:
         model = PaqueteTuristico
@@ -204,7 +228,8 @@ class SerializersPaquetes(serializers.ModelSerializer):
             'id', 'activo', 'nombre', 'descripcion', 'precio', 
             'duracion', 'capacidad', 'ubicacion', 'itinerario', 
             'incluido', 'rating', 'agencia', 'actividades',
-            'categoria_paquete', 'imagen_paquete', 'ventas_totales'
+            'categoria_paquete', 'imagen_paquete', 'reservas_totales',
+            'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles'
         ]
 
 
@@ -215,11 +240,11 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
     ciudad = serializers.CharField(source='ubicacion', read_only=True)
     nivel_riesgo = serializers.SerializerMethodField()
     num_calificaciones = serializers.SerializerMethodField()
-    ventas_totales = serializers.SerializerMethodField()
+    reservas_totales = serializers.SerializerMethodField()
 
     categoria_paquete_nombre = serializers.CharField(source='categoria_paquete.nombre', read_only=True)
 
-    def get_ventas_totales(self, obj):
+    def get_reservas_totales(self, obj):
         resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
         return resultado['total'] or 0
 
@@ -239,8 +264,13 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
         return 0  # Placeholder until rating system is implemented
 
     proveedor_validado = serializers.SerializerMethodField()
+    cupos_disponibles = serializers.SerializerMethodField()
+
     def get_proveedor_validado(self, obj):
         return bool(obj.agencia.nit or obj.agencia.rut or obj.agencia.rnt)
+
+    def get_cupos_disponibles(self, obj):
+        return calcular_cupos_disponibles(obj)
 
     class Meta:
         model = PaqueteTuristico
@@ -248,7 +278,8 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
             'id', 'nombre', 'descripcion', 'precio', 'duracion',
             'ubicacion', 'ciudad', 'rating', 'num_calificaciones',
             'imagen_portada', 'nombre_agencia', 'agencia_id', 'nivel_riesgo', 'activo',
-            'categoria_paquete_nombre', 'categoria_paquete', 'proveedor_validado', 'ventas_totales'
+            'categoria_paquete_nombre', 'categoria_paquete', 'proveedor_validado', 'reservas_totales',
+            'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles'
         ]
 
 
@@ -482,11 +513,13 @@ class FavoritoDetailSerializer(serializers.ModelSerializer):
 class CarritoItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Items
-        fields = ['id', 'carrito', 'producto', 'paquetes', 'precio']
+        fields = ['id', 'carrito', 'producto', 'paquetes', 'precio', 'fecha_reserva', 'cantidad']
         extra_kwargs = {
             'carrito': {'read_only': True},
             'producto': {'required': False, 'allow_null': True},
-            'paquetes': {'required': False, 'allow_null': True}
+            'paquetes': {'required': False, 'allow_null': True},
+            'fecha_reserva': {'required': False, 'allow_null': True},
+            'cantidad': {'required': False},
         }
 
 class CarritoItemDetailSerializer(serializers.ModelSerializer):
@@ -527,9 +560,30 @@ class CarritoItemDetailSerializer(serializers.ModelSerializer):
         if obj.producto: return obj.producto.categorias.nombre if obj.producto.categorias else ''
         return ''
 
+    # Campos adicionales para paquetes (ayuda al frontend en el carrito)
+    tipo_paquete = serializers.SerializerMethodField()
+    fecha_realizacion = serializers.SerializerMethodField()
+
+    def get_tipo_paquete(self, obj):
+        if obj.paquetes: return obj.paquetes.tipo_paquete
+        return None
+
+    def get_fecha_realizacion(self, obj):
+        if obj.paquetes: return obj.paquetes.fecha_realizacion
+        return None
+
+    stock = serializers.SerializerMethodField()
+    def get_stock(self, obj):
+        if obj.paquetes: return obj.paquetes.capacidad
+        if obj.producto: return obj.producto.stock
+        return 0
+
     class Meta:
         model = Items
-        fields = ['id', 'tipo', 'item_id', 'nombre', 'precio', 'imagen', 'subtitulo']
+        fields = [
+            'id', 'tipo', 'item_id', 'nombre', 'precio', 'imagen', 'subtitulo', 
+            'fecha_reserva', 'tipo_paquete', 'fecha_realizacion', 'stock', 'cantidad'
+        ]
 
 
 class SerializerDetalleTour(serializers.ModelSerializer):
@@ -537,11 +591,15 @@ class SerializerDetalleTour(serializers.ModelSerializer):
     nombre_agencia = serializers.CharField(source='agencia.nombre_agencia', read_only=True)
     categoria_paquete_nombre = serializers.CharField(source='categoria_paquete.nombre', read_only=True)
     actividades_detalle = SerializersActividades(source='actividades', many=True, read_only=True)
-    ventas_totales = serializers.SerializerMethodField()
+    reservas_totales = serializers.SerializerMethodField()
+    cupos_disponibles = serializers.SerializerMethodField()
 
-    def get_ventas_totales(self, obj):
+    def get_reservas_totales(self, obj):
         resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
         return resultado['total'] or 0
+
+    def get_cupos_disponibles(self, obj):
+        return calcular_cupos_disponibles(obj)
 
     class Meta:
         model = PaqueteTuristico
@@ -550,7 +608,8 @@ class SerializerDetalleTour(serializers.ModelSerializer):
             'ubicacion', 'latitud', 'longitud', 'capacidad', 
             'itinerario', 'incluido', 'rating',
             'imagen_paquete', 'nombre_agencia', 'categoria_paquete_nombre',
-            'actividades_detalle', 'ventas_totales'
+            'actividades_detalle', 'reservas_totales',
+            'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles'
         ]
 
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCarrito } from '@/composables/useCarrito';
 
@@ -8,9 +8,39 @@ const {
     tours, productos, itemsCarrito,
     itemsSeleccionados, todoSeleccionado, toursSeleccionados,
     subtotalTours, subtotalProductos, tarifaEcologica, totalFinal,
-    eliminarItem, actualizarCantidad,
+    eliminarItem, actualizarCantidad, actualizarFecha,
     toggleSeleccion, seleccionarTodos, deseleccionarTodos,
 } = useCarrito();
+
+import { useCatalogo } from '@/composables/useCatalogo';
+import { useNotificacion } from '@/composables/useNotificacion';
+
+const { obtenerCuposDisponibles } = useCatalogo();
+const { mostrarNotificacion } = useNotificacion();
+
+const fechaMinima = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 8); // Bloquea hoy + 7 días futuros = 8 días en total
+    return d.toISOString().split('T')[0];
+})();
+
+const cuposStatus = ref({}); // { uuid: { cupos: number, cargando: boolean } }
+
+const manejarCambioFecha = async (item, nuevaFecha) => {
+    actualizarFecha(item.uuid, nuevaFecha);
+    if (!nuevaFecha) {
+        if (cuposStatus.value[item.uuid]) delete cuposStatus.value[item.uuid];
+        return;
+    }
+    
+    cuposStatus.value[item.uuid] = { ...cuposStatus.value[item.uuid], cargando: true };
+    try {
+        const res = await obtenerCuposDisponibles(item.id, nuevaFecha);
+        cuposStatus.value[item.uuid] = { cupos: res.cupos_disponibles, cargando: false };
+    } catch {
+        cuposStatus.value[item.uuid] = { cupos: null, cargando: false };
+    }
+};
 
 const formatPrecio = (valor) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(valor);
@@ -22,6 +52,10 @@ const totalUnidades = computed(() =>
     productos.value.reduce((sum, i) => sum + i.cantidad, 0)
 );
 
+const toursSeleccionadosSinFecha = computed(() => 
+    toursSeleccionados.value.filter(t => !t.fecha_reserva)
+);
+
 const toggleTodos = () => {
     if (todoSeleccionado.value) {
         deseleccionarTodos();
@@ -31,6 +65,39 @@ const toggleTodos = () => {
 };
 
 const irAPago = () => {
+    // 1. Validar que todos los tours SELECCIONADOS tengan fecha elegida
+    const toursSinFecha = toursSeleccionados.value.filter(t => !t.fecha_reserva);
+    if (toursSinFecha.length > 0) {
+        mostrarNotificacion(`Debes elegir la fecha para: ${toursSinFecha[0].nombre}`, 'warning');
+        return;
+    }
+
+    // 2. Validar que la fecha sea al menos 7 días a futuro (por seguridad si se manipuló el input)
+    const hoyReferencia = new Date();
+    hoyReferencia.setDate(hoyReferencia.getDate() + 7);
+    hoyReferencia.setHours(0, 0, 0, 0);
+
+    for (const tour of toursSeleccionados.value) {
+        const f = new Date(tour.fecha_reserva + 'T00:00:00');
+        if (f < hoyReferencia) {
+            mostrarNotificacion(`La fecha de '${tour.nombre}' debe ser al menos 7 días a futuro.`, 'warning');
+            return;
+        }
+        
+        // 3. Validar cupos si ya se cargaron (usando UUID para precisión)
+        const status = cuposStatus.value[tour.uuid];
+        if (status) {
+            if (status.cupos === 0) {
+                mostrarNotificacion(`No hay cupos disponibles para '${tour.nombre}' en la fecha seleccionada.`, 'error');
+                return;
+            }
+            if (tour.cantidad > status.cupos) {
+                mostrarNotificacion(`No hay cupos suficientes para '${tour.nombre}'. Disponibles: ${status.cupos}, Pedidos: ${tour.cantidad}`, 'error');
+                return;
+            }
+        }
+    }
+
     // Si hay tours seleccionados → registrar datos de viajeros primero
     if (toursSeleccionados.value.length > 0) {
         router.push('/checkout/viajeros');
@@ -172,7 +239,7 @@ const irAPago = () => {
             <div class="space-y-4">
               <div
                 v-for="item in tours"
-                :key="item.id"
+                :key="item.uuid"
                 :class="[
                   'group relative border rounded-2xl overflow-hidden transition-all duration-300',
                   item.seleccionado
@@ -184,7 +251,7 @@ const irAPago = () => {
                   <!-- Checkbox de selección -->
                   <div class="flex-shrink-0 self-center">
                     <button
-                      @click="toggleSeleccion(item.id, 'paquete')"
+                      @click="toggleSeleccion(item.uuid)"
                       :class="[
                         'w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all',
                         item.seleccionado
@@ -206,19 +273,52 @@ const irAPago = () => {
                       </svg>
                     </div>
                   </div>
-                  <!-- Info -->
-                  <div class="flex-1 min-w-0">
-                    <p class="text-emerald-400/70 text-xs font-medium mb-0.5">Expedición</p>
-                    <h3 class="text-white font-bold text-sm leading-snug mb-1 line-clamp-2">{{ item.nombre }}</h3>
-                    <p v-if="item.subtitulo" class="text-white/35 text-xs">{{ item.subtitulo }}</p>
-                    <!-- Precio unitario -->
-                    <p class="text-white/50 text-xs mt-2">{{ formatPrecio(item.precio) }} / persona</p>
-                  </div>
+                    <!-- Info -->
+                    <div class="flex-1 min-w-0">
+                      <p class="text-emerald-400/70 text-xs font-medium mb-0.5">Expedición</p>
+                      <h3 class="text-white font-bold text-sm leading-snug mb-1 line-clamp-1">{{ item.nombre }}</h3>
+                      
+                      <!-- Selector de Fecha / Info de Fecha -->
+                      <div class="mt-3 bg-white/5 border border-white/10 rounded-xl p-2.5">
+                        <div v-if="item.tipo_paquete === 'flexible'">
+                          <p :class="['text-[10px] font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5', 
+                            !item.fecha_reserva ? 'text-amber-400 animate-pulse' : 'text-emerald-400']">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                             {{ !item.fecha_reserva ? '¡Fecha requerida!' : 'Fecha de inicio seleccionada' }}
+                          </p>
+                          <input
+                            type="date"
+                            :value="item.fecha_reserva"
+                            :min="fechaMinima"
+                            @change="(e) => manejarCambioFecha(item, e.target.value)"
+                            class="w-full bg-[#0a1a0f] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-emerald-500/50 transition-all"
+                          >
+                          <!-- Cupos feedback -->
+                          <div v-if="cuposStatus[item.uuid]" class="mt-1.5 px-2 py-1 rounded-md text-[10px] font-bold inline-flex items-center gap-1.5"
+                            :class="cuposStatus[item.uuid].cupos === 0 ? 'bg-red-500/10 text-red-400' : (cuposStatus[item.uuid].cupos <= 5 ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400')">
+                            <span v-if="cuposStatus[item.uuid].cargando" class="animate-pulse">Verificando...</span>
+                            <span v-else-if="cuposStatus[item.uuid].cupos === 0">Sin cupos</span>
+                            <span v-else>{{ cuposStatus[item.uuid].cupos }} cupos disponibles</span>
+                          </div>
+                        </div>
+                        <div v-else class="flex items-center gap-2">
+                          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                          <div>
+                            <p class="text-[9px] text-white/30 uppercase tracking-tighter">Fecha fija de salida</p>
+                            <p class="text-xs font-black text-emerald-300">{{ item.fecha_realizacion }}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p class="text-white/40 text-[10px] mt-2 italic shadow-sm" v-if="item.tipo_paquete === 'flexible' && !item.fecha_reserva">
+                        * Debes elegir una fecha antes de pagar
+                      </p>
+                    </div>
                   <!-- Controles derecha -->
                   <div class="flex flex-col items-end justify-between gap-2 flex-shrink-0">
                     <!-- Eliminar -->
                     <button
-                      @click="eliminarItem(item.id, 'paquete')"
+                      @click="eliminarItem(item.uuid)"
                       class="w-7 h-7 rounded-full bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-400 hover:text-red-300 transition-all opacity-0 group-hover:opacity-100"
                       title="Eliminar del carrito"
                     >
@@ -228,22 +328,35 @@ const irAPago = () => {
                     </button>
                     <!-- Selector personas -->
                     <div class="flex flex-col items-end gap-1">
-                      <span class="text-white/30 text-[10px] uppercase tracking-wider">Personas</span>
+                      <span class="text-white/30 text-[10px] uppercase tracking-wider">Acompañantes</span>
                       <div class="flex items-center gap-1 bg-white/8 border border-white/15 rounded-lg p-0.5">
                         <button
-                          @click="actualizarCantidad(item.id, 'paquete', item.cantidad - 1)"
+                          @click="actualizarCantidad(item.uuid, item.cantidad - 1)"
                           class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                         <span class="w-8 text-center text-white font-black text-sm">{{ item.cantidad }}</span>
                         <button
-                          @click="actualizarCantidad(item.id, 'paquete', item.cantidad + 1)"
-                          class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
+                          @click="actualizarCantidad(item.uuid, item.cantidad + 1)"
+                          :disabled="(cuposStatus[item.uuid] && item.cantidad >= cuposStatus[item.uuid].cupos) || (!cuposStatus[item.uuid] && item.cantidad >= item.stock)"
+                          :class="[
+                            'w-7 h-7 rounded-md flex items-center justify-center transition-all',
+                            ((cuposStatus[item.uuid] && item.cantidad >= cuposStatus[item.uuid].cupos) || (!cuposStatus[item.uuid] && item.cantidad >= item.stock))
+                              ? 'bg-white/5 opacity-30 cursor-not-allowed text-white/20'
+                              : 'bg-white/10 hover:bg-white/20 text-white'
+                          ]"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                       </div>
+                      <!-- Advertencia -->
+                      <p v-if="cuposStatus[item.uuid] && item.cantidad > cuposStatus[item.uuid].cupos" class="text-[9px] text-red-400 font-bold mt-1 text-right">
+                        Excede cupos (máx: {{ cuposStatus[item.uuid].cupos }})
+                      </p>
+                      <p v-else-if="!cuposStatus[item.uuid] && item.cantidad > item.stock" class="text-[9px] text-amber-400 font-bold mt-1 text-right">
+                        Excede capacidad (máx: {{ item.stock }})
+                      </p>
                       <!-- Total item -->
                       <p class="text-emerald-300 font-black text-sm">{{ formatPrecio(Number(item.precio) * item.cantidad) }}</p>
                     </div>
@@ -271,7 +384,7 @@ const irAPago = () => {
             <div class="space-y-4">
               <div
                 v-for="item in productos"
-                :key="item.id"
+                :key="item.uuid"
                 :class="[
                   'group relative border rounded-2xl overflow-hidden transition-all duration-300',
                   item.seleccionado
@@ -283,7 +396,7 @@ const irAPago = () => {
                   <!-- Checkbox de selección -->
                   <div class="flex-shrink-0 self-center">
                     <button
-                      @click="toggleSeleccion(item.id, 'producto')"
+                      @click="toggleSeleccion(item.uuid)"
                       :class="[
                         'w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all',
                         item.seleccionado
@@ -315,7 +428,7 @@ const irAPago = () => {
                   <div class="flex flex-col items-end justify-between gap-2 flex-shrink-0">
                     <!-- Eliminar -->
                     <button
-                      @click="eliminarItem(item.id, 'producto')"
+                      @click="eliminarItem(item.uuid)"
                       class="w-7 h-7 rounded-full bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-400 hover:text-red-300 transition-all opacity-0 group-hover:opacity-100"
                       title="Eliminar del carrito"
                     >
@@ -328,21 +441,30 @@ const irAPago = () => {
                       <span class="text-white/30 text-[10px] uppercase tracking-wider">Cantidad</span>
                       <div class="flex items-center gap-1 bg-white/8 border border-white/15 rounded-lg p-0.5">
                         <button
-                          @click="actualizarCantidad(item.id, 'producto', item.cantidad - 1)"
+                          @click="actualizarCantidad(item.uuid, item.cantidad - 1)"
                           class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                         <span class="w-8 text-center text-white font-black text-sm">{{ item.cantidad }}</span>
                         <button
-                          @click="actualizarCantidad(item.id, 'producto', item.cantidad + 1)"
-                          class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
+                          @click="actualizarCantidad(item.uuid, item.cantidad + 1)"
+                          :disabled="item.cantidad >= item.stock"
+                          :class="[
+                            'w-7 h-7 rounded-md flex items-center justify-center transition-all',
+                            item.cantidad >= item.stock
+                              ? 'bg-white/5 opacity-30 cursor-not-allowed text-white/20'
+                              : 'bg-white/10 hover:bg-white/20 text-white'
+                          ]"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                       </div>
+                      <!-- Advertencia -->
+                      <p v-if="item.cantidad > item.stock" class="text-[9px] text-red-400 font-bold mt-1 text-right">
+                        Sin stock suficiente (máx: {{ item.stock }})
+                      </p>
                       <!-- Total item -->
-                      <p class="text-teal-300 font-black text-sm">{{ formatPrecio(Number(item.precio) * item.cantidad) }}</p>
                     </div>
                   </div>
                 </div>
@@ -421,10 +543,10 @@ const irAPago = () => {
               <!-- CTA principal -->
               <button
                 @click="irAPago"
-                :disabled="itemsSeleccionados.length === 0"
+                :disabled="itemsSeleccionados.length === 0 || toursSeleccionadosSinFecha.length > 0"
                 :class="[
                   'w-full py-4 font-black text-base rounded-xl shadow-lg flex items-center justify-center gap-2.5 mt-2 transition-all',
-                  itemsSeleccionados.length > 0
+                  (itemsSeleccionados.length > 0 && toursSeleccionadosSinFecha.length === 0)
                     ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white hover:shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] shadow-emerald-500/20'
                     : 'bg-white/10 text-white/30 cursor-not-allowed'
                 ]"
@@ -465,9 +587,10 @@ const irAPago = () => {
 </template>
 
 <style scoped>
-.line-clamp-2 {
+.line-clamp-1 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  -webkit-line-clamp: 1;
 }
 </style>

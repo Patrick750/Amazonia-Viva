@@ -25,7 +25,30 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MAYOR** — cambio funcional significativo o rediseño arquitectónico
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
- 
+
+### 3.9.1 — Control de Duplicados en el Carrito
+> Archivos: `useCarrito.js`, `useCatalogo.js`
+
+- **[Feature] Prevención de Reservas Duplicadas**: Implementación de un bloqueo que impide añadir el mismo paquete turístico varias veces desde la vista de detalle. Ahora el sistema detecta si el ítem ya existe en la maleta y orienta al usuario a gestionar las cantidades directamente en el carrito para una experiencia más limpia.
+
+### 3.9.0 — Persistencia de Cantidades y Consistencia de Cupos
+> Archivos: `models.py`, `views.py`, `serializers.py`, `useCarrito.js`, `pago.vue`
+
+- **[Feature] Persistencia de Cantidades**: El carrito ahora soporta el campo `cantidad` en la base de datos, asegurando que el número de personas seleccionadas no se pierda al recargar la página o navegar por la plataforma.
+- **[Fix] Suma de Cupos por Fecha**: Se corrigió el cálculo de disponibilidad para realizar una suma real de cupos ocupados (`Sum('cantidad')`) en lugar de contar registros únicos, garantizando precisión cuando un turista reserva para múltiples acompañantes.
+- **[UX] Sincronización Reactiva**: Implementación de sincronización automática vía `PATCH` cada vez que el usuario ajusta la cantidad en el carrito, manteniendo el estado global siempre actualizado en el servidor.
+- **[Fix] Paridad en Pasarela de Pago**: Resolución del error de referencia circular en la selección de ítems, permitiendo que productos físicos y tours digitales se procesen en la misma transacción sin conflictos de importación.
+
+### 3.8.1 — Gestión de Fechas en Carrito y Desacoplamiento de Paquetes
+> Archivos: `useCarrito.js`, `carrito.vue`, `detalle-paquete.vue`, `checkout-viajeros.vue`, `serializers.py`
+
+- **[Feature] Traslado de Fecha al Carrito**: La elección de la fecha de reserva se movió de la vista de detalle al carrito, permitiendo una planificación más flexible antes del pago.
+- **[Feature] Una Fecha por Unidad**: Se desactivó la agrupación de paquetes en el carrito. Ahora cada unidad añadida mantiene su propio selector de fecha independiente, ideal para grupos con itinerarios distintos.
+- **[Security] Bloqueo Estricto de 7 Días**: Implementación de restricción automática que impide seleccionar fechas para el día actual y los 7 días siguientes, garantizando el tiempo mínimo de operación requerido.
+- **[Architecture] Gestión por UUID**: Integración de identificadores únicos universales para cada ítem del carrito, asegurando que las actualizaciones de fecha y eliminaciones sean precisas incluso con ítems duplicados.
+- **[UX] Confirmación en Checkout**: Inclusión de la fecha seleccionada en el resumen lateral del registro de viajeros, brindando visibilidad total durante todo el proceso de compra.
+- **[Optimization] Backend Metadata**: El serializador de ítems de carrito ahora entrega metadatos sobre el tipo de paquete (fijo/flexible) para adaptar la interfaz dinámicamente.
+
 ### 3.8.0 — Políticas de Cancelación, UX Reactiva y Seguridad de Sesión (SCRUM-57)
 > Archivos: `pago.vue`, `checkout-viajeros.vue`, `useCatalogo.js`, `axios.js`, `router/index.js`, `main.js`
 
@@ -34,7 +57,7 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 - **[Feature] Consulta Manual de Políticas**: Adición de un botón de acceso rápido en el resumen de compra para consultar los términos de cancelación en cualquier momento si han sido previamente omitidos.
 - **[UX] Sincronización de Inventario Inmediata**: Actualización reactiva del catálogo en el frontend (stock y ventas totales) tras un pago exitoso, proporcionando feedback visual "en tiempo real" sin recargar la página.
 - **[Security] Interceptor de Sesión Caducada**: Implementación de lógica de cierre de sesión automático al detectar errores `401 Unauthorized`, redirigiendo al usuario al login y limpiando estados para mayor seguridad.
-- **[UX] Control de Scroll Global**: Configuración de `scrollBehavior` en el router y restauración manual en el navegador para garantizar que todas las vistas carguen siempre desde la parte superior.
+- **[UX] Control de Scroll Global**: Configuración de `scrollBehavior` en el router y restauración manual en el navegador para garantizar que todas las vistas carguen siempre desde la superior.
 - **[Refactor] Optimización Post-Pago**: Eliminación del envío automático de correos de verificación y simplificación del modal de éxito para un flujo de cierre de venta más limpio.
 - **[UI/UX] Pulido de Botón Transaccional**: Rediseño y organización de estilos del botón "Continuar al Pago Seguro" con degradados premium, estados de carga (loading) y tipografía optimizada.
 

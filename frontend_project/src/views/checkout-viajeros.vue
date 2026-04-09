@@ -504,7 +504,11 @@ const btnClasses = computed(() => {
                 </div>
                 <div class="flex-1 min-w-0">
                   <p class="text-white/80 text-xs font-semibold leading-snug line-clamp-2">{{ tour.nombre }}</p>
-                  <p class="text-white/35 text-[10px] mt-0.5">{{ tour.cantidad }} persona{{ tour.cantidad > 1 ? 's' : '' }} · {{ formatPrecio(tour.precio) }} c/u</p>
+                  <p class="text-white/35 text-[10px] mt-0.5">
+                    {{ tour.cantidad }} persona{{ tour.cantidad > 1 ? 's' : '' }} · 
+                    <span class="text-emerald-400 font-bold" v-if="tour.fecha_reserva">{{ tour.fecha_reserva }}</span>
+                    <span class="text-emerald-400 font-bold" v-else-if="tour.fecha_realizacion">{{ tour.fecha_realizacion }}</span>
+                  </p>
                 </div>
               </div>
 

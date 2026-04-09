@@ -28,6 +28,15 @@ const nivelRiesgo = (n) => {
 };
 
 const puedeComprar = props.rol !== 'proveedor';
+
+const formatFecha = (fecha) => {
+    if (!fecha) return '';
+    const [y, m, d] = fecha.split('-');
+    const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    return `${d} ${meses[parseInt(m)-1]}. ${y}`;
+};
+
+const alertaCupos = (cupos) => cupos !== null && cupos !== undefined && cupos <= 5;
 </script>
 
 <template>
@@ -54,6 +63,18 @@ const puedeComprar = props.rol !== 'proveedor';
           <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
         </svg>
         {{ nivelRiesgo(tour.nivel_riesgo).label }}
+      </span>
+
+      <!-- Badge Fijo / Flexible (arriba derecha) -->
+      <span v-if="tour.tipo_paquete === 'fijo'"
+        class="absolute top-3 right-3 flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-blue-600/90 text-white backdrop-blur-sm shadow">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Fijo
+      </span>
+      <span v-else-if="tour.tipo_paquete === 'flexible'"
+        class="absolute top-3 right-3 flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-600/90 text-white backdrop-blur-sm shadow">
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Flexible
       </span>
     </div>
 
@@ -100,7 +121,7 @@ const puedeComprar = props.rol !== 'proveedor';
         <!-- Contador de Ventas (Social Proof) -->
         <span class="ml-auto flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-          {{ tour.ventas_totales || 0 }} vendidos
+          {{ tour.reservas_totales || 0 }} reservados
         </span>
       </div>
 
@@ -108,7 +129,33 @@ const puedeComprar = props.rol !== 'proveedor';
       <h3 class="font-bold text-gray-900 text-base leading-snug line-clamp-2">{{ tour.nombre }}</h3>
 
       <!-- 3. Breve descripción -->
-      <p class="text-sm text-gray-500 line-clamp-2 leading-relaxed flex-1">{{ tour.descripcion }}</p>
+      <p class="text-sm text-gray-500 line-clamp-2 leading-relaxed">{{ tour.descripcion }}</p>
+
+      <!-- Fecha (paquete fijo) + Cupos disponibles -->
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Fecha del tour fijo -->
+        <span v-if="tour.tipo_paquete === 'fijo' && tour.fecha_realizacion"
+          class="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          {{ formatFecha(tour.fecha_realizacion) }}
+        </span>
+        <!-- Paquete flexible -->
+        <span v-else-if="tour.tipo_paquete === 'flexible'"
+          class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          Tú eliges la fecha
+        </span>
+        <!-- Cupos disponibles -->
+        <span v-if="tour.cupos_disponibles !== undefined"
+          :class="['inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border',
+            alertaCupos(tour.cupos_disponibles)
+              ? 'text-red-600 bg-red-50 border-red-100 animate-pulse'
+              : 'text-slate-500 bg-slate-50 border-slate-100'
+          ]">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          {{ tour.cupos_disponibles === 0 ? '¡Sin cupos!' : `${tour.cupos_disponibles} cupos` }}
+        </span>
+      </div>
 
       <!-- 4. Íconos: Ubicación y Duración -->
       <div class="flex items-center gap-4 text-xs text-gray-500 pt-1 border-t border-gray-50">

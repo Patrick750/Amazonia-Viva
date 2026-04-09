@@ -5,7 +5,8 @@ from .views import (
     DeletePack, CatalogoTours, CatalogoProductos, CategoriaPaqueteListView,
     CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
     DetalleProductoPublico, UserStatsView, PerfilView, PerfilFotoView,
-    VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView
+    VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView,
+    CuposDisponiblesView
 )
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
 
@@ -41,4 +42,5 @@ urlpatterns = [
     path("verificar-credenciales/", VerificarCredenciales.as_view(), name="verificar_credenciales"),
     path("confirmar-password/", ConfirmarPasswordView.as_view(), name="confirmar_password"),
     path("venta/procesar/", ProcesarPagoView.as_view(), name="procesar_pago"),
+    path("cupos/<int:pk>/", CuposDisponiblesView.as_view(), name="cupos_disponibles"),
 ]

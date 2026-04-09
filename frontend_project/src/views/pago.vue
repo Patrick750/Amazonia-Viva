@@ -12,9 +12,10 @@ const {
   subtotalProductos, 
   subtotalTours, 
   tarifaEcologica,
-  toursSeleccionados, // Tours del carrito
-  productosSeleccionados, // Productos físicos en el carrito (asumido para el composable)
+  toursSeleccionados,
+  productosSeleccionados,
   itemsSeleccionados,
+  itemsCarrito,
   vaciarCarrito
 } = useCarrito();
 
@@ -119,7 +120,13 @@ const esPagoValido = computed(() => {
     return false;
 });
 
-const todoValido = computed(() => esEnvioValido.value && esPagoValido.value);
+const todoValido = computed(() => {
+    if (!esEnvioValido.value || !esPagoValido.value) return false;
+    
+    // Validar solo los tours que el usuario ha SELECCIONADO para pagar ahora
+    const toursSinFecha = toursSeleccionados.value.filter(t => !t.fecha_reserva);
+    return toursSinFecha.length === 0;
+});
 
 // --- CLASES DINÁMICAS (Validación Visual) ---
 const getClassInput = (esValido) => {
@@ -145,6 +152,16 @@ const confirmarYPagar = () => {
             finalizarProcesoDePago();
         } else {
             mostrarModalTerminos.value = true;
+            
+            // Mostrar modal de éxito
+            mostrarModalExito.value = true;
+
+        } catch (error) {
+            console.error("Error al procesar el pago:", error);
+            alert("Hubo un error procesando el pago. Inténtalo de nuevo.");
+        } finally {
+            cargandoPago.value = false;
+>>>>>>> SCRUM-61-Edicion-de-proceso-de-gestion-de-paquetes-turisticos
         }
     }
 };

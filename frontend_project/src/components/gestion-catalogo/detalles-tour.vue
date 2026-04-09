@@ -282,8 +282,8 @@ const getNombreActividad = (id) => {
                                     <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
                                 </div>
                                 <div class="flex flex-col">
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Éxito en Ventas</p>
-                                    <p class="text-sm font-black text-emerald-700">{{ paquete?.ventas_totales || 0 }} unidades</p>
+                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Reservas Totales</p>
+                                    <p class="text-sm font-black text-emerald-700">{{ paquete?.reservas_totales || 0 }} unidades</p>
                                 </div>
                             </div>
 

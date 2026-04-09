@@ -97,9 +97,17 @@ export function useCatalogo() {
      * @param {number} id - ID del item
      * @param {number} precio - Precio unitario
      * @param {'paquete'|'producto'} tipo
-     * @param {Object} extra - Datos adicionales { nombre, imagen, subtitulo }
+     * @param {Object} extra - Datos adicionales { nombre, imagen, subtitulo, fecha_reserva }
      */
     const agregarAlCarrito = (id, precio, tipo = 'paquete', extra = {}) => {
+        const { estaEnCarrito } = useCarrito();
+        
+        // 0. Verificar si ya existe para evitar duplicados según requerimiento
+        if (estaEnCarrito(id, tipo)) {
+             mostrarNotificacion('Este paquete ya está en tu maleta.', 'info');
+             return false;
+        }
+
         // 1. Agregar localmente para feedback inmediato
         agregarItem({
             id,
@@ -108,6 +116,9 @@ export function useCatalogo() {
             nombre: extra.nombre || 'Ítem',
             imagen: extra.imagen || null,
             subtitulo: extra.subtitulo || '',
+            fecha_reserva: extra.fecha_reserva || null,
+            tipo_paquete: extra.tipo_paquete || null,
+            fecha_realizacion: extra.fecha_realizacion || null,
         });
 
         // 2. Sincronizar con el backend si está autenticado
@@ -115,7 +126,7 @@ export function useCatalogo() {
         if (token) {
             const data = tipo === 'producto' 
                 ? { producto: id, precio } 
-                : { paquetes: id, precio };
+                : { paquetes: id, precio, fecha_reserva: extra.fecha_reserva || null };
             
             axios.post('api/carrito/', data).then(res => {
                 // Actualizar con el ID de la base de datos para permitir borrado posterior
@@ -131,6 +142,22 @@ export function useCatalogo() {
 
         mostrarNotificacion('¡Agregado al carrito!', 'exito');
         return true;
+    };
+
+    /**
+     * Consulta cupos disponibles para un paquete en una fecha dada.
+     * @param {number} paqueteId
+     * @param {string} fecha - Formato YYYY-MM-DD
+     */
+    const obtenerCuposDisponibles = async (paqueteId, fecha = null) => {
+        try {
+            const params = fecha ? `?fecha=${fecha}` : '';
+            const res = await axios.get(`api/cupos/${paqueteId}/${params}`);
+            return res.data;
+        } catch (e) {
+            console.error('Error al obtener cupos:', e);
+            return null;
+        }
     };
 
 
@@ -157,8 +184,8 @@ export function useCatalogo() {
         cargandoTours, cargandoProductos, cargandoCategorias,
         errorTours, errorProductos, 
         cargarTours, cargarProductos, cargarCategorias,
-        obtenerTourPorId, obtenerProductoPorId, toggleFavorito, agregarAlCarrito,
-        actualizarStockLocal
+        obtenerTourPorId, obtenerProductoPorId, toggleFavorito,
+        agregarAlCarrito, obtenerCuposDisponibles, actualizarStockLocal
     };
 
 }

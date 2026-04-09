@@ -80,8 +80,12 @@ export function useCarrito() {
                     precio: item.precio,
                     imagen: item.imagen,
                     subtitulo: item.subtitulo,
-                    cantidad: 1,
-                    seleccionado: true
+                    cantidad: item.cantidad || 1,
+                    seleccionado: true,
+                    fecha_reserva: item.fecha_reserva,
+                    tipo_paquete: item.tipo_paquete,
+                    fecha_realizacion: item.fecha_realizacion,
+                    uuid: crypto.randomUUID()
                 }));
             }
         } catch (e) {
@@ -96,22 +100,31 @@ export function useCarrito() {
     };
 
     const agregarItem = (item) => {
+        // Agrupamos por ID y Tipo para evitar duplicados en la lista (tanto productos como paquetes)
         const yaExiste = itemsCarrito.value.find(
             i => i.id === item.id && i.tipo === item.tipo
         );
+        
         if (yaExiste) {
+            // Si ya existe, simplemente incrementamos la cantidad
             yaExiste.cantidad = (yaExiste.cantidad || 1) + 1;
+            
+            // Si tiene db_id, sincronizar con backend (opcional, pero recomendado para persistencia)
+            if (yaExiste.db_id) {
+                axios.patch(`api/carrito/${yaExiste.db_id}/`, { cantidad: yaExiste.cantidad })
+                .catch(err => console.error('Error al sincronizar cantidad extra:', err));
+            }
         } else {
             itemsCarrito.value = [
                 ...itemsCarrito.value,
-                { ...item, cantidad: 1, seleccionado: true }
+                { ...item, uuid: crypto.randomUUID(), cantidad: 1, seleccionado: true }
             ];
         }
     };
 
-    const eliminarItem = (id, tipo) => {
+    const eliminarItem = (uuid) => {
         // 1. Sincronizar con backend si existe db_id
-        const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+        const item = itemsCarrito.value.find(i => i.uuid === uuid);
         if (item && item.db_id) {
             axios.delete(`api/carrito/${item.db_id}/`).catch(err => {
                 console.error('Error al eliminar ítem del servidor:', err);
@@ -120,15 +133,35 @@ export function useCarrito() {
 
         // 2. Eliminar localmente
         itemsCarrito.value = itemsCarrito.value.filter(
-            i => !(i.id === id && i.tipo === tipo)
+            i => i.uuid !== uuid
         );
     };
 
 
-    const actualizarCantidad = (id, tipo, nuevaCantidad) => {
-        const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+    const actualizarCantidad = (uuid, nuevaCantidad) => {
+        const item = itemsCarrito.value.find(i => i.uuid === uuid);
         if (item) {
-            item.cantidad = Math.max(1, Number(nuevaCantidad));
+            const val = Math.max(1, Number(nuevaCantidad));
+            item.cantidad = val;
+
+            // Sincronizar con backend
+            if (item.db_id) {
+                axios.patch(`api/carrito/${item.db_id}/`, { cantidad: val })
+                .catch(err => console.error('Error al sincronizar cantidad:', err));
+            }
+        }
+    };
+
+    const actualizarFecha = (uuid, nuevaFecha) => {
+        const item = itemsCarrito.value.find(i => i.uuid === uuid);
+        if (item) {
+            item.fecha_reserva = nuevaFecha;
+            
+            // Si tiene db_id, sincronizar con backend
+            if (item.db_id) {
+                axios.patch(`api/carrito/${item.db_id}/`, { fecha_reserva: nuevaFecha })
+                .catch(err => console.error('Error al sincronizar fecha:', err));
+            }
         }
     };
 
@@ -136,8 +169,8 @@ export function useCarrito() {
         itemsCarrito.value = [];
     };
 
-    const toggleSeleccion = (id, tipo) => {
-        const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+    const toggleSeleccion = (uuid) => {
+        const item = itemsCarrito.value.find(i => i.uuid === uuid);
         if (item) item.seleccionado = !item.seleccionado;
     };
 
@@ -169,6 +202,7 @@ export function useCarrito() {
         agregarItem,
         eliminarItem,
         actualizarCantidad,
+        actualizarFecha,
         vaciarCarrito,
         estaEnCarrito,
         toggleSeleccion,
