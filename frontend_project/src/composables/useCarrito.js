@@ -81,7 +81,10 @@ export function useCarrito() {
                     imagen: item.imagen,
                     subtitulo: item.subtitulo,
                     cantidad: 1,
-                    seleccionado: true
+                    seleccionado: true,
+                    fecha_reserva: item.fecha_reserva,
+                    tipo_paquete: item.tipo_paquete,
+                    fecha_realizacion: item.fecha_realizacion
                 }));
             }
         } catch (e) {
@@ -132,6 +135,19 @@ export function useCarrito() {
         }
     };
 
+    const actualizarFecha = (id, tipo, nuevaFecha) => {
+        const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+        if (item) {
+            item.fecha_reserva = nuevaFecha;
+            
+            // Si tiene db_id, sincronizar con backend
+            if (item.db_id) {
+                axios.patch(`api/carrito/${item.db_id}/`, { fecha_reserva: nuevaFecha })
+                .catch(err => console.error('Error al sincronizar fecha:', err));
+            }
+        }
+    };
+
     const vaciarCarrito = () => {
         itemsCarrito.value = [];
     };
@@ -169,6 +185,7 @@ export function useCarrito() {
         agregarItem,
         eliminarItem,
         actualizarCantidad,
+        actualizarFecha,
         vaciarCarrito,
         estaEnCarrito,
         toggleSeleccion,

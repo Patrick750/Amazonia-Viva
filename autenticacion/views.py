@@ -731,6 +731,15 @@ class ProcesarPagoView(APIView):
                     if not fecha_reserva and paquete.tipo_paquete == 'fijo' and paquete.fecha_realizacion:
                         fecha_reserva = paquete.fecha_realizacion
 
+                    # Validar que la fecha sea al menos 7 días a futuro
+                    if fecha_reserva:
+                        from datetime import timedelta
+                        fecha_minima = date.today() + timedelta(days=7)
+                        if fecha_reserva < fecha_minima:
+                            return Response({
+                                'error': f'La fecha de reserva para "{paquete.nombre}" debe ser al menos 7 días a futuro (mínimo: {fecha_minima}).'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
                     # Validar cupos disponibles si hay fecha
                     if fecha_reserva:
                         from .serializers import calcular_cupos_disponibles

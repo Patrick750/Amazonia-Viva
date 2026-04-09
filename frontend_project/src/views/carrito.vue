@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCarrito } from '@/composables/useCarrito';
 
@@ -8,9 +8,39 @@ const {
     tours, productos, itemsCarrito,
     itemsSeleccionados, todoSeleccionado, toursSeleccionados,
     subtotalTours, subtotalProductos, tarifaEcologica, totalFinal,
-    eliminarItem, actualizarCantidad,
+    eliminarItem, actualizarCantidad, actualizarFecha,
     toggleSeleccion, seleccionarTodos, deseleccionarTodos,
 } = useCarrito();
+
+import { useCatalogo } from '@/composables/useCatalogo';
+import { useNotificacion } from '@/composables/useNotificacion';
+
+const { obtenerCuposDisponibles } = useCatalogo();
+const { mostrarNotificacion } = useNotificacion();
+
+const fechaMinima = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+})();
+
+const cuposStatus = ref({}); // { item_id: { cupos: number, cargando: boolean } }
+
+const manejarCambioFecha = async (item, nuevaFecha) => {
+    actualizarFecha(item.id, 'paquete', nuevaFecha);
+    if (!nuevaFecha) {
+        if (cuposStatus.value[item.id]) delete cuposStatus.value[item.id];
+        return;
+    }
+    
+    cuposStatus.value[item.id] = { ...cuposStatus.value[item.id], cargando: true };
+    try {
+        const res = await obtenerCuposDisponibles(item.id, nuevaFecha);
+        cuposStatus.value[item.id] = { cupos: res.cupos_disponibles, cargando: false };
+    } catch {
+        cuposStatus.value[item.id] = { cupos: null, cargando: false };
+    }
+};
 
 const formatPrecio = (valor) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(valor);
@@ -31,6 +61,33 @@ const toggleTodos = () => {
 };
 
 const irAPago = () => {
+    // 1. Validar que todos los tours SELECCIONADOS tengan fecha elegida
+    const toursSinFecha = toursSeleccionados.value.filter(t => !t.fecha_reserva);
+    if (toursSinFecha.length > 0) {
+        mostrarNotificacion(`Debes elegir la fecha para: ${toursSinFecha[0].nombre}`, 'warning');
+        return;
+    }
+
+    // 2. Validar que la fecha sea al menos 7 días a futuro (por seguridad si se manipuló el input)
+    const hoyReferencia = new Date();
+    hoyReferencia.setDate(hoyReferencia.getDate() + 7);
+    hoyReferencia.setHours(0, 0, 0, 0);
+
+    for (const tour of toursSeleccionados.value) {
+        const f = new Date(tour.fecha_reserva + 'T00:00:00');
+        if (f < hoyReferencia) {
+            mostrarNotificacion(`La fecha de '${tour.nombre}' debe ser al menos 7 días a futuro.`, 'warning');
+            return;
+        }
+        
+        // 3. Validar cupos si ya se cargaron
+        const status = cuposStatus.value[tour.id];
+        if (status && status.cupos === 0) {
+            mostrarNotificacion(`No hay cupos disponibles para '${tour.nombre}' en la fecha seleccionada.`, 'error');
+            return;
+        }
+    }
+
     // Si hay tours seleccionados → registrar datos de viajeros primero
     if (toursSeleccionados.value.length > 0) {
         router.push('/checkout/viajeros');
@@ -206,14 +263,46 @@ const irAPago = () => {
                       </svg>
                     </div>
                   </div>
-                  <!-- Info -->
-                  <div class="flex-1 min-w-0">
-                    <p class="text-emerald-400/70 text-xs font-medium mb-0.5">Expedición</p>
-                    <h3 class="text-white font-bold text-sm leading-snug mb-1 line-clamp-2">{{ item.nombre }}</h3>
-                    <p v-if="item.subtitulo" class="text-white/35 text-xs">{{ item.subtitulo }}</p>
-                    <!-- Precio unitario -->
-                    <p class="text-white/50 text-xs mt-2">{{ formatPrecio(item.precio) }} / persona</p>
-                  </div>
+                    <!-- Info -->
+                    <div class="flex-1 min-w-0">
+                      <p class="text-emerald-400/70 text-xs font-medium mb-0.5">Expedición</p>
+                      <h3 class="text-white font-bold text-sm leading-snug mb-1 line-clamp-1">{{ item.nombre }}</h3>
+                      
+                      <!-- Selector de Fecha / Info de Fecha -->
+                      <div class="mt-3 bg-white/5 border border-white/10 rounded-xl p-2.5">
+                        <div v-if="item.tipo_paquete === 'flexible'">
+                          <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                             Elige fecha de inicio
+                          </p>
+                          <input
+                            type="date"
+                            :value="item.fecha_reserva"
+                            :min="fechaMinima"
+                            @change="(e) => manejarCambioFecha(item, e.target.value)"
+                            class="w-full bg-[#0a1a0f] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-emerald-500/50 transition-all"
+                          >
+                          <!-- Cupos feedback -->
+                          <div v-if="cuposStatus[item.id]" class="mt-1.5 px-2 py-1 rounded-md text-[10px] font-bold inline-flex items-center gap-1.5"
+                            :class="cuposStatus[item.id].cupos === 0 ? 'bg-red-500/10 text-red-400' : (cuposStatus[item.id].cupos <= 5 ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400')">
+                            <span v-if="cuposStatus[item.id].cargando" class="animate-pulse">Verificando...</span>
+                            <span v-else-if="cuposStatus[item.id].cupos === 0">Sin cupos</span>
+                            <span v-else>{{ cuposStatus[item.id].cupos }} cupos disponibles</span>
+                          </div>
+                        </div>
+                        <div v-else class="flex items-center gap-2">
+                          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                          <div>
+                            <p class="text-[9px] text-white/30 uppercase tracking-tighter">Fecha fija de salida</p>
+                            <p class="text-xs font-black text-emerald-300">{{ item.fecha_realizacion }}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p class="text-white/40 text-[10px] mt-2 italic shadow-sm" v-if="item.tipo_paquete === 'flexible' && !item.fecha_reserva">
+                        * Debes elegir una fecha antes de pagar
+                      </p>
+                    </div>
                   <!-- Controles derecha -->
                   <div class="flex flex-col items-end justify-between gap-2 flex-shrink-0">
                     <!-- Eliminar -->
@@ -465,9 +554,10 @@ const irAPago = () => {
 </template>
 
 <style scoped>
-.line-clamp-2 {
+.line-clamp-1 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  -webkit-line-clamp: 1;
 }
 </style>

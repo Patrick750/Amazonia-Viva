@@ -31,11 +31,8 @@ const tooltipPos = ref({ x: 0, y: 0 });
 let tooltipTimeout = null;
 
 // --- FECHAS Y CUPOS ---
-const fechaElegida = ref('');
 const cuposDisponibles = ref(null);
 const cargandoCupos = ref(false);
-
-const hoy = new Date().toISOString().split('T')[0];
 
 const consultarCupos = async (fecha) => {
     if (!tour.value) return;
@@ -50,11 +47,6 @@ const consultarCupos = async (fecha) => {
         cargandoCupos.value = false;
     }
 };
-
-watch(fechaElegida, (nuevaFecha) => {
-    if (nuevaFecha) consultarCupos(nuevaFecha);
-    else cuposDisponibles.value = null;
-});
 
 const sinCupos = computed(() => cuposDisponibles.value !== null && cuposDisponibles.value === 0);
 const pocoCupos = computed(() => cuposDisponibles.value !== null && cuposDisponibles.value > 0 && cuposDisponibles.value <= 5);
@@ -156,19 +148,10 @@ const handleAccion = async (tipo, event) => {
     }
 
     if (tipo === 'carrito') {
-        // Validar fecha si el paquete es flexible
-        if (tour.value.tipo_paquete === 'flexible' && !fechaElegida.value) {
-            mostrarNotificacion('Debes elegir una fecha para este tour flexible.', 'warning');
-            return;
-        }
-        // Validar cupos
-        if (cuposDisponibles.value !== null && cuposDisponibles.value <= 0) {
-            mostrarNotificacion('No hay cupos disponibles para la fecha seleccionada.', 'error');
-            return;
-        }
         const fechaParaCarrito = tour.value.tipo_paquete === 'fijo' 
             ? tour.value.fecha_realizacion 
-            : fechaElegida.value;
+            : null;
+
         await agregarAlCarrito(
             tour.value.id,
             tour.value.precio,
@@ -177,7 +160,9 @@ const handleAccion = async (tipo, event) => {
                 nombre: tour.value.nombre,
                 imagen: imagenPrincipal.value || null,
                 subtitulo: `${tour.value.duracion}h · ${tour.value.ubicacion}`,
-                fecha_reserva: fechaParaCarrito || null,
+                fecha_reserva: fechaParaCarrito,
+                tipo_paquete: tour.value.tipo_paquete,
+                fecha_realizacion: tour.value.fecha_realizacion,
             }
         );
     } else if (tipo === 'favorito') {
@@ -547,7 +532,7 @@ const formatTime = (timeStr) => {
                                     <input
                                         v-model="fechaElegida"
                                         type="date"
-                                        :min="hoy"
+                                        :min="fechaMinima"
                                         class="w-full bg-white border-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-800 focus:outline-none transition-all"
                                         :class="fechaElegida ? 'border-emerald-400 focus:border-emerald-500' : 'border-emerald-200 focus:border-emerald-400'"
                                     >

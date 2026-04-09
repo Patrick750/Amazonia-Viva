@@ -109,6 +109,8 @@ export function useCatalogo() {
             imagen: extra.imagen || null,
             subtitulo: extra.subtitulo || '',
             fecha_reserva: extra.fecha_reserva || null,
+            tipo_paquete: extra.tipo_paquete || null,
+            fecha_realizacion: extra.fecha_realizacion || null,
         });
 
         // 2. Sincronizar con el backend si está autenticado

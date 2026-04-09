@@ -553,9 +553,24 @@ class CarritoItemDetailSerializer(serializers.ModelSerializer):
         if obj.producto: return obj.producto.categorias.nombre if obj.producto.categorias else ''
         return ''
 
+    # Campos adicionales para paquetes (ayuda al frontend en el carrito)
+    tipo_paquete = serializers.SerializerMethodField()
+    fecha_realizacion = serializers.SerializerMethodField()
+
+    def get_tipo_paquete(self, obj):
+        if obj.paquetes: return obj.paquetes.tipo_paquete
+        return None
+
+    def get_fecha_realizacion(self, obj):
+        if obj.paquetes: return obj.paquetes.fecha_realizacion
+        return None
+
     class Meta:
         model = Items
-        fields = ['id', 'tipo', 'item_id', 'nombre', 'precio', 'imagen', 'subtitulo', 'fecha_reserva']
+        fields = [
+            'id', 'tipo', 'item_id', 'nombre', 'precio', 'imagen', 'subtitulo', 
+            'fecha_reserva', 'tipo_paquete', 'fecha_realizacion'
+        ]
 
 
 class SerializerDetalleTour(serializers.ModelSerializer):
