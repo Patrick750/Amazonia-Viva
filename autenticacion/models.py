@@ -115,6 +115,10 @@ class CategoriaPaquete(models.Model):
 
 
 class PaqueteTuristico(models.Model):
+    TIPO_PAQUETE_CHOICES = [
+        ('fijo', 'Fijo'),
+        ('flexible', 'Flexible'),
+    ]
 
     # --- Datos Básicos ---
     activo = models.BooleanField(default=True, verbose_name="Activo")
@@ -123,6 +127,19 @@ class PaqueteTuristico(models.Model):
     precio = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Precio (COP)")
     duracion = models.CharField(max_length=100, verbose_name="Duración")
     capacidad = models.PositiveIntegerField(verbose_name="Capacidad Máxima")
+
+    # --- Fecha y Tipo ---
+    fecha_realizacion = models.DateField(
+        null=True, blank=True,
+        verbose_name="Fecha de Realización",
+        help_text="Si se establece, el paquete es Fijo. Si está vacío, es Flexible."
+    )
+    tipo_paquete = models.CharField(
+        max_length=10,
+        choices=TIPO_PAQUETE_CHOICES,
+        default='flexible',
+        verbose_name="Tipo de Paquete"
+    )
     
     # --- Ubicación y Mapas ---
     ubicacion = models.CharField(max_length=255, verbose_name="Ubicación (Texto)")
@@ -155,7 +172,6 @@ class PaqueteTuristico(models.Model):
     )
 
     # --- LOS CAMPOS DINÁMICOS DE VUE ---
-    # JSONField es perfecto para guardar exactamente los arrays que generamos en el frontend
     itinerario = models.JSONField(
         default=list, 
         verbose_name="Itinerario Detallado",
@@ -172,6 +188,18 @@ class PaqueteTuristico(models.Model):
     class Meta:
         verbose_name = "Paquete Turístico"
         verbose_name_plural = "Paquetes Turísticos"
+
+    def save(self, *args, **kwargs):
+        from django.utils import timezone
+        # Auto-calcular tipo según si hay fecha
+        if self.fecha_realizacion:
+            self.tipo_paquete = 'fijo'
+            # Si la fecha ya pasó, marcar como inactivo
+            if self.fecha_realizacion < timezone.now().date():
+                self.activo = False
+        else:
+            self.tipo_paquete = 'flexible'
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nombre
@@ -219,6 +247,7 @@ class Items(models.Model):
     producto = models.ForeignKey(Productos, on_delete=models.CASCADE,  related_name='item_productos', null=True, blank=True)
     paquetes = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE,  related_name='item_paquetes', null=True, blank=True)
     precio = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
+    fecha_reserva = models.DateField(null=True, blank=True, verbose_name="Fecha de Reserva", help_text="Fecha elegida por el turista para realizar el paquete (solo aplica a paquetes).")
 
 class Favoritos(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='favorito_usuario')
@@ -239,5 +268,29 @@ class Detalles_Venta(models.Model):
     paquete = models.IntegerField(null=False, blank=False)
     cantidad = models.IntegerField(null=False, blank=False)
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
-    
 
+
+class ReservaFecha(models.Model):
+    """Registra la fecha elegida por cada turista al reservar un paquete.
+    Permite calcular cupos disponibles por fecha para paquetes flexibles y fijos."""
+    paquete = models.ForeignKey(
+        PaqueteTuristico,
+        on_delete=models.CASCADE,
+        related_name='reservas_fecha',
+        verbose_name="Paquete Turístico"
+    )
+    venta = models.ForeignKey(
+        Venta,
+        on_delete=models.CASCADE,
+        related_name='reservas_fecha_venta',
+        verbose_name="Venta"
+    )
+    fecha = models.DateField(verbose_name="Fecha de Realización")
+    cantidad = models.PositiveIntegerField(default=1, verbose_name="Cantidad de Personas")
+
+    class Meta:
+        verbose_name = "Reserva por Fecha"
+        verbose_name_plural = "Reservas por Fecha"
+
+    def __str__(self):
+        return f"{self.paquete.nombre} - {self.fecha} ({self.cantidad} personas)"

@@ -53,6 +53,7 @@ const filtroDuracion = ref(route.query.duracion || '');
 const filtroCategoria = ref(route.query.cat || '');
 const grupoSeleccionado = ref(route.query.grupo || '');
 const filtroRating = ref(Number(route.query.rating) || 0);
+const filtroTipo = ref(route.query.tipo || '');  // 'fijo' | 'flexible' | ''
 const opcionesDuracion = [
   { value: 'menos4', label: 'Menos de 4h' },
   { value: '4a8',    label: '4h – 8h' },
@@ -105,6 +106,7 @@ const toursFiltrados = computed(() => {
       return terms.every(term => s.includes(term));
     });
   }
+  if (filtroTipo.value) lista = lista.filter(t => t.tipo_paquete === filtroTipo.value);
   if (categoriaActiva.value) lista = lista.filter(t => t.categoria_paquete_nombre === categoriaActiva.value);
   if (orden.value === 'ubicacion' && filtroUbicacion.value.trim()) {
     const ciudad = filtroUbicacion.value.trim().toLowerCase();
@@ -171,10 +173,10 @@ const categoriasActuales = computed(() => tabActivo.value === 'tours' ? categori
 const hayFiltrosActivos = computed(() =>
   busqueda.value || categoriaActiva.value || filtroCategoria.value ||
   grupoSeleccionado.value || filtroUbicacion.value || filtroDuracion.value || 
-  orden.value || filtroRating.value > 0
+  orden.value || filtroRating.value > 0 || filtroTipo.value
 );
 
-watch([tabActivo, busqueda, orden, filtroUbicacion, filtroDuracion, filtroCategoria, grupoSeleccionado, categoriaActiva, filtroRating], () => {
+watch([tabActivo, busqueda, orden, filtroUbicacion, filtroDuracion, filtroCategoria, grupoSeleccionado, categoriaActiva, filtroRating, filtroTipo], () => {
   const query = {
     q: busqueda.value || undefined,
     orden: orden.value || undefined,
@@ -183,7 +185,8 @@ watch([tabActivo, busqueda, orden, filtroUbicacion, filtroDuracion, filtroCatego
     cat: filtroCategoria.value || undefined,
     grupo: grupoSeleccionado.value || undefined,
     seccion: categoriaActiva.value || undefined,
-    rating: filtroRating.value || undefined
+    rating: filtroRating.value || undefined,
+    tipo: filtroTipo.value || undefined,
   };
   router.replace({ query });
 });
@@ -197,6 +200,7 @@ const limpiarTodosLosFiltros = () => {
   filtroCategoria.value = '';
   grupoSeleccionado.value = '';
   filtroRating.value = 0;
+  filtroTipo.value = '';
   router.replace({ query: {} });
 };
 </script>
@@ -390,6 +394,37 @@ const limpiarTodosLosFiltros = () => {
             >
               <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
               {{ star }}+ Estrellas
+            </button>
+          </div>
+
+          <!-- Filtro Tipo de Paquete (solo Tours) -->
+          <div v-if="tabActivo === 'tours'" class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] font-bold text-white/25 uppercase tracking-widest mr-1">Tipo:</span>
+            
+            <button
+              @click="filtroTipo = filtroTipo === '' ? '' : ''"
+              :class="['px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 flex items-center gap-1.5',
+                filtroTipo === '' ? 'bg-white/15 text-white border-white/30' : 'bg-white/5 text-white/40 border-white/10 hover:border-white/25 hover:text-white/70']"
+            >
+              Todos
+            </button>
+
+            <button
+              @click="filtroTipo = filtroTipo === 'fijo' ? '' : 'fijo'"
+              :class="['px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 flex items-center gap-1.5',
+                filtroTipo === 'fijo' ? 'bg-blue-500/25 text-blue-300 border-blue-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:border-white/25 hover:text-white/70']"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              Fijo
+            </button>
+
+            <button
+              @click="filtroTipo = filtroTipo === 'flexible' ? '' : 'flexible'"
+              :class="['px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 flex items-center gap-1.5',
+                filtroTipo === 'flexible' ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/40' : 'bg-white/5 text-white/40 border-white/10 hover:border-white/25 hover:text-white/70']"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Flexible
             </button>
           </div>
 

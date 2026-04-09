@@ -186,14 +186,66 @@ class CatalogoTours(APIView):
 
     def get(self, request):
         try:
+            from django.utils import timezone as tz
             agencia_id = request.query_params.get('agencia_id', None)
+            tipo = request.query_params.get('tipo', None)  # 'fijo' | 'flexible'
+
             tours = PaqueteTuristico.objects.filter(activo=True).prefetch_related(
                 'imagen_paquete', 'actividades'
             ).select_related('agencia', 'categoria_paquete')
+
             if agencia_id:
                 tours = tours.filter(agencia_id=agencia_id)
+            if tipo in ('fijo', 'flexible'):
+                tours = tours.filter(tipo_paquete=tipo)
+
+            # Auto-expirar paquetes fijos con fecha pasada
+            vencidos = PaqueteTuristico.objects.filter(
+                activo=True,
+                tipo_paquete='fijo',
+                fecha_realizacion__lt=tz.now().date()
+            )
+            if vencidos.exists():
+                vencidos.update(activo=False)
+                # Excluir los recién vencidos del resultado actual
+                tours = tours.exclude(fecha_realizacion__lt=tz.now().date())
+
             serializer = SerializerCatalogoTour(tours, many=True)
             return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CuposDisponiblesView(APIView):
+    """GET /api/cupos/<pk>/?fecha=YYYY-MM-DD
+    Devuelve cupos disponibles para un paquete en una fecha específica."""
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, pk):
+        try:
+            from django.utils import timezone as tz
+            from datetime import date as date_type
+            from .serializers import calcular_cupos_disponibles
+            paquete = get_object_or_404(PaqueteTuristico, pk=pk)
+            fecha_str = request.query_params.get('fecha', None)
+
+            fecha = None
+            if fecha_str:
+                try:
+                    from datetime import date
+                    fecha = date.fromisoformat(fecha_str)
+                except ValueError:
+                    return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            cupos = calcular_cupos_disponibles(paquete, fecha)
+            return Response({
+                'paquete_id': pk,
+                'capacidad': paquete.capacidad,
+                'cupos_disponibles': cupos,
+                'fecha': fecha_str or (str(paquete.fecha_realizacion) if paquete.fecha_realizacion else None),
+                'tipo_paquete': paquete.tipo_paquete,
+            })
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -310,6 +362,7 @@ class CarritoView(APIView):
             producto_id = request.data.get('producto')
             paquetes_id = request.data.get('paquetes')
             precio = request.data.get('precio')
+            fecha_reserva = request.data.get('fecha_reserva')  # fecha elegida por el turista
 
             if not producto_id and not paquetes_id:
                 return Response({'error': 'Debe proporcionar un producto o un paquete.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -327,9 +380,15 @@ class CarritoView(APIView):
                     carrito=carrito,
                     producto_id=producto_id if producto_id else None,
                     paquetes_id=paquetes_id if paquetes_id else None,
-                    precio=precio
+                    precio=precio,
+                    fecha_reserva=fecha_reserva if fecha_reserva else None
                 )
                 created = True
+            else:
+                # Actualizar fecha_reserva si ya existía el item
+                if fecha_reserva:
+                    item.fecha_reserva = fecha_reserva
+                    item.save(update_fields=['fecha_reserva'])
 
             serializer = CarritoItemSerializer(item)
             return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
@@ -638,6 +697,7 @@ class ProcesarPagoView(APIView):
                 item_id = it.get('id')
                 cantidad = int(it.get('cantidad', 1))
                 precio = it.get('precio', 0)
+                fecha_reserva_str = it.get('fecha_reserva', None)
                 
                 if tipo == 'producto':
                     producto = get_object_or_404(Productos, pk=item_id)
@@ -657,6 +717,30 @@ class ProcesarPagoView(APIView):
                     )
                 elif tipo == 'paquete':
                     paquete = get_object_or_404(PaqueteTuristico, pk=item_id)
+
+                    # Determinar la fecha de reserva
+                    from datetime import date
+                    fecha_reserva = None
+                    if fecha_reserva_str:
+                        try:
+                            fecha_reserva = date.fromisoformat(fecha_reserva_str)
+                        except (ValueError, TypeError):
+                            pass
+                    # Si no viene del item, usar fecha_realizacion del paquete fijo
+                    if not fecha_reserva and paquete.tipo_paquete == 'fijo' and paquete.fecha_realizacion:
+                        fecha_reserva = paquete.fecha_realizacion
+
+                    # Validar cupos disponibles si hay fecha
+                    if fecha_reserva:
+                        from .serializers import calcular_cupos_disponibles
+                        cupos = calcular_cupos_disponibles(paquete, fecha_reserva)
+                        if cupos < cantidad:
+                            from django.db import transaction as db_transaction
+                            db_transaction.set_rollback(True)
+                            return Response({
+                                'error': f'No hay suficientes cupos para "{paquete.nombre}" en la fecha {fecha_reserva}. Disponibles: {cupos}.'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
                     Detalles_Venta.objects.create(
                         venta=venta,
                         producto=0,
@@ -664,6 +748,15 @@ class ProcesarPagoView(APIView):
                         cantidad=cantidad,
                         precio_unitario=precio
                     )
+
+                    # Registrar la reserva por fecha
+                    if fecha_reserva:
+                        ReservaFecha.objects.create(
+                            paquete=paquete,
+                            venta=venta,
+                            fecha=fecha_reserva,
+                            cantidad=cantidad
+                        )
 
             # Vaciar el Carrito en base de datos
             carrito = Carrito.objects.filter(usuario=request.user, status=True).first()

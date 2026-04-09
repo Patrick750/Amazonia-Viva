@@ -97,7 +97,7 @@ export function useCatalogo() {
      * @param {number} id - ID del item
      * @param {number} precio - Precio unitario
      * @param {'paquete'|'producto'} tipo
-     * @param {Object} extra - Datos adicionales { nombre, imagen, subtitulo }
+     * @param {Object} extra - Datos adicionales { nombre, imagen, subtitulo, fecha_reserva }
      */
     const agregarAlCarrito = (id, precio, tipo = 'paquete', extra = {}) => {
         // 1. Agregar localmente para feedback inmediato
@@ -108,6 +108,7 @@ export function useCatalogo() {
             nombre: extra.nombre || 'Ítem',
             imagen: extra.imagen || null,
             subtitulo: extra.subtitulo || '',
+            fecha_reserva: extra.fecha_reserva || null,
         });
 
         // 2. Sincronizar con el backend si está autenticado
@@ -115,7 +116,7 @@ export function useCatalogo() {
         if (token) {
             const data = tipo === 'producto' 
                 ? { producto: id, precio } 
-                : { paquetes: id, precio };
+                : { paquetes: id, precio, fecha_reserva: extra.fecha_reserva || null };
             
             axios.post('api/carrito/', data).then(res => {
                 // Actualizar con el ID de la base de datos para permitir borrado posterior
@@ -133,12 +134,29 @@ export function useCatalogo() {
         return true;
     };
 
+    /**
+     * Consulta cupos disponibles para un paquete en una fecha dada.
+     * @param {number} paqueteId
+     * @param {string} fecha - Formato YYYY-MM-DD
+     */
+    const obtenerCuposDisponibles = async (paqueteId, fecha = null) => {
+        try {
+            const params = fecha ? `?fecha=${fecha}` : '';
+            const res = await axios.get(`api/cupos/${paqueteId}/${params}`);
+            return res.data;
+        } catch (e) {
+            console.error('Error al obtener cupos:', e);
+            return null;
+        }
+    };
+
 
     return { 
         tours, productos, categoriasTours,
         cargandoTours, cargandoProductos, cargandoCategorias,
         errorTours, errorProductos, 
         cargarTours, cargarProductos, cargarCategorias,
-        obtenerTourPorId, obtenerProductoPorId, toggleFavorito, agregarAlCarrito
+        obtenerTourPorId, obtenerProductoPorId, toggleFavorito,
+        agregarAlCarrito, obtenerCuposDisponibles
     };
 }
