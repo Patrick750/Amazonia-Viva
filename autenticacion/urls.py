@@ -6,7 +6,7 @@ from .views import (
     CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
     DetalleProductoPublico, UserStatsView, PerfilView, PerfilFotoView,
     VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView,
-    CuposDisponiblesView
+    CuposDisponiblesView, MisReservasView, CancelarReservaView
 )
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
 
@@ -43,4 +43,6 @@ urlpatterns = [
     path("confirmar-password/", ConfirmarPasswordView.as_view(), name="confirmar_password"),
     path("venta/procesar/", ProcesarPagoView.as_view(), name="procesar_pago"),
     path("cupos/<int:pk>/", CuposDisponiblesView.as_view(), name="cupos_disponibles"),
+    path("mis-reservas/", MisReservasView.as_view(), name="mis_reservas"),
+    path("mis-reservas/<int:pk>/cancelar/", CancelarReservaView.as_view(), name="cancelar_reserva"),
 ]

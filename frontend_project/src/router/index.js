@@ -13,6 +13,7 @@ import Carrito from '@/views/carrito.vue'
 import CheckoutViajeros from '@/views/checkout-viajeros.vue'
 import Pago from '@/views/pago.vue'
 import home from '@/views/home.vue'
+import MisReservas from '@/views/mis-reservas.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -115,6 +116,12 @@ const router = createRouter({
       path: '/mi-perfil',
       name: 'mi_perfil',
       component: () => import('@/views/perfil-turista.vue'),
+      meta: { requiresAuth: true, roles: ['turista'] },
+    },
+    {
+      path: '/panel/reservas',
+      name: 'mis_reservas',
+      component: MisReservas,
       meta: { requiresAuth: true, roles: ['turista'] },
     },
   ],

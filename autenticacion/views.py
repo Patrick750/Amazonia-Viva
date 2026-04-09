@@ -859,4 +859,176 @@ class ProcesarPagoView(APIView):
                 'detalle': msg_error
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
+
+class MisReservasView(APIView):
+    """
+    GET /api/mis-reservas/
+    Devuelve todas las reservas de paquetes turísticos del turista autenticado.
+    Cada ítem incluye estado semántico: 'Confirmado', 'Cancelado' o 'Realizado'.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from datetime import date as date_type
+        try:
+            if not Turista.objects.filter(pk=request.user.pk).exists():
+                return Response({'error': 'Acceso restringido a turistas.'}, status=status.HTTP_403_FORBIDDEN)
+
+            detalles = Detalles_Venta.objects.filter(
+                venta__usuario=request.user,
+                paquete__gt=0,
+            ).select_related('venta').order_by('-venta__fecha')
+
+            resultado = []
+            hoy = date_type.today()
+
+            for detalle in detalles:
+                paquete = PaqueteTuristico.objects.filter(pk=detalle.paquete).select_related('agencia').prefetch_related('imagen_paquete').first()
+                if not paquete:
+                    continue
+
+                reserva_fecha = ReservaFecha.objects.filter(
+                    paquete=paquete,
+                    venta=detalle.venta
+                ).first()
+
+                fecha_actividad = None
+                if reserva_fecha:
+                    fecha_actividad = str(reserva_fecha.fecha)
+                elif paquete.fecha_realizacion:
+                    fecha_actividad = str(paquete.fecha_realizacion)
+
+                estado_raw = detalle.estado
+                if estado_raw == 'Confirmado':
+                    if fecha_actividad:
+                        try:
+                            from datetime import date as dt
+                            fa = dt.fromisoformat(fecha_actividad)
+                            estado_semantico = 'Realizado' if fa < hoy else 'Confirmado'
+                        except Exception:
+                            estado_semantico = 'Confirmado'
+                    else:
+                        estado_semantico = 'Confirmado'
+                elif estado_raw == 'Cancelado':
+                    estado_semantico = 'Cancelado'
+                else:
+                    estado_semantico = estado_raw
+
+                imagen_portada = None
+                portada = paquete.imagen_paquete.filter(es_portada=True).first()
+                if portada:
+                    imagen_portada = portada.imagen.url
+                else:
+                    primera = paquete.imagen_paquete.first()
+                    if primera:
+                        imagen_portada = primera.imagen.url
+
+                requerimientos = ''
+                viajeros_lista = []
+                novedades = detalle.venta.novedades_turistas or []
+                if novedades and isinstance(novedades, list):
+                    for v in novedades:
+                        if isinstance(v, dict):
+                            viajeros_lista.append({
+                                'nombres':   v.get('nombres', ''),
+                                'apellidos': v.get('apellidos', ''),
+                                'tipo_doc':  v.get('tipo_doc', ''),
+                                'num_doc':   v.get('num_doc', ''),
+                                'edad':      v.get('edad', ''),
+                                'novedades': v.get('novedades', '') or v.get('novedad', ''),
+                            })
+                    # Compatibilidad: requerimientos sigue siendo el del primer viajero
+                    if viajeros_lista:
+                        requerimientos = viajeros_lista[0].get('novedades', '')
+
+                resultado.append({
+                    'id': detalle.id,
+                    'venta_id': detalle.venta.id,
+                    'paquete_id': paquete.id,
+                    'nombre': paquete.nombre,
+                    'imagen': imagen_portada,
+                    'agencia': paquete.agencia.nombre_agencia if paquete.agencia else '',
+                    'ubicacion': paquete.ubicacion,
+                    'fecha_actividad': fecha_actividad,
+                    'cantidad': detalle.cantidad,
+                    'precio_unitario': str(detalle.precio_unitario),
+                    'precio_total': str(round(float(detalle.precio_unitario) * detalle.cantidad, 2)),
+                    'estado': estado_semantico,
+                    'requerimientos': requerimientos,
+                    'viajeros': viajeros_lista,
+                    'fecha_compra': str(detalle.venta.fecha.date()),
+                })
+
+            return Response(resultado, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"ERROR EN MisReservasView: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CancelarReservaView(APIView):
+    """
+    PATCH /api/mis-reservas/<pk>/cancelar/
+    Cancela una reserva de paquete turístico del turista autenticado.
+    Si la fecha de actividad es 8 o más días a futuro, restaura los cupos
+    eliminando el registro ReservaFecha correspondiente.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        from datetime import date as date_type, timedelta
+        try:
+            if not Turista.objects.filter(pk=request.user.pk).exists():
+                return Response({'error': 'Acceso restringido a turistas.'}, status=status.HTTP_403_FORBIDDEN)
+
+            detalle = get_object_or_404(Detalles_Venta, pk=pk, venta__usuario=request.user)
+
+            if detalle.paquete == 0:
+                return Response({'error': 'Este ítem no es una reserva de paquete.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if detalle.estado == 'Cancelado':
+                return Response({'error': 'Esta reserva ya fue cancelada anteriormente.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            paquete = PaqueteTuristico.objects.filter(pk=detalle.paquete).first()
+            if not paquete:
+                return Response({'error': 'No se encontró el paquete turístico asociado.'}, status=status.HTTP_404_NOT_FOUND)
+
+            hoy = date_type.today()
+            cupos_restaurados = False
+
+            reserva_fecha = ReservaFecha.objects.filter(
+                paquete=paquete,
+                venta=detalle.venta
+            ).first()
+
+            if reserva_fecha:
+                dias_diferencia = (reserva_fecha.fecha - hoy).days
+                if dias_diferencia >= 8:
+                    reserva_fecha.delete()
+                    cupos_restaurados = True
+
+            detalle.estado = 'Cancelado'
+            detalle.save()
+
+            venta = detalle.venta
+            todos_cancelados = not Detalles_Venta.objects.filter(
+                venta=venta,
+                paquete__gt=0
+            ).exclude(estado='Cancelado').exists()
+            if todos_cancelados:
+                venta.estado = 'Cancelado'
+                venta.save()
+
+            mensaje = 'Reserva cancelada exitosamente.'
+            if cupos_restaurados:
+                mensaje += ' Los cupos han sido restaurados para la fecha de la actividad.'
+
+            return Response({
+                'exito': True,
+                'cupos_restaurados': cupos_restaurados,
+                'mensaje': mensaje,
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"ERROR EN CancelarReservaView: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
