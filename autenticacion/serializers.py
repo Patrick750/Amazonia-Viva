@@ -14,7 +14,13 @@ def calcular_cupos_disponibles(paquete, fecha=None):
         fecha = paquete.fecha_realizacion
     if not fecha:
         return paquete.capacidad  # flexible sin fecha consultada = capacidad completa
-    reservas = ReservaFecha.objects.filter(paquete=paquete, fecha=fecha).aggregate(
+    
+    # Solo contamos reservas de ventas que están 'Completado'
+    reservas = ReservaFecha.objects.filter(
+        paquete=paquete, 
+        fecha=fecha,
+        venta__estado='Completado'
+    ).aggregate(
         total=Sum('cantidad')
     )['total'] or 0
     return max(0, paquete.capacidad - reservas)
@@ -507,12 +513,13 @@ class FavoritoDetailSerializer(serializers.ModelSerializer):
 class CarritoItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Items
-        fields = ['id', 'carrito', 'producto', 'paquetes', 'precio', 'fecha_reserva']
+        fields = ['id', 'carrito', 'producto', 'paquetes', 'precio', 'fecha_reserva', 'cantidad']
         extra_kwargs = {
             'carrito': {'read_only': True},
             'producto': {'required': False, 'allow_null': True},
             'paquetes': {'required': False, 'allow_null': True},
             'fecha_reserva': {'required': False, 'allow_null': True},
+            'cantidad': {'required': False},
         }
 
 class CarritoItemDetailSerializer(serializers.ModelSerializer):
@@ -565,11 +572,17 @@ class CarritoItemDetailSerializer(serializers.ModelSerializer):
         if obj.paquetes: return obj.paquetes.fecha_realizacion
         return None
 
+    stock = serializers.SerializerMethodField()
+    def get_stock(self, obj):
+        if obj.paquetes: return obj.paquetes.capacidad
+        if obj.producto: return obj.producto.stock
+        return 0
+
     class Meta:
         model = Items
         fields = [
             'id', 'tipo', 'item_id', 'nombre', 'precio', 'imagen', 'subtitulo', 
-            'fecha_reserva', 'tipo_paquete', 'fecha_realizacion'
+            'fecha_reserva', 'tipo_paquete', 'fecha_realizacion', 'stock', 'cantidad'
         ]
 
 

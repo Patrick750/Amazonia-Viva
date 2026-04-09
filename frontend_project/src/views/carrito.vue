@@ -52,6 +52,10 @@ const totalUnidades = computed(() =>
     productos.value.reduce((sum, i) => sum + i.cantidad, 0)
 );
 
+const toursSeleccionadosSinFecha = computed(() => 
+    toursSeleccionados.value.filter(t => !t.fecha_reserva)
+);
+
 const toggleTodos = () => {
     if (todoSeleccionado.value) {
         deseleccionarTodos();
@@ -80,11 +84,17 @@ const irAPago = () => {
             return;
         }
         
-        // 3. Validar cupos si ya se cargaron
-        const status = cuposStatus.value[tour.id];
-        if (status && status.cupos === 0) {
-            mostrarNotificacion(`No hay cupos disponibles para '${tour.nombre}' en la fecha seleccionada.`, 'error');
-            return;
+        // 3. Validar cupos si ya se cargaron (usando UUID para precisión)
+        const status = cuposStatus.value[tour.uuid];
+        if (status) {
+            if (status.cupos === 0) {
+                mostrarNotificacion(`No hay cupos disponibles para '${tour.nombre}' en la fecha seleccionada.`, 'error');
+                return;
+            }
+            if (tour.cantidad > status.cupos) {
+                mostrarNotificacion(`No hay cupos suficientes para '${tour.nombre}'. Disponibles: ${status.cupos}, Pedidos: ${tour.cantidad}`, 'error');
+                return;
+            }
         }
     }
 
@@ -271,9 +281,10 @@ const irAPago = () => {
                       <!-- Selector de Fecha / Info de Fecha -->
                       <div class="mt-3 bg-white/5 border border-white/10 rounded-xl p-2.5">
                         <div v-if="item.tipo_paquete === 'flexible'">
-                          <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                          <p :class="['text-[10px] font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5', 
+                            !item.fecha_reserva ? 'text-amber-400 animate-pulse' : 'text-emerald-400']">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                             Elige fecha de inicio
+                             {{ !item.fecha_reserva ? '¡Fecha requerida!' : 'Fecha de inicio seleccionada' }}
                           </p>
                           <input
                             type="date"
@@ -328,11 +339,24 @@ const irAPago = () => {
                         <span class="w-8 text-center text-white font-black text-sm">{{ item.cantidad }}</span>
                         <button
                           @click="actualizarCantidad(item.uuid, item.cantidad + 1)"
-                          class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
+                          :disabled="(cuposStatus[item.uuid] && item.cantidad >= cuposStatus[item.uuid].cupos) || (!cuposStatus[item.uuid] && item.cantidad >= item.stock)"
+                          :class="[
+                            'w-7 h-7 rounded-md flex items-center justify-center transition-all',
+                            ((cuposStatus[item.uuid] && item.cantidad >= cuposStatus[item.uuid].cupos) || (!cuposStatus[item.uuid] && item.cantidad >= item.stock))
+                              ? 'bg-white/5 opacity-30 cursor-not-allowed text-white/20'
+                              : 'bg-white/10 hover:bg-white/20 text-white'
+                          ]"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                       </div>
+                      <!-- Advertencia -->
+                      <p v-if="cuposStatus[item.uuid] && item.cantidad > cuposStatus[item.uuid].cupos" class="text-[9px] text-red-400 font-bold mt-1 text-right">
+                        Excede cupos (máx: {{ cuposStatus[item.uuid].cupos }})
+                      </p>
+                      <p v-else-if="!cuposStatus[item.uuid] && item.cantidad > item.stock" class="text-[9px] text-amber-400 font-bold mt-1 text-right">
+                        Excede capacidad (máx: {{ item.stock }})
+                      </p>
                       <!-- Total item -->
                       <p class="text-emerald-300 font-black text-sm">{{ formatPrecio(Number(item.precio) * item.cantidad) }}</p>
                     </div>
@@ -425,13 +449,22 @@ const irAPago = () => {
                         <span class="w-8 text-center text-white font-black text-sm">{{ item.cantidad }}</span>
                         <button
                           @click="actualizarCantidad(item.uuid, item.cantidad + 1)"
-                          class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
+                          :disabled="item.cantidad >= item.stock"
+                          :class="[
+                            'w-7 h-7 rounded-md flex items-center justify-center transition-all',
+                            item.cantidad >= item.stock
+                              ? 'bg-white/5 opacity-30 cursor-not-allowed text-white/20'
+                              : 'bg-white/10 hover:bg-white/20 text-white'
+                          ]"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                       </div>
+                      <!-- Advertencia -->
+                      <p v-if="item.cantidad > item.stock" class="text-[9px] text-red-400 font-bold mt-1 text-right">
+                        Sin stock suficiente (máx: {{ item.stock }})
+                      </p>
                       <!-- Total item -->
-                      <p class="text-teal-300 font-black text-sm">{{ formatPrecio(Number(item.precio) * item.cantidad) }}</p>
                     </div>
                   </div>
                 </div>
@@ -510,10 +543,10 @@ const irAPago = () => {
               <!-- CTA principal -->
               <button
                 @click="irAPago"
-                :disabled="itemsSeleccionados.length === 0"
+                :disabled="itemsSeleccionados.length === 0 || toursSeleccionadosSinFecha.length > 0"
                 :class="[
                   'w-full py-4 font-black text-base rounded-xl shadow-lg flex items-center justify-center gap-2.5 mt-2 transition-all',
-                  itemsSeleccionados.length > 0
+                  (itemsSeleccionados.length > 0 && toursSeleccionadosSinFecha.length === 0)
                     ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white hover:shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] shadow-emerald-500/20'
                     : 'bg-white/10 text-white/30 cursor-not-allowed'
                 ]"

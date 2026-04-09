@@ -374,6 +374,8 @@ class CarritoView(APIView):
                 paquetes=paquetes_id if paquetes_id else None
             ).first()
             
+            cantidad = request.data.get('cantidad', 1)
+            
             created = False
             if not item:
                 item = Items.objects.create(
@@ -381,19 +383,40 @@ class CarritoView(APIView):
                     producto_id=producto_id if producto_id else None,
                     paquetes_id=paquetes_id if paquetes_id else None,
                     precio=precio,
-                    fecha_reserva=fecha_reserva if fecha_reserva else None
+                    fecha_reserva=fecha_reserva if fecha_reserva else None,
+                    cantidad=cantidad
                 )
                 created = True
             else:
-                # Actualizar fecha_reserva si ya existía el item
+                # Actualizar campos si ya existía el item
                 if fecha_reserva:
                     item.fecha_reserva = fecha_reserva
-                    item.save(update_fields=['fecha_reserva'])
+                if cantidad:
+                    item.cantidad = cantidad
+                item.save()
 
             serializer = CarritoItemSerializer(item)
             return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         except Exception as e:
             print(f"ERROR EN CARRITO: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def patch(self, request, pk=None):
+        try:
+            if not pk:
+                return Response({'error': 'ID de ítem requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            item = get_object_or_404(Items, pk=pk, carrito__usuario=request.user)
+            
+            if 'cantidad' in request.data:
+                item.cantidad = request.data['cantidad']
+            if 'fecha_reserva' in request.data:
+                item.fecha_reserva = request.data['fecha_reserva']
+            
+            item.save()
+            serializer = CarritoItemSerializer(item)
+            return Response(serializer.data)
+        except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk=None):
@@ -717,7 +740,8 @@ class ProcesarPagoView(APIView):
                         estado='Pendiente de Empaque'
                     )
                 elif tipo == 'paquete':
-                    paquete = get_object_or_404(PaqueteTuristico, pk=item_id)
+                    # Usar select_for_update para bloquear la fila del paquete y evitar condiciones de carrera en los cupos
+                    paquete = PaqueteTuristico.objects.select_for_update().get(pk=item_id)
 
                     # Determinar la fecha de reserva
                     from datetime import date
@@ -739,6 +763,10 @@ class ProcesarPagoView(APIView):
                             return Response({
                                 'error': f'La fecha de reserva para "{paquete.nombre}" debe ser al menos 7 días a futuro (mínimo: {fecha_minima}).'
                             }, status=status.HTTP_400_BAD_REQUEST)
+                    elif paquete.tipo_paquete == 'flexible':
+                        return Response({
+                            'error': f'Debes seleccionar una fecha para el paquete "{paquete.nombre}".'
+                        }, status=status.HTTP_400_BAD_REQUEST)
 
                     # Validar cupos disponibles si hay fecha
                     if fecha_reserva:

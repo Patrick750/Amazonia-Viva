@@ -10,8 +10,9 @@ const {
   subtotalProductos, 
   subtotalTours, 
   tarifaEcologica,
-  toursSeleccionados, // Tours del carrito
-  productosSeleccionados, // Productos físicos en el carrito (asumido para el composable)
+  toursSeleccionados,
+  productosSeleccionados,
+  itemsSeleccionados, // Añadir esto
   itemsCarrito,
   vaciarCarrito
 } = useCarrito();
@@ -109,7 +110,13 @@ const esPagoValido = computed(() => {
     return false;
 });
 
-const todoValido = computed(() => esEnvioValido.value && esPagoValido.value);
+const todoValido = computed(() => {
+    if (!esEnvioValido.value || !esPagoValido.value) return false;
+    
+    // Validar solo los tours que el usuario ha SELECCIONADO para pagar ahora
+    const toursSinFecha = toursSeleccionados.value.filter(t => !t.fecha_reserva);
+    return toursSinFecha.length === 0;
+});
 
 // --- CLASES DINÁMICAS (Validación Visual) ---
 const getClassInput = (esValido) => {
@@ -133,11 +140,13 @@ const confirmarYPagar = async () => {
             const payload = {
                 total: totalFinal.value,
                 novedades_turistas: JSON.parse(sessionStorage.getItem('checkout_viajeros') || '[]'),
-                items: itemsCarrito.value.map(i => ({
+                // Enviar solo los ítems seleccionados al backend
+                items: itemsSeleccionados.value.map(i => ({
                     id: i.id,
                     tipo: i.tipo,
                     cantidad: i.cantidad,
-                    precio: i.precio
+                    precio: i.precio,
+                    fecha_reserva: i.fecha_reserva 
                 }))
             };
 

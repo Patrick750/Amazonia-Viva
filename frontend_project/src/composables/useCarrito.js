@@ -80,7 +80,7 @@ export function useCarrito() {
                     precio: item.precio,
                     imagen: item.imagen,
                     subtitulo: item.subtitulo,
-                    cantidad: 1,
+                    cantidad: item.cantidad || 1,
                     seleccionado: true,
                     fecha_reserva: item.fecha_reserva,
                     tipo_paquete: item.tipo_paquete,
@@ -134,7 +134,14 @@ export function useCarrito() {
     const actualizarCantidad = (uuid, nuevaCantidad) => {
         const item = itemsCarrito.value.find(i => i.uuid === uuid);
         if (item) {
-            item.cantidad = Math.max(1, Number(nuevaCantidad));
+            const val = Math.max(1, Number(nuevaCantidad));
+            item.cantidad = val;
+
+            // Sincronizar con backend
+            if (item.db_id) {
+                axios.patch(`api/carrito/${item.db_id}/`, { cantidad: val })
+                .catch(err => console.error('Error al sincronizar cantidad:', err));
+            }
         }
     };
 

@@ -33,6 +33,14 @@ let tooltipTimeout = null;
 // --- FECHAS Y CUPOS ---
 const cuposDisponibles = ref(null);
 const cargandoCupos = ref(false);
+const fechaSeleccionada = ref('');
+
+const hoyStr = new Date().toISOString().split('T')[0];
+const fechaMinima = computed(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 8); // Mismo criterio que en el carrito: hoy + 7 días
+    return d.toISOString().split('T')[0];
+});
 
 const consultarCupos = async (fecha) => {
     if (!tour.value) return;
@@ -150,7 +158,12 @@ const handleAccion = async (tipo, event) => {
     if (tipo === 'carrito') {
         const fechaParaCarrito = tour.value.tipo_paquete === 'fijo' 
             ? tour.value.fecha_realizacion 
-            : null;
+            : fechaSeleccionada.value;
+
+        if (cuposDisponibles.value === 0) {
+            mostrarNotificacion('Lo sentimos, no hay cupos para la fecha seleccionada.', 'error');
+            return;
+        }
 
         await agregarAlCarrito(
             tour.value.id,
@@ -211,6 +224,13 @@ const formatTime = (timeStr) => {
     hrs = hrs % 12 || 12;
     return `${hrs}:${mins} ${period}`;
 };
+
+// Observar cambio de fecha para consultar cupos en paquetes flexibles
+watch(fechaSeleccionada, (nuevaFecha) => {
+    if (nuevaFecha && tour.value?.tipo_paquete === 'flexible') {
+        consultarCupos(nuevaFecha);
+    }
+});
 </script>
 
 <template>
@@ -518,15 +538,15 @@ const formatTime = (timeStr) => {
                                     </div>
                                 </div>
 
-                                <!-- PAQUETE FLEXIBLE (Sin Selector, se elige en el carrito) -->
-                                <div v-else-if="tour.tipo_paquete === 'flexible'" class="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-100">
+                                <!-- PAQUETE FLEXIBLE (Info sin selector) -->
+                                <div v-else-if="tour.tipo_paquete === 'flexible'" class="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-100 space-y-3">
                                     <div class="flex items-center gap-3">
                                         <div class="p-2 bg-emerald-100 rounded-xl text-emerald-600">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         </div>
                                         <div>
                                             <p class="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">Fecha Flexible</p>
-                                            <p class="text-[11px] text-emerald-700 font-medium leading-tight">Eligirás el día de tu aventura directamente en el carrito de compras.</p>
+                                            <p class="text-[11px] text-emerald-700 font-medium leading-tight">Podrás elegir la fecha de tu aventura directamente en tu maleta de viaje.</p>
                                         </div>
                                     </div>
                                 </div>

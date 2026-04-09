@@ -26,7 +26,13 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
-### 3.8.0 — Gestión de Fechas en Carrito y Desacoplamiento de Paquetes
+### 3.9.0 — Persistencia de Cantidades y Consistencia de Cupos
+> Archivos: `models.py`, `views.py`, `serializers.py`, `useCarrito.js`, `pago.vue`
+
+- **[Feature] Persistencia de Cantidades**: El carrito ahora soporta el campo `cantidad` en la base de datos, asegurando que el número de personas seleccionadas no se pierda al recargar la página o navegar por la plataforma.
+- **[Fix] Suma de Cupos por Fecha**: Se corrigió el cálculo de disponibilidad para realizar una suma real de cupos ocupados (`Sum('cantidad')`) en lugar de contar registros únicos, garantizando precisión cuando un turista reserva para múltiples acompañantes.
+- **[UX] Sincronización Reactiva**: Implementación de sincronización automática vía `PATCH` cada vez que el usuario ajusta la cantidad en el carrito, manteniendo el estado global siempre actualizado en el servidor.
+- **[Fix] Paridad en Pasarela de Pago**: Resolución del error de referencia circular en la selección de ítems, permitiendo que productos físicos y tours digitales se procesen en la misma transacción sin conflictos de importación.
 > Archivos: `useCarrito.js`, `carrito.vue`, `detalle-paquete.vue`, `checkout-viajeros.vue`, `serializers.py`
 
 - **[Feature] Traslado de Fecha al Carrito**: La elección de la fecha de reserva se movió de la vista de detalle al carrito, permitiendo una planificación más flexible antes del pago.

@@ -246,6 +246,7 @@ class Items(models.Model):
     carrito = models.ForeignKey(Carrito, on_delete=models.CASCADE,  related_name='item_carrito')
     producto = models.ForeignKey(Productos, on_delete=models.CASCADE,  related_name='item_productos', null=True, blank=True)
     paquetes = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE,  related_name='item_paquetes', null=True, blank=True)
+    cantidad = models.PositiveIntegerField(default=1, verbose_name="Cantidad")
     precio = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
     fecha_reserva = models.DateField(null=True, blank=True, verbose_name="Fecha de Reserva", help_text="Fecha elegida por el turista para realizar el paquete (solo aplica a paquetes).")
 
