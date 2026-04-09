@@ -84,7 +84,8 @@ export function useCarrito() {
                     seleccionado: true,
                     fecha_reserva: item.fecha_reserva,
                     tipo_paquete: item.tipo_paquete,
-                    fecha_realizacion: item.fecha_realizacion
+                    fecha_realizacion: item.fecha_realizacion,
+                    uuid: crypto.randomUUID()
                 }));
             }
         } catch (e) {
@@ -99,22 +100,24 @@ export function useCarrito() {
     };
 
     const agregarItem = (item) => {
-        const yaExiste = itemsCarrito.value.find(
-            i => i.id === item.id && i.tipo === item.tipo
+        // Solo agrupamos productos. Paquetes se mantienen individuales para tener fechas propias.
+        const yaExiste = item.tipo === 'producto' && itemsCarrito.value.find(
+            i => i.id === item.id && i.tipo === 'producto'
         );
+        
         if (yaExiste) {
             yaExiste.cantidad = (yaExiste.cantidad || 1) + 1;
         } else {
             itemsCarrito.value = [
                 ...itemsCarrito.value,
-                { ...item, cantidad: 1, seleccionado: true }
+                { ...item, uuid: crypto.randomUUID(), cantidad: 1, seleccionado: true }
             ];
         }
     };
 
-    const eliminarItem = (id, tipo) => {
+    const eliminarItem = (uuid) => {
         // 1. Sincronizar con backend si existe db_id
-        const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+        const item = itemsCarrito.value.find(i => i.uuid === uuid);
         if (item && item.db_id) {
             axios.delete(`api/carrito/${item.db_id}/`).catch(err => {
                 console.error('Error al eliminar ítem del servidor:', err);
@@ -123,20 +126,20 @@ export function useCarrito() {
 
         // 2. Eliminar localmente
         itemsCarrito.value = itemsCarrito.value.filter(
-            i => !(i.id === id && i.tipo === tipo)
+            i => i.uuid !== uuid
         );
     };
 
 
-    const actualizarCantidad = (id, tipo, nuevaCantidad) => {
-        const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+    const actualizarCantidad = (uuid, nuevaCantidad) => {
+        const item = itemsCarrito.value.find(i => i.uuid === uuid);
         if (item) {
             item.cantidad = Math.max(1, Number(nuevaCantidad));
         }
     };
 
-    const actualizarFecha = (id, tipo, nuevaFecha) => {
-        const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+    const actualizarFecha = (uuid, nuevaFecha) => {
+        const item = itemsCarrito.value.find(i => i.uuid === uuid);
         if (item) {
             item.fecha_reserva = nuevaFecha;
             
@@ -152,8 +155,8 @@ export function useCarrito() {
         itemsCarrito.value = [];
     };
 
-    const toggleSeleccion = (id, tipo) => {
-        const item = itemsCarrito.value.find(i => i.id === id && i.tipo === tipo);
+    const toggleSeleccion = (uuid) => {
+        const item = itemsCarrito.value.find(i => i.uuid === uuid);
         if (item) item.seleccionado = !item.seleccionado;
     };
 

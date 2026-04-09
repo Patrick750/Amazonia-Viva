@@ -26,6 +26,16 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 3.8.0 — Gestión de Fechas en Carrito y Desacoplamiento de Paquetes
+> Archivos: `useCarrito.js`, `carrito.vue`, `detalle-paquete.vue`, `checkout-viajeros.vue`, `serializers.py`
+
+- **[Feature] Traslado de Fecha al Carrito**: La elección de la fecha de reserva se movió de la vista de detalle al carrito, permitiendo una planificación más flexible antes del pago.
+- **[Feature] Una Fecha por Unidad**: Se desactivó la agrupación de paquetes en el carrito. Ahora cada unidad añadida mantiene su propio selector de fecha independiente, ideal para grupos con itinerarios distintos.
+- **[Security] Bloqueo Estricto de 7 Días**: Implementación de restricción automática que impide seleccionar fechas para el día actual y los 7 días siguientes, garantizando el tiempo mínimo de operación requerido.
+- **[Architecture] Gestión por UUID**: Integración de identificadores únicos universales para cada ítem del carrito, asegurando que las actualizaciones de fecha y eliminaciones sean precisas incluso con ítems duplicados.
+- **[UX] Confirmación en Checkout**: Inclusión de la fecha seleccionada en el resumen lateral del registro de viajeros, brindando visibilidad total durante todo el proceso de compra.
+- **[Optimization] Backend Metadata**: El serializador de ítems de carrito ahora entrega metadatos sobre el tipo de paquete (fijo/flexible) para adaptar la interfaz dinámicamente.
+
 ### 3.7.0 — Métricas de Negocio y Filtros Avanzados (SCRUM-58, SCRUM-59)
 > Archivos: `serializers.py`, `catalogo.vue`, `perfil-empresa.vue`, `detalle-paquete.vue`, `detalle-producto.vue`
 

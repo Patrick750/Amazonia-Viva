@@ -20,25 +20,25 @@ const { mostrarNotificacion } = useNotificacion();
 
 const fechaMinima = (() => {
     const d = new Date();
-    d.setDate(d.getDate() + 7);
+    d.setDate(d.getDate() + 8); // Bloquea hoy + 7 días futuros = 8 días en total
     return d.toISOString().split('T')[0];
 })();
 
-const cuposStatus = ref({}); // { item_id: { cupos: number, cargando: boolean } }
+const cuposStatus = ref({}); // { uuid: { cupos: number, cargando: boolean } }
 
 const manejarCambioFecha = async (item, nuevaFecha) => {
-    actualizarFecha(item.id, 'paquete', nuevaFecha);
+    actualizarFecha(item.uuid, nuevaFecha);
     if (!nuevaFecha) {
-        if (cuposStatus.value[item.id]) delete cuposStatus.value[item.id];
+        if (cuposStatus.value[item.uuid]) delete cuposStatus.value[item.uuid];
         return;
     }
     
-    cuposStatus.value[item.id] = { ...cuposStatus.value[item.id], cargando: true };
+    cuposStatus.value[item.uuid] = { ...cuposStatus.value[item.uuid], cargando: true };
     try {
         const res = await obtenerCuposDisponibles(item.id, nuevaFecha);
-        cuposStatus.value[item.id] = { cupos: res.cupos_disponibles, cargando: false };
+        cuposStatus.value[item.uuid] = { cupos: res.cupos_disponibles, cargando: false };
     } catch {
-        cuposStatus.value[item.id] = { cupos: null, cargando: false };
+        cuposStatus.value[item.uuid] = { cupos: null, cargando: false };
     }
 };
 
@@ -229,7 +229,7 @@ const irAPago = () => {
             <div class="space-y-4">
               <div
                 v-for="item in tours"
-                :key="item.id"
+                :key="item.uuid"
                 :class="[
                   'group relative border rounded-2xl overflow-hidden transition-all duration-300',
                   item.seleccionado
@@ -241,7 +241,7 @@ const irAPago = () => {
                   <!-- Checkbox de selección -->
                   <div class="flex-shrink-0 self-center">
                     <button
-                      @click="toggleSeleccion(item.id, 'paquete')"
+                      @click="toggleSeleccion(item.uuid)"
                       :class="[
                         'w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all',
                         item.seleccionado
@@ -283,11 +283,11 @@ const irAPago = () => {
                             class="w-full bg-[#0a1a0f] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-emerald-500/50 transition-all"
                           >
                           <!-- Cupos feedback -->
-                          <div v-if="cuposStatus[item.id]" class="mt-1.5 px-2 py-1 rounded-md text-[10px] font-bold inline-flex items-center gap-1.5"
-                            :class="cuposStatus[item.id].cupos === 0 ? 'bg-red-500/10 text-red-400' : (cuposStatus[item.id].cupos <= 5 ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400')">
-                            <span v-if="cuposStatus[item.id].cargando" class="animate-pulse">Verificando...</span>
-                            <span v-else-if="cuposStatus[item.id].cupos === 0">Sin cupos</span>
-                            <span v-else>{{ cuposStatus[item.id].cupos }} cupos disponibles</span>
+                          <div v-if="cuposStatus[item.uuid]" class="mt-1.5 px-2 py-1 rounded-md text-[10px] font-bold inline-flex items-center gap-1.5"
+                            :class="cuposStatus[item.uuid].cupos === 0 ? 'bg-red-500/10 text-red-400' : (cuposStatus[item.uuid].cupos <= 5 ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400')">
+                            <span v-if="cuposStatus[item.uuid].cargando" class="animate-pulse">Verificando...</span>
+                            <span v-else-if="cuposStatus[item.uuid].cupos === 0">Sin cupos</span>
+                            <span v-else>{{ cuposStatus[item.uuid].cupos }} cupos disponibles</span>
                           </div>
                         </div>
                         <div v-else class="flex items-center gap-2">
@@ -307,7 +307,7 @@ const irAPago = () => {
                   <div class="flex flex-col items-end justify-between gap-2 flex-shrink-0">
                     <!-- Eliminar -->
                     <button
-                      @click="eliminarItem(item.id, 'paquete')"
+                      @click="eliminarItem(item.uuid)"
                       class="w-7 h-7 rounded-full bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-400 hover:text-red-300 transition-all opacity-0 group-hover:opacity-100"
                       title="Eliminar del carrito"
                     >
@@ -317,17 +317,17 @@ const irAPago = () => {
                     </button>
                     <!-- Selector personas -->
                     <div class="flex flex-col items-end gap-1">
-                      <span class="text-white/30 text-[10px] uppercase tracking-wider">Personas</span>
+                      <span class="text-white/30 text-[10px] uppercase tracking-wider">Acompañantes</span>
                       <div class="flex items-center gap-1 bg-white/8 border border-white/15 rounded-lg p-0.5">
                         <button
-                          @click="actualizarCantidad(item.id, 'paquete', item.cantidad - 1)"
+                          @click="actualizarCantidad(item.uuid, item.cantidad - 1)"
                           class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                         <span class="w-8 text-center text-white font-black text-sm">{{ item.cantidad }}</span>
                         <button
-                          @click="actualizarCantidad(item.id, 'paquete', item.cantidad + 1)"
+                          @click="actualizarCantidad(item.uuid, item.cantidad + 1)"
                           class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -360,7 +360,7 @@ const irAPago = () => {
             <div class="space-y-4">
               <div
                 v-for="item in productos"
-                :key="item.id"
+                :key="item.uuid"
                 :class="[
                   'group relative border rounded-2xl overflow-hidden transition-all duration-300',
                   item.seleccionado
@@ -372,7 +372,7 @@ const irAPago = () => {
                   <!-- Checkbox de selección -->
                   <div class="flex-shrink-0 self-center">
                     <button
-                      @click="toggleSeleccion(item.id, 'producto')"
+                      @click="toggleSeleccion(item.uuid)"
                       :class="[
                         'w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all',
                         item.seleccionado
@@ -404,7 +404,7 @@ const irAPago = () => {
                   <div class="flex flex-col items-end justify-between gap-2 flex-shrink-0">
                     <!-- Eliminar -->
                     <button
-                      @click="eliminarItem(item.id, 'producto')"
+                      @click="eliminarItem(item.uuid)"
                       class="w-7 h-7 rounded-full bg-red-500/10 hover:bg-red-500/20 flex items-center justify-center text-red-400 hover:text-red-300 transition-all opacity-0 group-hover:opacity-100"
                       title="Eliminar del carrito"
                     >
@@ -417,14 +417,14 @@ const irAPago = () => {
                       <span class="text-white/30 text-[10px] uppercase tracking-wider">Cantidad</span>
                       <div class="flex items-center gap-1 bg-white/8 border border-white/15 rounded-lg p-0.5">
                         <button
-                          @click="actualizarCantidad(item.id, 'producto', item.cantidad - 1)"
+                          @click="actualizarCantidad(item.uuid, item.cantidad - 1)"
                           class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         </button>
                         <span class="w-8 text-center text-white font-black text-sm">{{ item.cantidad }}</span>
                         <button
-                          @click="actualizarCantidad(item.id, 'producto', item.cantidad + 1)"
+                          @click="actualizarCantidad(item.uuid, item.cantidad + 1)"
                           class="w-7 h-7 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
                         >
                           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
