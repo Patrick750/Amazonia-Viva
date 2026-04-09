@@ -139,6 +139,18 @@ const nombreViajero = (v, idx) => {
     if (idx === 0) return 'Titular de la Reserva';
     return `Viajero ${idx + 1}`;
 };
+
+// Clases dinámicas para organizar mejor el estilo del botón
+const btnClasses = computed(() => {
+  const base = 'w-full py-4.5 font-black text-[15px] rounded-2xl flex items-center justify-center gap-3 mt-4 transition-all duration-300 relative overflow-hidden group border';
+  
+  if (todosCompletos.value) {
+    return `${base} bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white border-emerald-400/30 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_15px_50px_-10px_rgba(16,185,129,0.6)] hover:scale-[1.02] active:scale-[0.98]`;
+  }
+  
+  return `${base} bg-white/5 text-white/20 cursor-not-allowed border-white/10`;
+});
+
 </script>
 
 <template>
@@ -520,17 +532,14 @@ const nombreViajero = (v, idx) => {
               <button
                 @click="irAlPago"
                 :disabled="!todosCompletos"
-                :class="[
-                  'w-full py-4 font-black text-sm rounded-xl flex items-center justify-center gap-2 mt-2 transition-all',
-                  todosCompletos
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98]'
-                    : 'bg-white/8 text-white/25 cursor-not-allowed border border-white/10'
-                ]"
+                :class="btnClasses"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <svg class="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                 </svg>
-                {{ todosCompletos ? 'Continuar al Pago Seguro 🔒' : `Faltan ${viajeros.length - viajerosCompletados} viajero(s)` }}
+                <span class="relative">
+                  {{ todosCompletos ? 'Continuar al Pago Seguro' : `Faltan ${viajeros.length - viajerosCompletados} expedicionarios` }}
+                </span>
               </button>
 
               <!-- Microcopy trust -->

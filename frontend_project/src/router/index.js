@@ -118,6 +118,10 @@ const router = createRouter({
       meta: { requiresAuth: true, roles: ['turista'] },
     },
   ],
+  scrollBehavior(to, from, savedPosition) {
+    // Siempre desplazar al inicio de la página en cada navegación
+    return { top: 0 }
+  },
 })
 
 

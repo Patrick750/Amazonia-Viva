@@ -25,4 +25,27 @@ clienteAxios.interceptors.request.use(
     }
 );
 
+// 3. Interceptor para manejar errores (como el token vencido)
+clienteAxios.interceptors.response.use(
+    (response) => {
+        // Si la respuesta es exitosa, la pasamos tal cual
+        return response;
+    },
+    (error) => {
+        // Si el servidor responde con 401 (No autorizado), significa que el token expiró o es inválido
+        if (error.response && error.response.status === 401) {
+            console.warn("Sesión expirada. Redirigiendo al inicio de sesión...");
+            
+            // Limpiamos los datos de autenticación del navegador
+            localStorage.clear();
+            
+            // Redirigimos al usuario al login
+            // Usamos window.location.href para resetear completamente el estado de la aplicación
+            window.location.href = '/auth/login';
+        }
+        
+        return Promise.reject(error);
+    }
+);
+
 export default clienteAxios;

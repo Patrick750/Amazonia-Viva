@@ -134,11 +134,31 @@ export function useCatalogo() {
     };
 
 
+    const actualizarStockLocal = (itemsVendidos) => {
+        itemsVendidos.forEach(item => {
+            if (item.tipo === 'producto') {
+                const prod = productos.value.find(p => p.id === item.id);
+                if (prod) {
+                    prod.stock = Math.max(0, prod.stock - item.cantidad);
+                    prod.ventas_totales = (prod.ventas_totales || 0) + item.cantidad;
+                }
+            } else if (item.tipo === 'paquete') {
+                const tour = tours.value.find(t => t.id === item.id);
+                if (tour) {
+                    tour.ventas_totales = (tour.ventas_totales || 0) + item.cantidad;
+                    // Si el tour tiene un límite de cupos en el frontend, se podría reducir aquí también
+                }
+            }
+        });
+    };
+
     return { 
         tours, productos, categoriasTours,
         cargandoTours, cargandoProductos, cargandoCategorias,
         errorTours, errorProductos, 
         cargarTours, cargarProductos, cargarCategorias,
-        obtenerTourPorId, obtenerProductoPorId, toggleFavorito, agregarAlCarrito
+        obtenerTourPorId, obtenerProductoPorId, toggleFavorito, agregarAlCarrito,
+        actualizarStockLocal
     };
+
 }
