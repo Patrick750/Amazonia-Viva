@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from '@/api/axios';
 
 const metrics = ref({ total: 0, completadas: 0, pendientes: 0 });
@@ -12,6 +12,8 @@ const uploadProgress = ref(0);
 
 const mostrarModalTuristas = ref(false);
 const selectedTour = ref(null);
+const searchQuery = ref('');
+const dateFilter = ref('');
 
 const fetchData = async () => {
     isLoading.value = true;
@@ -25,6 +27,18 @@ const fetchData = async () => {
         isLoading.value = false;
     }
 };
+
+const filteredRegistro = computed(() => {
+    return registro.value.filter(g => {
+        const query = searchQuery.value.toLowerCase();
+        const matchesPackage = g.tour.toLowerCase().includes(query);
+        const matchesTourist = g.turistas.some(t => t.nombre.toLowerCase().includes(query));
+        
+        const matchesSearch = matchesPackage || matchesTourist;
+        const matchesDate = !dateFilter.value || g.fecha === dateFilter.value;
+        return matchesSearch && matchesDate;
+    });
+});
 
 const verTuristas = (tour) => {
     selectedTour.value = tour;
@@ -111,25 +125,113 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Sección Principal: Tabla de Tours -->
-      <div class="bg-[#12221b] border border-[#1e362a] rounded-2xl overflow-hidden shadow-2xl">
-        <div class="p-8 border-b border-[#1e362a] flex justify-between items-center text-center sm:text-left flex-col sm:row gap-4">
-          <div>
-            <h2 class="text-2xl font-bold mb-1">Registro de Tours</h2>
-            <p class="text-sm text-gray-400">Listado de salidas programadas y estado de evidencias</p>
-          </div>
-          <div v-if="isUploading" class="flex flex-col items-end gap-1">
-            <div class="flex items-center gap-3 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20">
-              <svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-              <span class="text-[10px] font-black uppercase tracking-widest">Subiendo {{ uploadProgress }}%</span>
+      <!-- Sección Principal: Tabla e Interfaz Responsiva -->
+      <div class="bg-[#12221b] border border-[#1e362a] rounded-3xl overflow-hidden shadow-2xl">
+        
+        <!-- Barra de Herramientas: Título + Filtros -->
+        <div class="p-8 border-b border-[#1e362a] space-y-6">
+          <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div>
+              <h2 class="text-2xl font-bold mb-1">Registro de Tours</h2>
+              <p class="text-sm text-gray-400">Listado de salidas programadas y gestión masiva</p>
             </div>
-            <div class="w-48 h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
-              <div class="h-full bg-emerald-500 transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]" :style="{ width: uploadProgress + '%' }"></div>
+            
+            <div v-if="isUploading" class="flex flex-col items-end gap-1 w-full lg:w-auto">
+              <div class="flex items-center gap-3 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20 w-full lg:w-auto justify-center lg:justify-start">
+                <svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                <span class="text-[10px] font-black uppercase tracking-widest">Subiendo {{ uploadProgress }}%</span>
+              </div>
+              <div class="w-full lg:w-48 h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div class="h-full bg-emerald-500 transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]" :style="{ width: uploadProgress + '%' }"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filtros -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Buscador -->
+            <div class="relative group">
+              <input 
+                v-model="searchQuery"
+                type="text" 
+                placeholder="Buscar por paquete o turista..." 
+                class="w-full bg-black/40 border border-[#1e362a] rounded-xl px-5 py-3 text-sm focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-gray-600 pl-12"
+              >
+              <svg class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            
+            <!-- Filtro de Fecha -->
+            <div class="relative group">
+              <input 
+                v-model="dateFilter"
+                type="date" 
+                class="w-full bg-black/40 border border-[#1e362a] rounded-xl px-5 py-3 text-sm focus:outline-none focus:border-emerald-500/50 transition-all text-gray-300 appearance-none pl-12"
+              >
+              <svg class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-emerald-500 transition-colors pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+
+            <!-- Botón Limpiar -->
+            <button v-if="searchQuery || dateFilter" @click="searchQuery = ''; dateFilter = ''" class="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-400 transition-colors p-3 lg:justify-start">
+              Limpiar Filtros
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- LISTADO PARA MÓVIL (Cards) -->
+        <div class="block md:hidden p-6 space-y-4">
+          <div v-if="filteredRegistro.length === 0" class="py-20 text-center">
+            <p class="text-gray-500 font-bold italic">No se encontraron tours con los filtros aplicados</p>
+          </div>
+          <div v-for="g in filteredRegistro" :key="g.id" class="bg-black/20 border border-white/5 p-6 rounded-2xl relative group">
+            <div class="flex justify-between items-start mb-4">
+              <h3 class="font-bold text-lg leading-tight">{{ g.tour }}</h3>
+              <span v-if="g.estado === 'Realizado'" class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">
+                Realizado
+              </span>
+              <span v-else class="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
+                Confirmado
+              </span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+              <div class="space-y-1">
+                <p class="text-[8px] font-black uppercase tracking-widest text-gray-500">Fecha</p>
+                <div class="flex items-center gap-1.5 text-xs text-gray-300">
+                  <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  {{ g.fecha }}
+                </div>
+              </div>
+              <div class="space-y-1">
+                <p class="text-[8px] font-black uppercase tracking-widest text-gray-500">Pasajeros</p>
+                <div class="flex items-center gap-1.5 text-xs text-gray-300 font-bold">
+                   {{ g.personas }} Pax
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t border-white/5">
+              <div class="flex items-center gap-2">
+                <span v-if="g.evidencias_count > 0" class="text-[10px] font-black text-emerald-400 flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  {{ g.evidencias_count }}
+                </span>
+                <span v-else class="text-[10px] font-black text-gray-600">0 fotos</span>
+              </div>
+              <div class="flex gap-2">
+                <button @click="verTuristas(g)" class="p-3 bg-white/5 rounded-xl border border-white/10 text-emerald-400">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+                <button v-if="g.estado === 'Realizado'" @click="openUpload(g)" class="px-4 py-2 bg-emerald-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest">
+                  Subir
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <!-- TABLA PARA ESCRITORIO -->
+        <div class="hidden md:block overflow-x-auto">
           <table class="w-full">
             <thead class="bg-black/20">
               <tr>
@@ -142,7 +244,7 @@ onMounted(() => {
               </tr>
             </thead>
             <tbody class="divide-y divide-[#1e362a]">
-              <tr v-for="g in registro" :key="g.id" class="hover:bg-white/5 transition-colors group">
+              <tr v-for="g in filteredRegistro" :key="g.id" class="hover:bg-white/5 transition-colors group">
                 <td class="px-8 py-6 font-bold truncate max-w-[250px]">{{ g.tour }}</td>
                 <td class="px-8 py-6 text-sm text-gray-300">
                   <div class="flex items-center gap-2">
@@ -155,7 +257,7 @@ onMounted(() => {
                 </td>
                 <td class="px-8 py-6">
                   <span v-if="g.estado === 'Realizado'" class="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">
-                    Completado
+                    Realizado
                   </span>
                   <span v-else class="px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
                     Confirmado
@@ -171,7 +273,7 @@ onMounted(() => {
                 <td class="px-8 py-6 text-right">
                   <div class="flex justify-end gap-3 translate-x-2 group-hover:translate-x-0 transition-transform opacity-0 group-hover:opacity-100 duration-300">
                     <button @click="verTuristas(g)" class="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:border-emerald-500/40 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                       Ver Detalles
                     </button>
                     <button v-if="g.estado === 'Realizado'" @click="openUpload(g)" class="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-black hover:bg-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(0,209,139,0.3)]">
@@ -179,6 +281,11 @@ onMounted(() => {
                       Subir fotos
                     </button>
                   </div>
+                </td>
+              </tr>
+              <tr v-if="filteredRegistro.length === 0">
+                <td colspan="6" class="py-20 text-center text-gray-600 font-bold italic">
+                  No se encontraron resultados que coincidan con los filtros.
                 </td>
               </tr>
             </tbody>
