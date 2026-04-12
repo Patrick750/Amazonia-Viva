@@ -313,3 +313,22 @@ class ReservaFecha(models.Model):
 
     def __str__(self):
         return f"{self.paquete.nombre} - {self.fecha} ({self.cantidad} personas)"
+
+class ExperienciaEvidencia(models.Model):
+    detalle_venta = models.ForeignKey(Detalles_Venta, on_delete=models.CASCADE, related_name='evidencias')
+    imagen = CloudinaryField('image', folder='amazonia_viva/evidencias')
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Evidencia de Experiencia"
+        verbose_name_plural = "Evidencias de Experiencias"
+
+class ExperienciaCalificacion(models.Model):
+    detalle_venta = models.ForeignKey(Detalles_Venta, on_delete=models.CASCADE, related_name='calificacion')
+    puntuacion = models.PositiveSmallIntegerField(choices=[(i, i) for i in range(1, 6)])
+    comentario = models.TextField(blank=True, null=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Calificación de Experiencia"
+        verbose_name_plural = "Calificaciones de Experiencias"

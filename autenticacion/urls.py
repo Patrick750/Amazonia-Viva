@@ -11,6 +11,10 @@ from .views import (
 )
 from .vistas_reportes import ExportarManifiestoAPIView
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
+from .vistas_experiencias import (
+    ExperienciasDashboardView, SubirEvidenciaView, 
+    MarcarRealizadaView, DetalleFeedbackView
+)
 
 urlpatterns = [
     path('signup/agencia/', RegistroAgencia.as_view(), name='signup_agencia'),
@@ -51,4 +55,10 @@ urlpatterns = [
     path("gestion-logistica/anular/", GestionAnularReservaAPIView.as_view(), name='gestion_logistica_anular'),
     path("gestion-logistica/anular-salida/", GestionAnularSalidaAPIView.as_view(), name='gestion_logistica_anular_salida'),
     path("gestion-logistica/exportar/", ExportarManifiestoAPIView.as_view(), name='exportar_manifiesto'),
+
+    # Endpoints de Experiencias y Feedback
+    path("experiencias/dashboard/", ExperienciasDashboardView.as_view(), name='experiencias_dashboard'),
+    path("experiencias/<int:pk>/evidencia/", SubirEvidenciaView.as_view(), name='subir_evidencia'),
+    path("experiencias/<int:pk>/realizada/", MarcarRealizadaView.as_view(), name='marcar_realizada'),
+    path("experiencias/<int:pk>/feedback/", DetalleFeedbackView.as_view(), name='detalle_feedback'),
 ]

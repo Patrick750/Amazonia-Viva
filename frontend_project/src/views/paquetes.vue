@@ -96,6 +96,10 @@
     <main class="max-w-6xl mx-auto">
       <header class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
+          <router-link to="/panel/dashboard" class="group inline-flex items-center gap-2 text-sm font-bold text-emerald-600 hover:text-emerald-800 mb-3 transition-colors">
+            <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            Volver al Dashboard
+          </router-link>
           <h1 class="text-3xl font-bold text-emerald-900 tracking-tight">Gestión de Tours</h1>
           <p class="text-slate-600 mt-1">Administra tu oferta de experiencias turísticas</p>
         </div>

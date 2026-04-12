@@ -772,3 +772,20 @@ class TuristaPerfilSerializer(serializers.ModelSerializer):
             'foto_url',
         ]
         read_only_fields = ['id', 'email', 'username', 'foto_url']
+
+class ExperienciaEvidenciaSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    def get_url(self, obj):
+        if obj.imagen:
+            return obj.imagen.url
+        return None
+
+    class Meta:
+        model = ExperienciaEvidencia
+        fields = ['id', 'detalle_venta', 'url', 'fecha_subida']
+
+class ExperienciaCalificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExperienciaCalificacion
+        fields = ['id', 'detalle_venta', 'puntuacion', 'comentario', 'fecha']

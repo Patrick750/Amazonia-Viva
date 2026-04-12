@@ -15,6 +15,8 @@ import Pago from '@/views/pago.vue'
 import home from '@/views/home.vue'
 import MisReservas from '@/views/mis-reservas.vue'
 import GestionReservasView from '@/views/gestion-reservas-view.vue'
+import ExperienciasDashboard from '@/views/experiencias-dashboard.vue'
+import FeedbackExperiencia from '@/views/feedback-experiencia.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -130,6 +132,18 @@ const router = createRouter({
       name: 'gestion_reservas',
       component: GestionReservasView,
       meta: { requiresAuth: true, roles: ['agencia', 'proveedor'] },
+    },
+    {
+      path: '/panel/experiencias',
+      name: 'experiencias_dashboard',
+      component: ExperienciasDashboard,
+      meta: { requiresAuth: true, roles: ['agencia'] },
+    },
+    {
+      path: '/feedback-experiencia/:id',
+      name: 'feedback_experiencia',
+      component: FeedbackExperiencia,
+      meta: { requiresAuth: true, roles: ['turista'] },
     },
   ],
   scrollBehavior(to, from, savedPosition) {
