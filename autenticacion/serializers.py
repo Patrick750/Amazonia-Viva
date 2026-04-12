@@ -16,11 +16,19 @@ def calcular_cupos_disponibles(paquete, fecha=None):
         return paquete.capacidad  # flexible sin fecha consultada = capacidad completa
     
     # Solo contamos reservas de ventas que están 'Completado'
+    # Y cuyos detalles no estén Cancelados o Rechazados
+    from .models import Detalles_Venta
+    
+    detalles_excluidos = Detalles_Venta.objects.filter(
+        paquete=paquete.id,
+        estado__in=['Cancelado', 'Rechazado']
+    ).values_list('venta_id', flat=True)
+
     reservas = ReservaFecha.objects.filter(
         paquete=paquete, 
         fecha=fecha,
         venta__estado='Completado'
-    ).aggregate(
+    ).exclude(venta_id__in=detalles_excluidos).aggregate(
         total=Sum('cantidad')
     )['total'] or 0
     return max(0, paquete.capacidad - reservas)

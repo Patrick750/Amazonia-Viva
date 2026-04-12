@@ -109,6 +109,8 @@ export function useCatalogo() {
             imagen: extra.imagen || null,
             subtitulo: extra.subtitulo || '',
             fecha_reserva: extra.fecha_reserva || null,
+            tipo_paquete: extra.tipo_paquete || null,
+            fecha_realizacion: extra.fecha_realizacion || null,
         });
 
         // 2. Sincronizar con el backend si está autenticado
@@ -151,12 +153,30 @@ export function useCatalogo() {
     };
 
 
+    /**
+     * Actualiza el stock local tras una venta exitosa para feedback inmediato.
+     */
+    const actualizarStockLocal = (itemsVendidos) => {
+        itemsVendidos.forEach(item => {
+            if (item.tipo === 'producto') {
+                const target = productos.value.find(p => p.id === item.id);
+                if (target) target.stock = Math.max(0, target.stock - item.cantidad);
+            } else {
+                const target = tours.value.find(t => t.id === item.id);
+                if (target && target.cupos_disponibles !== undefined) {
+                    target.cupos_disponibles = Math.max(0, target.cupos_disponibles - item.cantidad);
+                }
+            }
+        });
+    };
+
+
     return { 
         tours, productos, categoriasTours,
         cargandoTours, cargandoProductos, cargandoCategorias,
         errorTours, errorProductos, 
         cargarTours, cargarProductos, cargarCategorias,
         obtenerTourPorId, obtenerProductoPorId, toggleFavorito,
-        agregarAlCarrito, obtenerCuposDisponibles
+        agregarAlCarrito, obtenerCuposDisponibles, actualizarStockLocal
     };
 }

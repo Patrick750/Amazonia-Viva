@@ -55,12 +55,12 @@ onMounted(cargarReservas);
 
 // ── Filtrado y conteos ───────────────────────────────────────────────────────
 const confirmadas = computed(() => reservas.value.filter(r => r.estado === 'Confirmado'));
-const realizadas  = computed(() => reservas.value.filter(r => r.estado === 'Realizado'));
+const rechazadas   = computed(() => reservas.value.filter(r => r.estado === 'Rechazado'));
 const canceladas  = computed(() => reservas.value.filter(r => r.estado === 'Cancelado'));
 
 const reservasFiltradas = computed(() => {
   if (tabActiva.value === 'Confirmado') return confirmadas.value;
-  if (tabActiva.value === 'Realizado')  return realizadas.value;
+  if (tabActiva.value === 'Rechazado')  return rechazadas.value;
   return canceladas.value;
 });
 
@@ -97,7 +97,7 @@ async function confirmarCancelacion() {
 // ── Badge de estado ──────────────────────────────────────────────────────────
 const badgeClasses = {
   Confirmado: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30',
-  Realizado:  'bg-sky-500/15 text-sky-300 border border-sky-500/30',
+  Rechazado:  'bg-amber-500/15 text-amber-400 border border-amber-500/30 font-black',
   Cancelado:  'bg-red-500/15 text-red-300 border border-red-500/30',
 };
 
@@ -146,7 +146,7 @@ function politicaCancelacion(dias) {
         <button
           v-for="(tab, key) in {
             Confirmado: { label: 'Confirmadas', count: confirmadas.length },
-            Realizado:  { label: 'Realizadas',  count: realizadas.length  },
+            Rechazado:  { label: 'Rechazadas',  count: rechazadas.length  },
             Cancelado:  { label: 'Canceladas',  count: canceladas.length  },
           }"
           :key="key"
@@ -357,10 +357,10 @@ function politicaCancelacion(dias) {
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
           </svg>
         </div>
-        <p class="text-white/40 font-semibold mb-1">Sin reservas{{ tabActiva === 'Confirmado' ? ' confirmadas' : tabActiva === 'Realizado' ? ' realizadas' : ' canceladas' }}</p>
+        <p class="text-white/40 font-semibold mb-1">Sin reservas{{ tabActiva === 'Confirmado' ? ' confirmadas' : tabActiva === 'Rechazado' ? ' rechazadas' : ' canceladas' }}</p>
         <p class="text-white/25 text-sm">
           <template v-if="tabActiva === 'Confirmado'">Explora el catálogo y reserva tu próxima experiencia amazónica.</template>
-          <template v-else-if="tabActiva === 'Realizado'">Tus actividades completadas aparecerán aquí.</template>
+          <template v-else-if="tabActiva === 'Rechazado'">Tus reservas rechazadas por el operador aparecerán aquí para auditoría.</template>
           <template v-else>No tienes ninguna reserva cancelada todavía.</template>
         </p>
         <router-link

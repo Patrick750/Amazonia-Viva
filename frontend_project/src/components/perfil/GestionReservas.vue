@@ -4,9 +4,9 @@
     <!-- ═══════════════════════════════════
          HERO ADMINISTRATIVO COMPACTO
     ═══════════════════════════════════ -->
-    <section class="relative h-[25vh] flex items-center overflow-hidden shrink-0">
+    <section class="relative min-h-[220px] md:h-[25vh] flex items-center overflow-hidden shrink-0 py-12 md:py-0">
       <!-- Botón Volver (Sticky-style absolute) -->
-      <div class="absolute top-8 left-8 z-20">
+      <div class="absolute top-4 left-6 md:top-8 md:left-8 z-20">
         <router-link to="/panel/dashboard" class="group flex items-center gap-3 px-4 py-2 bg-white/5 hover:bg-[#00f5d4]/10 border border-white/10 hover:border-[#00f5d4]/30 rounded-full transition-all duration-300">
            <svg class="w-4 h-4 text-[#00f5d4] transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
            <span class="text-[9px] font-black text-white/60 group-hover:text-white uppercase tracking-widest">Dashboard</span>
@@ -23,7 +23,7 @@
         <div class="absolute inset-0 misty-overlay"></div>
       </div>
 
-      <div class="relative z-10 w-full max-w-[1400px] mx-auto px-8 mt-6 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="relative z-10 w-full max-w-[1400px] mx-auto px-6 md:px-8 mt-4 md:mt-6 flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <span class="text-[#00f5d4] text-[10px] font-black uppercase tracking-[0.3em] mb-2 block">Operaciones Amazónicas</span>
           <h1 class="text-3xl md:text-5xl font-black text-white tracking-tighter">
@@ -31,11 +31,10 @@
           </h1>
         </div>
 
-        <!-- Toggle Switch Glassmorphism (Tabs) -->
-        <div class="glass-pill p-1.5 flex gap-1 shadow-2xl overflow-x-auto no-scrollbar">
+        <div class="glass-pill p-1 md:p-1.5 flex gap-1 shadow-2xl overflow-x-auto no-scrollbar max-w-full">
           <button v-for="tab in tabs" :key="tab.id"
             @click="changeTab(tab.id)"
-            :class="['px-6 py-2.5 rounded-full text-[10px] font-black tracking-widest uppercase transition-all duration-500 whitespace-nowrap',
+            :class="['px-4 md:px-6 py-2 md:py-2.5 rounded-full text-[9px] md:text-[10px] font-black tracking-widest uppercase transition-all duration-500 whitespace-nowrap',
               currentTab === tab.id ? 'bg-[#00f5d4] text-[#050a09] emerald-glow-active' : 'text-white/40 hover:text-white']"
           >
             {{ tab.name }}
@@ -52,32 +51,32 @@
         <section v-if="currentTab === 'reservados' || currentTab === 'rechazados'" class="space-y-6">
           
           <!-- BREADCRUMBS PREMIUM -->
-          <nav class="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-10 pb-4 border-b border-white/5">
+          <nav class="flex flex-wrap items-center gap-2 md:gap-4 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-8 md:mb-10 pb-4 border-b border-white/5">
             <button @click="backToLevel(1)" 
               :class="navigationLevel === 1 ? 'text-[#00f5d4]' : 'hover:text-white/60'"
-              class="transition-colors"
+              class="transition-colors shrink-0"
             >
               LOGÍSTICA
             </button>
-            <span v-if="navigationLevel >= 2" class="text-white/5">/</span>
+            <span v-if="navigationLevel >= 2" class="text-white/5 shrink-0">/</span>
             <button v-if="navigationLevel >= 2" @click="backToLevel(2)" 
               :class="navigationLevel === 2 ? 'text-[#00f5d4]' : 'hover:text-white/60'"
-              class="transition-colors max-w-[200px] truncate"
+              class="transition-colors max-w-[120px] md:max-w-[200px] truncate"
             >
               {{ selectedPackage?.paquete?.nombre || 'PAQUETE' }}
             </button>
-            <span v-if="navigationLevel === 3" class="text-white/5">/</span>
-            <span v-if="navigationLevel === 3" class="text-[#00f5d4] opacity-50">
+            <span v-if="navigationLevel === 3" class="text-white/5 shrink-0">/</span>
+            <span v-if="navigationLevel === 3" class="text-[#00f5d4] opacity-50 shrink-0">
               MANIFIESTO
             </span>
             
-            <!-- Buscador translúcido a la derecha -->
-            <div v-if="navigationLevel === 1" class="ml-auto relative hidden md:block">
+            <!-- Buscador responsivo -->
+            <div v-if="navigationLevel === 1" class="ml-auto relative w-full md:w-auto mt-4 md:mt-0">
               <input 
                 v-model="searchQuery"
                 type="text" 
                 placeholder="BUSCAR EXPEDICIÓN..." 
-                class="bg-white/5 border border-white/10 rounded-full px-10 py-2 text-[10px] font-black text-white placeholder:text-white/20 focus:border-[#00f5d4]/40 transition-all outline-none w-[280px]"
+                class="bg-white/5 border border-white/10 rounded-full px-10 py-2.5 md:py-2 text-[9px] md:text-[10px] font-black text-white placeholder:text-white/20 focus:border-[#00f5d4]/40 transition-all outline-none w-full md:w-[280px]"
               >
               <svg class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             </div>
@@ -302,13 +301,14 @@
           </div>
         </section>
 
-        <!-- === SECCIÓN: AUDITORÍA DE CANCELACIONES (DARK GRID) === -->
-        <section v-else-if="currentTab === 'cancelaciones'" class="space-y-8 animate-fade-in">
-           <div class="flex items-center justify-between px-4">
-              <h3 class="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Historial de Reversiones y Auditoría</h3>
+        <!-- === SECCIÓN: CANCELACIONES (DESKTOP + MOBILE) === -->
+        <section v-else-if="currentTab === 'cancelaciones'" class="space-y-6 md:space-y-8 animate-fade-in">
+           <div class="px-4">
+              <h3 class="text-[10px] md:text-sm font-black text-rose-500 uppercase tracking-[0.3em]">Registro de Reversiones y Cancelaciones</h3>
            </div>
 
-           <div class="glass-card rounded-[32px] border-white/5 overflow-hidden shadow-2xl">
+           <!-- Desktop: Table -->
+           <div class="hidden md:block glass-card rounded-[32px] border-white/5 overflow-hidden shadow-2xl">
               <table class="w-full text-left text-sm text-white/60 border-collapse">
                 <thead class="bg-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-white/30 border-b border-white/5">
                   <tr>
@@ -329,7 +329,7 @@
                       <span class="text-[8px] text-rose-500 font-black uppercase tracking-widest mt-1 block">REVERSED_FUNDS</span>
                     </td>
                     <td class="px-8 py-6 text-center">
-                      <span class="text-[10px] font-black text-white bg-white/5 border border-white/10 px-4 py-2 rounded-xl uppercase tracking-widest shadow-xl">{{ formatDate(cancelado.fecha_salida) }}</span>
+                      <span class="text-[10px] font-black text-white bg-white/5 border border-white/10 px-4 py-2 rounded-xl uppercase tracking-widest">{{ formatDate(cancelado.fecha_salida) }}</span>
                     </td>
                     <td class="px-8 py-6">
                        <span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">{{ formatDate(cancelado.fecha_cancelacion) }}</span>
@@ -339,13 +339,37 @@
                       <span class="font-black text-lg tracking-tighter">COP {{ formatCurrency(cancelado.monto_reembolso) }}</span>
                     </td>
                   </tr>
-                  <tr v-if="cancelaciones.length === 0">
-                    <td colspan="5" class="px-8 py-32 text-center">
-                       <p class="text-[10px] font-black text-white/10 uppercase tracking-[0.5em]">Audit Registry Empty</p>
-                    </td>
-                  </tr>
                 </tbody>
               </table>
+           </div>
+
+           <!-- Mobile: Cards -->
+           <div class="md:hidden space-y-4">
+              <div v-for="cancelado in cancelaciones" :key="cancelado.id_reserva" class="glass-card p-6 rounded-[32px] border-rose-500/10 relative overflow-hidden">
+                 <div class="absolute inset-0 bg-gradient-to-br from-rose-500/[0.05] to-transparent pointer-events-none"></div>
+                 <div class="flex justify-between items-start mb-4 relative z-10">
+                    <span class="text-[9px] font-black text-rose-500 uppercase tracking-widest">#LOG-{{ cancelado.id_reserva }}</span>
+                    <span class="px-3 py-1 bg-white/5 rounded-full text-[8px] font-bold text-white/40 uppercase tracking-widest">
+                       {{ formatDate(cancelado.fecha_salida) }}
+                    </span>
+                 </div>
+                 <div class="relative z-10 mb-6">
+                    <h4 class="text-xs font-black text-white uppercase tracking-tight leading-tight">{{ cancelado.paquete_nombre }}</h4>
+                    <p class="text-[8px] text-white/20 uppercase font-bold mt-1">EJECUCIÓN: {{ formatDate(cancelado.fecha_cancelacion) }}</p>
+                 </div>
+                 <div class="flex justify-between items-center border-t border-white/5 pt-4 relative z-10">
+                    <span class="text-[8px] font-black text-rose-500 uppercase tracking-[0.2em]">REEMBOLSO 100%</span>
+                    <span class="font-black text-rose-500 text-base tracking-tighter">COP {{ formatCurrency(cancelado.monto_reembolso) }}</span>
+                 </div>
+              </div>
+           </div>
+
+           <!-- Vacío -->
+           <div v-if="cancelaciones.length === 0" class="py-24 text-center glass-card rounded-[32px] border-dashed border-white/10">
+              <div class="w-16 h-16 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-6 text-white/10">
+                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              </div>
+              <p class="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Sin registros de cancelaciones</p>
            </div>
         </section>
 
@@ -364,7 +388,9 @@
             </div>
             
             <h3 class="text-xl md:text-2xl font-black text-white mb-2 uppercase tracking-tighter">RECHAZO TÉCNICO</h3>
-            <p class="text-[9px] md:text-[10px] text-white/30 font-black uppercase tracking-[0.3em] mb-8 md:mb-12">Protocolo de Reintegro Administrativo</p>
+            <p class="text-[10px] md:text-[11px] text-rose-500 font-black uppercase tracking-[0.15em] mb-8 md:mb-12 animate-pulse">
+              ⚠️ ADVERTENCIA: DEVOLUCIÓN OBLIGATORIA DEL 100%
+            </p>
 
             <div class="bg-white/5 rounded-[24px] p-6 md:p-8 text-left space-y-4 md:space-y-6 mb-8 md:mb-12 border border-white/5">
               <div class="flex justify-between items-center gap-4">
@@ -428,9 +454,15 @@
               </div>
             </div>
 
-            <p class="text-[10px] md:text-xs text-white/30 font-medium leading-relaxed mb-8 md:mb-12 px-4 md:px-6 italic uppercase tracking-widest">
-              Esta acción revocará irreversiblemente todas las reservas confirmadas. <strong>¿PROCEDER CON LA CANCELACIÓN?</strong>
+            <p class="text-[10px] md:text-xs text-white/30 font-medium leading-relaxed mb-6 italic uppercase tracking-widest leading-relaxed">
+              Esta acción revocará irreversiblemente todas las reservas confirmadas.
             </p>
+            
+            <div class="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 mb-8 md:mb-12">
+              <p class="text-[10px] md:text-[11px] text-rose-500 font-black uppercase tracking-[0.1em]">
+                ⚠️ ALERTA: LA AGENCIA DEBERÁ REEMBOLSAR EL 100% DE LOS PAGOS A TODOS LOS TURISTAS AFECTADOS.
+              </p>
+            </div>
             
             <div class="flex flex-col sm:flex-row gap-3 md:gap-4">
               <button @click="closeCancelSalidaModal" class="order-2 sm:order-1 flex-1 px-6 md:px-10 py-4 md:py-6 rounded-2xl md:rounded-3xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5 transition-all outline-none">
@@ -471,7 +503,7 @@ const exportFormat = ref('')
 const tabs = [
   { id: 'reservados', name: 'Almacén Reservas' },
   { id: 'rechazados', name: 'Filtro Rechazos' },
-  { id: 'cancelaciones', name: 'Historial Auditoría' }
+  { id: 'cancelaciones', name: 'Cancelaciones' }
 ]
 const currentTab = ref('reservados')
 const navigationLevel = ref(1)
@@ -582,6 +614,11 @@ const confirmarAnulacion = async () => {
       }
     }
     closeCancelModal()
+    
+    // REDIRECCIÓN Y RECARGA SOLICITADA POR EL USUARIO
+    await fetchGestionReservas()
+    currentTab.value = 'reservados'
+    backToLevel(1)
   } catch (err) {
     alert('Error en el procedimiento de anulación.')
   } finally {
@@ -600,12 +637,11 @@ const confirmarAnularSalida = async () => {
       fecha: selectedDate.value
     })
     
-    // Al anular toda la salida, regresamos al nivel 2 (calendario)
-    // El sistema refrescará los datos para que esa fecha ya no aparezca como disponible o aparezca rechazada
+    // Al anular toda la salida, regresamos al Nivel 1 del Almacén de Reservas por solicitud
     await fetchGestionReservas()
-    backToLevel(2)
+    currentTab.value = 'reservados'
+    backToLevel(1)
     closeCancelSalidaModal()
-    alert('Operación exitosa: Salida rechazada y reservas anuladas.')
   } catch (err) {
     console.error(err)
     alert('Fallo en la anulación masiva de la salida.')
