@@ -62,9 +62,9 @@
             <span v-if="navigationLevel >= 2" class="text-white/5">/</span>
             <button v-if="navigationLevel >= 2" @click="backToLevel(2)" 
               :class="navigationLevel === 2 ? 'text-[#00f5d4]' : 'hover:text-white/60'"
-              class="transition-colors"
+              class="transition-colors max-w-[200px] truncate"
             >
-              PAQUETE
+              {{ selectedPackage?.paquete?.nombre || 'PAQUETE' }}
             </button>
             <span v-if="navigationLevel === 3" class="text-white/5">/</span>
             <span v-if="navigationLevel === 3" class="text-[#00f5d4] opacity-50">
@@ -84,69 +84,65 @@
           </nav>
 
           <!-- NIVEL 1: PAQUETES -->
-          <div v-if="navigationLevel === 1" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 items-start">
+          <div v-if="navigationLevel === 1" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
             <div v-for="(grupo, idx) in reservasFiltradas" :key="grupo?.paquete?.id" 
               @click="selectPackage(grupo)"
-              class="group cursor-pointer transition-all duration-500 hover:-translate-y-2 animate-fade-in"
-              :style="{ animationDelay: (idx * 0.05) + 's' }"
+              class="group bg-zinc-900/40 rounded-[32px] p-5 backdrop-blur-sm border border-white/5 hover:border-[#00f5d4]/20 transition-all duration-700 hover:-translate-y-2 flex flex-col animate-fade-in shadow-2xl"
+              :style="{ animationDelay: (idx * 0.03) + 's' }"
             >
-              <!-- CONTENEDOR UNIFICADO -->
-              <div class="overflow-hidden rounded-[40px] border border-white/5 bg-zinc-900/40 backdrop-blur-sm shadow-2xl group-hover:border-[#00f5d4]/20 transition-all duration-500">
-                
-                <!-- BLOQUE DE IMAGEN (ALTURA AJUSTABLE) -->
-                <div class="relative h-56 w-full overflow-hidden border-b border-white/5">
-                  <div v-if="grupo.paquete.portada" 
-                    class="w-full h-full bg-cover bg-center transition-transform duration-1000 group-hover:scale-110"
-                    :style="{ backgroundImage: `url(${grupo.paquete.portada})` }"
-                  >
-                    <!-- Overlay gradiente -->
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90"></div>
-                  </div>
-                  <div v-else class="w-full h-full flex items-center justify-center bg-zinc-950">
-                    <svg class="w-12 h-12 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                  </div>
-
-                  <!-- BADGES (DENTRO DE LA IMAGEN) -->
-                  <div class="absolute top-5 left-5">
-                    <span class="px-3 py-1 bg-black/60 backdrop-blur-md border border-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-2xl">
-                      #{{ grupo.paquete.id }}
-                    </span>
-                  </div>
-
-                  <div class="absolute top-5 right-5">
-                    <span :class="currentTab === 'reservados' ? 'bg-[#00f5d4] text-[#050a09]' : 'bg-zinc-800 text-zinc-400'" class="text-[10px] font-black px-4 py-1.5 rounded-xl uppercase tracking-tighter shadow-2xl">
-                      {{ grupo.reservasPorFecha.length }} {{ grupo.reservasPorFecha.length === 1 ? 'Salida' : 'Salidas' }}
-                    </span>
-                  </div>
+              <!-- MARCO INDEPENDIENTE PARA LA IMAGEN (TEMA OSCURO) -->
+              <div class="h-44 w-full relative overflow-hidden rounded-2xl bg-zinc-950/50 border border-white/5 flex items-center justify-center mb-6">
+                <!-- Imagen centrada y nunca estirada -->
+                <div v-if="grupo.paquete.portada" 
+                  class="w-full h-full bg-contain bg-no-repeat bg-center transition-transform duration-1000 group-hover:scale-105"
+                  :style="{ backgroundImage: `url(${grupo.paquete.portada})` }"
+                >
+                </div>
+                <div v-else class="w-full h-full flex items-center justify-center bg-zinc-950">
+                  <svg class="w-10 h-10 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 </div>
 
-                <!-- BLOQUE DE INFORMACIÓN (ABAJO) -->
-                <div class="p-8">
-                  <h4 class="text-xl font-black text-white leading-tight group-hover:text-[#00f5d4] transition-colors uppercase tracking-tight mb-6">
+                <!-- BADGE OPERATIVO (IZQUIERDA) -->
+                <div class="absolute top-4 left-4">
+                   <span class="px-3 py-1 bg-black/50 backdrop-blur-md border border-white/10 text-white text-[8px] font-black uppercase tracking-widest rounded-full">
+                    ID-{{ grupo.paquete.id }}
+                  </span>
+                </div>
+
+                <!-- BADGE DE SALIDAS (DERECHA) -->
+                <div class="absolute top-4 right-4">
+                  <span :class="currentTab === 'reservados' ? 'bg-[#00f5d4] text-[#050a09]' : 'bg-zinc-800 text-zinc-400'" class="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm">
+                    {{ grupo.reservasPorFecha.length }} {{ grupo.reservasPorFecha.length === 1 ? 'Salida' : 'Salidas' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- CUERPO DE INFORMACIÓN SEPARADO -->
+              <div class="flex flex-col gap-5">
+                <div>
+                  <h4 class="text-xl font-black text-white leading-tight group-hover:text-[#00f5d4] transition-colors uppercase tracking-tight mb-4">
                     {{ grupo?.paquete?.nombre }}
                   </h4>
 
                   <div class="space-y-4">
                     <div class="flex justify-between items-end">
-                      <span class="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
-                        {{ currentTab === 'reservados' ? 'Ocupación Confirmada' : 'Total Reversiones' }}
+                      <span class="text-[10px] font-black uppercase tracking-[0.1em] text-white/30">
+                        {{ currentTab === 'reservados' ? 'Ocupación Confirmada' : 'Total Cancelaciones' }}
                       </span>
-                      <span class="text-base font-black text-white tracking-tighter">{{ grupo.totalReservas }} PAX</span>
+                      <span class="text-base font-black text-white">{{ grupo.totalReservas }} pax</span>
                     </div>
                   </div>
+                </div>
 
-                  <div class="pt-8 mt-8 border-t border-white/5 flex items-center justify-between">
-                    <div class="flex flex-col">
-                      <span class="text-[10px] font-black text-white/40 uppercase tracking-widest">Estado Logístico</span>
-                      <span class="text-[9px] font-bold text-[#00f5d4]/60 uppercase tracking-[0.2em] mt-1">Sincronizado</span>
-                    </div>
-                    <div class="w-12 h-12 rounded-[20px] bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:bg-[#00f5d4] group-hover:text-[#050a09] group-hover:border-transparent transition-all shadow-2xl group-hover:shadow-[#00f5d4]/40 group-hover:scale-110 active:scale-95">
-                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7-7 7"/></svg>
-                    </div>
+                <div class="pt-5 border-t border-white/5 flex items-center justify-between">
+                  <span class="text-[10px] font-black text-white/40 uppercase tracking-widest group-hover:text-[#00f5d4] transition-colors">Ver Detalles de Ventas</span>
+                  <div class="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:bg-[#00f5d4] group-hover:text-[#050a09] transition-all shadow-md group-hover:shadow-[#00f5d4]/40">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7-7 7"/></svg>
                   </div>
                 </div>
               </div>
             </div>
+
 
             <!-- Empty State -->
             <div v-if="reservasFiltradas.length === 0" class="col-span-full py-24 text-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/20">
@@ -249,7 +245,11 @@
                 <!-- INFO PRINCIPAL -->
                 <div class="flex items-center gap-6">
                   <div class="relative">
-                    <div class="w-16 h-16 bg-white/5 border border-white/10 text-[#00f5d4] rounded-[20px] flex items-center justify-center font-black text-2xl group-hover:bg-[#00f5d4] group-hover:text-[#050a09] transition-all duration-500 shadow-xl shadow-black/20">
+                    <img v-if="turista.foto" 
+                      :src="turista.foto" 
+                      class="w-16 h-16 object-cover bg-white/5 border border-white/10 rounded-[20px] shadow-xl shadow-black/20 transition-all duration-500 group-hover:border-[#00f5d4]/40" 
+                    />
+                    <div v-else class="w-16 h-16 bg-white/5 border border-white/10 text-[#00f5d4] rounded-[20px] flex items-center justify-center font-black text-2xl group-hover:bg-[#00f5d4] group-hover:text-[#050a09] transition-all duration-500 shadow-xl shadow-black/20">
                       {{ turista.nombre.charAt(0) }}
                     </div>
                     <div v-if="turista.es_comprador" class="absolute -top-1 -right-1 w-6 h-6 bg-[#00f5d4] text-[#050a09] rounded-xl flex items-center justify-center border-[3px] border-[#0a1210] shadow-xl">
@@ -354,45 +354,45 @@
 
     <!-- MODAL DE CONFIRMACIÓN (GLASSMOPRHISM RED) -->
     <transition name="fade">
-      <div v-if="cancelModal.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl">
-        <div class="glass-card rounded-[40px] shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden animate-zoom-in border-white/10">
-          <div class="p-10 text-center relative">
-             <div class="absolute -top-10 -left-10 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl"></div>
+            <div v-if="cancelModal.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-black/60 backdrop-blur-xl">
+        <div class="glass-card rounded-[32px] md:rounded-[40px] shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden animate-zoom-in border-white/10">
+          <div class="p-6 md:p-10 text-center relative z-10">
+             <div class="absolute -top-10 -left-10 w-32 h-32 bg-rose-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-            <div class="w-20 h-20 bg-rose-500/10 rounded-[28px] flex items-center justify-center mx-auto mb-8 text-rose-500 border border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.1)]">
-               <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <div class="w-16 h-16 md:w-20 md:h-20 bg-rose-500/10 rounded-[24px] md:rounded-[28px] flex items-center justify-center mx-auto mb-6 md:mb-8 text-rose-500 border border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.1)]">
+               <svg class="w-8 h-8 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
             </div>
             
-            <h3 class="text-2xl font-black text-white mb-2 uppercase tracking-tighter">ANULACIÓN TÉCNICA</h3>
-            <p class="text-[10px] text-white/30 font-black uppercase tracking-[0.3em] mb-12">Protocolo de Reintegro Administrativo</p>
+            <h3 class="text-xl md:text-2xl font-black text-white mb-2 uppercase tracking-tighter">RECHAZO TÉCNICO</h3>
+            <p class="text-[9px] md:text-[10px] text-white/30 font-black uppercase tracking-[0.3em] mb-8 md:mb-12">Protocolo de Reintegro Administrativo</p>
 
-            <div class="bg-white/5 rounded-[24px] p-8 text-left space-y-6 mb-12 border border-white/5">
-              <div class="flex justify-between items-center">
-                <span class="text-[10px] text-white/20 font-black uppercase tracking-widest">PASAJERO:</span>
-                <span class="font-black text-white uppercase text-sm">{{ cancelModal.turista?.nombre }}</span>
+            <div class="bg-white/5 rounded-[24px] p-6 md:p-8 text-left space-y-4 md:space-y-6 mb-8 md:mb-12 border border-white/5">
+              <div class="flex justify-between items-center gap-4">
+                <span class="text-[9px] md:text-[10px] text-white/20 font-black uppercase tracking-widest shrink-0">PASAJERO:</span>
+                <span class="font-black text-white uppercase text-xs md:text-sm truncate">{{ cancelModal.turista?.nombre }}</span>
               </div>
-              <div class="flex justify-between items-end border-t border-white/5 pt-6">
+              <div class="flex justify-between items-end border-t border-white/5 pt-4 md:pt-6">
                 <div>
-                  <span class="text-[9px] text-rose-500 font-black uppercase block mb-1 tracking-widest">TOTAL_REFUND</span>
-                  <span class="text-[10px] font-bold text-white/20 uppercase tracking-widest">Unrestricted</span>
+                  <span class="text-[8px] md:text-[9px] text-rose-500 font-black uppercase block mb-1 tracking-widest">TOTAL_REFUND</span>
+                  <span class="text-[9px] md:text-[10px] font-bold text-white/20 uppercase tracking-widest">Unrestricted</span>
                 </div>
                 <div class="text-right">
-                  <span class="font-black text-rose-500 text-2xl tracking-tighter">COP {{ formatCurrency(cancelModal.turista?.monto_total) }}</span>
+                  <span class="font-black text-rose-500 text-xl md:text-2xl tracking-tighter">COP {{ formatCurrency(cancelModal.turista?.monto_total) }}</span>
                 </div>
               </div>
             </div>
             
-            <div class="flex gap-4">
-              <button @click="closeCancelModal" class="flex-1 px-8 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/30 hover:bg-white/5 transition-all">
+            <div class="flex flex-col sm:flex-row gap-3 md:gap-4">
+              <button @click="closeCancelModal" class="order-2 sm:order-1 flex-1 px-6 md:px-8 py-4 md:py-5 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white/30 hover:bg-white/5 transition-all">
                 ABORTAR
               </button>
               <button 
                 @click="confirmarAnulacion" 
                 :disabled="cancelModal.isProcessing"
-                class="flex-1 px-8 py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-rose-900/20 transition-all flex items-center justify-center gap-2"
+                class="order-1 sm:order-2 flex-1 px-6 md:px-8 py-4 md:py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-rose-900/20 transition-all flex items-center justify-center gap-2"
               >
                 <svg v-if="cancelModal.isProcessing" class="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-                <span>CONFIRMAR</span>
+                <span>CONFIRMAR_RECHAZO</span>
               </button>
             </div>
           </div>
@@ -401,45 +401,45 @@
     </transition>
     <!-- MODAL DE ANULACIÓN MASIVA (CRITICAL) -->
     <transition name="fade">
-      <div v-if="cancelSalidaModal.isOpen" class="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/80 backdrop-blur-2xl">
-        <div class="glass-card rounded-[48px] shadow-2xl w-full max-w-lg overflow-hidden animate-zoom-in border-rose-500/20">
-          <div class="p-12 text-center text-white relative">
-             <div class="absolute inset-0 bg-gradient-to-b from-rose-500/5 to-transparent"></div>
+            <div v-if="cancelSalidaModal.isOpen" class="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-2xl">
+        <div class="glass-card rounded-[32px] md:rounded-[48px] shadow-2xl w-full max-w-lg overflow-hidden animate-zoom-in border-rose-500/20">
+          <div class="p-6 md:p-12 text-center text-white relative z-10">
+             <div class="absolute inset-0 bg-gradient-to-b from-rose-500/5 to-transparent pointer-events-none"></div>
 
-            <div class="w-24 h-24 bg-rose-500/10 text-rose-500 rounded-[32px] flex items-center justify-center mx-auto mb-10 border border-rose-500/30 shadow-[0_0_40px_rgba(244,63,94,0.2)]">
-               <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <div class="w-20 h-20 md:w-24 md:h-24 bg-rose-500/10 text-rose-500 rounded-[28px] md:rounded-[32px] flex items-center justify-center mx-auto mb-6 md:mb-10 border border-rose-500/30 shadow-[0_0_40px_rgba(244,63,94,0.2)]">
+               <svg class="w-10 h-10 md:w-12 md:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
             </div>
             
-            <h3 class="text-3xl font-black tracking-tighter mb-2 uppercase">¡ALERTA_CRÍTICA!</h3>
-            <p class="text-[11px] font-black text-rose-500 uppercase tracking-[0.4em] mb-12">Anulación Masiva de Operación</p>
+            <h3 class="text-2xl md:text-3xl font-black tracking-tighter mb-2 uppercase">¡ALERTA_CRÍTICA!</h3>
+            <p class="text-[10px] md:text-[11px] font-black text-rose-500 uppercase tracking-[0.4em] mb-8 md:mb-12">Anulación Masiva de Operación</p>
 
-            <div class="bg-white/5 rounded-[32px] p-10 text-left space-y-6 mb-12 border border-white/10 shadow-inner">
-              <div class="flex justify-between items-center">
-                <span class="text-[10px] text-white/20 font-black uppercase tracking-widest">SERVICIO:</span>
-                <span class="font-black text-white uppercase text-xs tracking-tight">{{ selectedPackage?.paquete?.nombre }}</span>
+            <div class="bg-white/5 rounded-[24px] md:rounded-[32px] p-6 md:p-10 text-left space-y-4 md:space-y-6 mb-8 md:mb-12 border border-white/10 shadow-inner">
+              <div class="flex justify-between items-center gap-4">
+                <span class="text-[9px] md:text-[10px] text-white/20 font-black uppercase tracking-widest shrink-0">SERVICIO:</span>
+                <span class="font-black text-white uppercase text-[10px] md:text-xs tracking-tight truncate">{{ selectedPackage?.paquete?.nombre }}</span>
               </div>
-              <div class="flex justify-between items-center border-t border-white/5 pt-6">
-                <span class="text-[10px] text-white/20 font-black uppercase tracking-widest">DESPACHO:</span>
-                <span class="font-black text-white uppercase">{{ formatDate(selectedDate) }}</span>
+              <div class="flex justify-between items-center border-t border-white/5 pt-4 md:pt-6">
+                <span class="text-[9px] md:text-[10px] text-white/20 font-black uppercase tracking-widest">DESPACHO:</span>
+                <span class="font-black text-white uppercase text-[10px] md:text-xs">{{ formatDate(selectedDate) }}</span>
               </div>
-              <div class="flex justify-between items-center border-t border-white/5 pt-6">
-                <span class="text-[10px] font-black text-rose-500 uppercase tracking-widest">AFECTACIÓN TOTAL:</span>
-                <span class="font-black text-rose-500 text-2xl tracking-tighter">{{ selectedDateGroup?.turistas.length }} pax</span>
+              <div class="flex justify-between items-center border-t border-white/5 pt-4 md:pt-6">
+                <span class="text-[9px] md:text-[10px] font-black text-rose-500 uppercase tracking-widest">AFECTACIÓN TOTAL:</span>
+                <span class="font-black text-rose-500 text-xl md:text-2xl tracking-tighter">{{ selectedDateGroup?.turistas.length }} pax</span>
               </div>
             </div>
 
-            <p class="text-xs text-white/30 font-medium leading-relaxed mb-12 px-6 italic uppercase tracking-widest">
+            <p class="text-[10px] md:text-xs text-white/30 font-medium leading-relaxed mb-8 md:mb-12 px-4 md:px-6 italic uppercase tracking-widest">
               Esta acción revocará irreversiblemente todas las reservas confirmadas. <strong>¿PROCEDER CON LA CANCELACIÓN?</strong>
             </p>
             
-            <div class="flex flex-col sm:flex-row gap-4">
-              <button @click="closeCancelSalidaModal" class="flex-1 px-10 py-6 rounded-3xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5 transition-all outline-none">
+            <div class="flex flex-col sm:flex-row gap-3 md:gap-4">
+              <button @click="closeCancelSalidaModal" class="order-2 sm:order-1 flex-1 px-6 md:px-10 py-4 md:py-6 rounded-2xl md:rounded-3xl text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/5 transition-all outline-none">
                 ABORTAR
               </button>
               <button 
                 @click="confirmarAnularSalida" 
                 :disabled="cancelSalidaModal.isProcessing"
-                class="flex-1 px-10 py-6 bg-rose-600 hover:bg-rose-500 text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_20px_40px_rgba(225,29,72,0.3)] transition-all flex items-center justify-center gap-3"
+                class="order-1 sm:order-2 flex-1 px-6 md:px-10 py-4 md:py-6 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl md:rounded-3xl text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_20px_40px_rgba(225,29,72,0.3)] transition-all flex items-center justify-center gap-3"
               >
                 <svg v-if="cancelSalidaModal.isProcessing" class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
                 <span>CONFIRMAR_RECHAZO</span>
@@ -495,7 +495,7 @@ const reservasFiltradas = computed(() => {
 const fetchGestionReservas = async () => {
   loading.value = true
   try {
-    const { data } = await axios.get('api/gestion-logistica/')
+    const { data } = await axios.get('/api/gestion-logistica/')
     paquetesRaw.value = data.paquetes_list
     reservasAgrupadasRaw.value = data.reservasAgrupadas
     rechazadosAgrupadasRaw.value = data.rechazadosAgrupados
@@ -526,7 +526,7 @@ const ejecutarDescarga = async () => {
   }
 
   try {
-    const response = await axios.post('api/gestion-logistica/exportar/', {
+    const response = await axios.post('/api/gestion-logistica/exportar/', {
       paquete_id: selectedPackage.value.paquete.id,
       fecha: selectedDate.value,
       formato: exportFormat.value
@@ -564,7 +564,7 @@ const confirmarAnulacion = async () => {
   const t = cancelModal.turista
   cancelModal.isProcessing = true
   try {
-    await axios.post('api/gestion-logistica/anular/', { id_detalle: t.id_detalle })
+    await axios.post('/api/gestion-logistica/anular/', { id_detalle: t.id_detalle })
     cancelaciones.value.unshift({ 
       id_reserva: t.id_transaccion, 
       paquete_nombre: selectedPackage.value.paquete.nombre, 
@@ -595,7 +595,7 @@ const closeCancelSalidaModal = () => { cancelSalidaModal.isOpen = false }
 const confirmarAnularSalida = async () => {
   cancelSalidaModal.isProcessing = true
   try {
-    await axios.post('api/gestion-logistica/anular-salida/', { 
+    await axios.post('/api/gestion-logistica/anular-salida/', { 
       paquete_id: selectedPackage.value.paquete.id,
       fecha: selectedDate.value
     })

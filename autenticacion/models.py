@@ -277,6 +277,7 @@ class Detalles_Venta(models.Model):
     ESTADO_PAQUETE_CHOICES = [
         ('Confirmado', 'Confirmado'),
         ('Cancelado', 'Cancelado'),
+        ('Rechazado', 'Rechazado'),
         ('Reembolso', 'Reembolso'),
     ]
 

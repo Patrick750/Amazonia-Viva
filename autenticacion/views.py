@@ -1095,8 +1095,8 @@ class GestionLogisticaAPIView(APIView):
                     detalle_id = detalle.id if detalle else None
 
                     # Determinar en qué grupo cae (Activo o Rechazado)
-                    is_cancelled = (estado_item == 'Cancelado')
-                    current_agrupado = agrupado_por_pk_rechazados if is_cancelled else agrupado_por_pk
+                    is_rejected = (estado_item in ['Cancelado', 'Rechazado'])
+                    current_agrupado = agrupado_por_pk_rechazados if is_rejected else agrupado_por_pk
 
                     if pk_id not in current_agrupado:
                         # Buscar la imagen de portada
@@ -1144,6 +1144,17 @@ class GestionLogisticaAPIView(APIView):
                     for i, nov in enumerate(novedades):
                         comprador_nombre = f"{nov.get('nombres', '')} {nov.get('apellidos', '')}".strip() or res.venta.usuario.username
                         
+                        # Obtener foto si es el comprador
+                        comprador_foto = None
+                        if i == 0:
+                            v_u = res.venta.usuario
+                            if hasattr(v_u, 'turista') and v_u.turista.foto_perfil:
+                                comprador_foto = v_u.turista.foto_perfil.url
+                            elif hasattr(v_u, 'proveedor') and v_u.proveedor.foto_perfil:
+                                comprador_foto = v_u.proveedor.foto_perfil.url
+                            elif hasattr(v_u, 'agencia') and v_u.agencia.logotipo:
+                                comprador_foto = v_u.agencia.logotipo.url
+
                         viajero_data = {
                             'id_transaccion': f"{res.venta.id}",
                             'nombre': comprador_nombre,
@@ -1151,6 +1162,7 @@ class GestionLogisticaAPIView(APIView):
                             'contacto': res.venta.usuario.email if i == 0 else 'N/A',
                             'es_comprador': (i == 0),
                             'rol': 'Comprador' if i == 0 else 'Pasajero',
+                            'foto': comprador_foto,
                             'cupos': 1, # Cada fila es 1 persona
                             'monto_total': float(precio_item * detalle.cantidad) if (i == 0 and detalle) else 0,
                             'id_detalle': detalle_id
@@ -1289,10 +1301,10 @@ class GestionAnularReservaAPIView(APIView):
                     prod.stock += detalle.cantidad
                     prod.save()
 
-            detalle.estado = 'Cancelado'
+            detalle.estado = 'Rechazado'
             detalle.save()
 
-            return Response({'mensaje': 'Reserva anulada correctamente.'}, status=status.HTTP_200_OK)
+            return Response({'mensaje': 'Reserva rechazada correctamente.'}, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -1325,16 +1337,16 @@ class GestionAnularSalidaAPIView(APIView):
             ventas_ids = reservas_fecha.values_list('venta_id', flat=True)
 
             # 3. Anular detalles de venta correspondientes
-            detalles = Detalles_Venta.objects.filter(venta_id__in=ventas_ids, paquete=paquete_id).exclude(estado='Cancelado')
+            detalles = Detalles_Venta.objects.filter(venta_id__in=ventas_ids, paquete=paquete_id).exclude(estado='Rechazado').exclude(estado='Cancelado')
             
             count = detalles.count()
-            detalles.update(estado='Cancelado')
+            detalles.update(estado='Rechazado')
 
             # 4. Eliminar registros de ReservaFecha
             reservas_fecha.delete()
 
             return Response({
-                'message': f'Salida rechazada correctamente. {count} reservas anuladas.',
+                'message': f'Salida rechazada correctamente. {count} reservas marcadas como Rechazadas.',
                 'count': count
             }, status=status.HTTP_200_OK)
 
