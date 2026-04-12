@@ -6,8 +6,10 @@ from .views import (
     CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
     DetalleProductoPublico, UserStatsView, PerfilView, PerfilFotoView,
     VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView,
-    CuposDisponiblesView
+    CuposDisponiblesView, MisReservasView, CancelarReservaView,
+    GestionLogisticaAPIView, GestionAnularReservaAPIView, GestionAnularSalidaAPIView
 )
+from .vistas_reportes import ExportarManifiestoAPIView
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
 
 urlpatterns = [
@@ -43,4 +45,10 @@ urlpatterns = [
     path("confirmar-password/", ConfirmarPasswordView.as_view(), name="confirmar_password"),
     path("venta/procesar/", ProcesarPagoView.as_view(), name="procesar_pago"),
     path("cupos/<int:pk>/", CuposDisponiblesView.as_view(), name="cupos_disponibles"),
-]
+    path("mis-reservas/", MisReservasView.as_view(), name="mis_reservas"),
+    path("mis-reservas/<int:pk>/cancelar/", CancelarReservaView.as_view(), name='cancelar_reserva'),
+    path("gestion-logistica/", GestionLogisticaAPIView.as_view(), name='gestion_logistica'),
+    path("gestion-logistica/anular/", GestionAnularReservaAPIView.as_view(), name='gestion_logistica_anular'),
+    path("gestion-logistica/anular-salida/", GestionAnularSalidaAPIView.as_view(), name='gestion_logistica_anular_salida'),
+    path("gestion-logistica/exportar/", ExportarManifiestoAPIView.as_view(), name='exportar_manifiesto'),
+]

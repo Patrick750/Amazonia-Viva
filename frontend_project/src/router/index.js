@@ -13,6 +13,8 @@ import Carrito from '@/views/carrito.vue'
 import CheckoutViajeros from '@/views/checkout-viajeros.vue'
 import Pago from '@/views/pago.vue'
 import home from '@/views/home.vue'
+import MisReservas from '@/views/mis-reservas.vue'
+import GestionReservasView from '@/views/gestion-reservas-view.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -117,6 +119,18 @@ const router = createRouter({
       component: () => import('@/views/perfil-turista.vue'),
       meta: { requiresAuth: true, roles: ['turista'] },
     },
+    {
+      path: '/panel/reservas',
+      name: 'mis_reservas',
+      component: MisReservas,
+      meta: { requiresAuth: true, roles: ['turista'] },
+    },
+    {
+      path: '/panel/gestion-reservas',
+      name: 'gestion_reservas',
+      component: GestionReservasView,
+      meta: { requiresAuth: true, roles: ['agencia', 'proveedor'] },
+    },
   ],
   scrollBehavior(to, from, savedPosition) {
     // Siempre desplazar al inicio de la página en cada navegación
@@ -163,6 +177,10 @@ router.beforeEach((to, from, next) => {
   }
 
   if (to.path === '/panel/productos' && rol !== 'proveedor') {
+    return next('/')
+  }
+
+  if (to.path === '/panel/gestion-reservas' && !['agencia', 'proveedor'].includes(rol)) {
     return next('/')
   }
 

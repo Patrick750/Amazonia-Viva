@@ -25,7 +25,7 @@ class Agencia(Usuario):
     nombre_agencia = models.CharField(max_length=50, null=False, blank=False)
     latitud = models.DecimalField(max_digits=10,decimal_places=8, blank=True,null=True)
     logitud = models.DecimalField(max_digits=10,decimal_places=8, blank=True,null=True)
-    numero_telefonico = models.CharField(max_length=20, null=False, blank=False)
+    numero_telefonico = models.CharField(max_length=20, null=True, blank=True)
     logotipo = CloudinaryField('image', folder='amazonia_viva/perfiles', blank=True, null=True)
     foto_portada = CloudinaryField('image', folder='amazonia_viva/portadas', blank=True, null=True)
     descripcion = models.CharField(max_length=255, blank=True,null=True)
@@ -46,7 +46,7 @@ class Proveedor(Usuario):
     rut = models.CharField(max_length=20, blank=True,null=True)
     latitud = models.DecimalField(max_digits=10,decimal_places=8, blank=True, null=True)
     logitid = models.DecimalField(max_digits=10,decimal_places=8, blank=True, null=True)
-    numero_telefonico = models.CharField(max_length=20, null=False, blank=False)
+    numero_telefonico = models.CharField(max_length=20, null=True, blank=True)
     foto_perfil = CloudinaryField('image', folder='amazonia_viva/perfiles', blank=True, null=True)
     foto_portada = CloudinaryField('image', folder='amazonia_viva/portadas', blank=True, null=True)
     descripcion = models.CharField(max_length=255, blank=True,null=True)
@@ -61,6 +61,7 @@ class Turista(Usuario):
     numero_identidad = models.CharField(max_length=15, blank=False, null=False)
     foto_perfil = CloudinaryField('image', folder='amazonia_viva/perfiles', blank=True, null=True)
     foto_portada = CloudinaryField('image', folder='amazonia_viva/portadas', blank=True, null=True)
+    numero_telefonico = models.CharField(max_length=20, null=True, blank=True)
 
 class Categoria(models.Model):
     nombre = models.CharField(
@@ -276,6 +277,7 @@ class Detalles_Venta(models.Model):
     ESTADO_PAQUETE_CHOICES = [
         ('Confirmado', 'Confirmado'),
         ('Cancelado', 'Cancelado'),
+        ('Rechazado', 'Rechazado'),
         ('Reembolso', 'Reembolso'),
     ]
 

@@ -177,7 +177,8 @@ const finalizarProcesoDePago = async () => {
                 id: i.id,
                 tipo: i.tipo,
                 cantidad: i.cantidad,
-                precio: i.precio
+                precio: i.precio,
+                fecha_reserva: i.fecha_reserva
             }))
         };
 

@@ -15,6 +15,8 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.db import transaction
 from django.core.mail import send_mail
+from datetime import date
+from .serializers import calcular_cupos_disponibles
 
 # Create your views here.
 
@@ -706,128 +708,108 @@ class ConfirmarPasswordView(APIView):
 class ProcesarPagoView(APIView):
     """
     Endpoint para procesar la transacción final, guardar en DB, reducir stock y vaciar el carrito.
+    Garantiza atomicidad total: o se procesa todo el carrito o no se guarda nada.
     """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        data = request.data
+        items = data.get('items', [])
+        novedades = data.get('novedades_turistas', [])
+
+        if not items:
+            return Response({'error': 'No hay items seleccionados para procesar.'}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             with transaction.atomic():
-                data = request.data
-            print(f"DEBUG: Procesando pago para usuario {request.user.email}")
-            print(f"DEBUG: Payload recibido: {data}")
-            
-            # Asegurar que el total sea un número decimal válido
-            try:
-                total = round(float(data.get('total', 0)), 2)
-            except (ValueError, TypeError):
-                total = 0
-
-            novedades = data.get('novedades_turistas', [])
-            items = data.get('items', [])
-
-            if not items:
-                return Response({'error': 'No hay items seleccionados para procesar.'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Crear la Venta
-            venta = Venta.objects.create(
-                usuario=request.user,
-                total=total,
-                novedades_turistas=novedades,
-                estado='Completado'
-            )
-            
-            # Procesar items y generar Detalles_Venta
-            for it in items:
-                tipo = it.get('tipo')
-                item_id = it.get('id')
-                cantidad = int(it.get('cantidad', 1))
-                precio = it.get('precio', 0)
-                fecha_reserva_str = it.get('fecha_reserva', None)
-                
-                # Asegurar que el precio sea un número
+                # 1. Asegurar que el total sea un número decimal válido
                 try:
-                    precio = round(float(it.get('precio', 0)), 2)
+                    total = round(float(data.get('total', 0)), 2)
                 except (ValueError, TypeError):
-                    precio = 0
-                
-                if not item_id or item_id == 0:
-                    print(f"WARNING: Item saltado por ID inválido: {it}")
-                    continue
+                    total = 0
 
-                if tipo == 'producto':
-                    producto = Productos.objects.filter(pk=item_id).first()
-                    if not producto:
-                         raise ValueError(f"El producto con ID {item_id} no existe en la base de datos.")
+                # 2. Crear la Venta principal
+                venta = Venta.objects.create(
+                    usuario=request.user,
+                    total=total,
+                    novedades_turistas=novedades,
+                    estado='Completado'
+                )
 
-                    # Reducir stock
-                    if producto.stock >= cantidad:
-                        producto.stock -= cantidad
-                    else:
-                        producto.stock = 0
-                    producto.save()
+                # 3. Procesar cada ítem del carrito
+                for it in items:
+                    tipo = it.get('tipo')
+                    item_id = it.get('id')
+                    cantidad = int(it.get('cantidad', 1))
                     
-                    Detalles_Venta.objects.create(
-                        venta=venta,
-                        producto=int(item_id),
-                        paquete=0,
-                        cantidad=cantidad,
-                        precio_unitario=precio,
-                        estado='Pendiente de Empaque'
-                    )
-                elif tipo == 'paquete' or tipo == 'tour':
-                    # Usar select_for_update para bloquear la fila del paquete y evitar condiciones de carrera en los cupos
                     try:
+                        precio_unitario = round(float(it.get('precio', 0)), 2)
+                    except (ValueError, TypeError):
+                        precio_unitario = 0
+
+                    if not item_id or item_id == 0:
+                        continue
+
+                    if tipo == 'producto':
+                        producto = Productos.objects.select_for_update().filter(pk=item_id).first()
+                        if not producto:
+                            raise ValueError(f"El producto con ID {item_id} no existe.")
+
+                        if producto.stock < cantidad:
+                             raise ValueError(f"Stock insuficiente para '{producto.nombre}'. Disponibles: {producto.stock}")
+
+                        producto.stock -= cantidad
+                        producto.save()
+                        
+                        Detalles_Venta.objects.create(
+                            venta=venta,
+                            producto=int(item_id),
+                            paquete=0,
+                            cantidad=cantidad,
+                            precio_unitario=precio_unitario,
+                            estado='Pendiente de Empaque'
+                        )
+
+                    elif tipo == 'paquete' or tipo == 'tour':
                         paquete = PaqueteTuristico.objects.select_for_update().get(pk=item_id)
-                    except PaqueteTuristico.DoesNotExist:
-                        raise ValueError(f"El paquete/tour con ID {item_id} no existe en la base de datos.")
+                        
+                        # Determinar y validar la fecha de reserva
+                        from datetime import date, timedelta
+                        fecha_reserva_str = it.get('fecha_reserva')
+                        fecha_reserva = None
 
-                    # Determinar la fecha de reserva
-                    from datetime import date
-                    fecha_reserva = None
-                    if fecha_reserva_str:
-                        try:
-                            fecha_reserva = date.fromisoformat(fecha_reserva_str)
-                        except (ValueError, TypeError):
-                            pass
-                    # Si no viene del item, usar fecha_realizacion del paquete fijo
-                    if not fecha_reserva and paquete.tipo_paquete == 'fijo' and paquete.fecha_realizacion:
-                        fecha_reserva = paquete.fecha_realizacion
+                        if fecha_reserva_str:
+                            try:
+                                fecha_reserva = date.fromisoformat(fecha_reserva_str)
+                            except (ValueError, TypeError):
+                                pass
 
-                    # Validar que la fecha sea al menos 7 días a futuro
-                    if fecha_reserva:
-                        from datetime import timedelta
+                        if not fecha_reserva and paquete.tipo_paquete == 'fijo':
+                            fecha_reserva = paquete.fecha_realizacion
+
+                        if not fecha_reserva:
+                            raise ValueError(f"Debes seleccionar una fecha para el tour '{paquete.nombre}'.")
+
+                        # Validar antelación (7 días mínimo)
                         fecha_minima = date.today() + timedelta(days=7)
-                        if fecha_reserva < fecha_minima:
-                            return Response({
-                                'error': f'La fecha de reserva para "{paquete.nombre}" debe ser al menos 7 días a futuro (mínimo: {fecha_minima}).'
-                            }, status=status.HTTP_400_BAD_REQUEST)
-                    elif paquete.tipo_paquete == 'flexible':
-                        return Response({
-                            'error': f'Debes seleccionar una fecha para el paquete "{paquete.nombre}".'
-                        }, status=status.HTTP_400_BAD_REQUEST)
+                        if fecha_reserva < fecha_minima and paquete.tipo_paquete == 'flexible':
+                            raise ValueError(f"La fecha de '{paquete.nombre}' debe ser al menos 7 días a futuro.")
 
-                    # Validar cupos disponibles si hay fecha
-                    if fecha_reserva:
+                        # Validar cupos disponibles
                         from .serializers import calcular_cupos_disponibles
                         cupos = calcular_cupos_disponibles(paquete, fecha_reserva)
                         if cupos < cantidad:
-                            from django.db import transaction as db_transaction
-                            db_transaction.set_rollback(True)
-                            return Response({
-                                'error': f'No hay suficientes cupos para "{paquete.nombre}" en la fecha {fecha_reserva}. Disponibles: {cupos}.'
-                            }, status=status.HTTP_400_BAD_REQUEST)
+                            raise ValueError(f"No hay cupos suficientes para '{paquete.nombre}' en la fecha {fecha_reserva}. Disponibles: {cupos}.")
 
-                    Detalles_Venta.objects.create(
-                        venta=venta,
-                        producto=0,
-                        paquete=int(item_id),
-                        cantidad=cantidad,
-                        precio_unitario=precio,
-                        estado='Confirmado'
-                    )
+                        Detalles_Venta.objects.create(
+                            venta=venta,
+                            producto=0,
+                            paquete=int(item_id),
+                            cantidad=cantidad,
+                            precio_unitario=precio_unitario,
+                            estado='Confirmado'
+                        )
 
-                    # Registrar la reserva por fecha
-                    if fecha_reserva:
                         ReservaFecha.objects.create(
                             paquete=paquete,
                             venta=venta,
@@ -835,28 +817,596 @@ class ProcesarPagoView(APIView):
                             cantidad=cantidad
                         )
 
-            # Vaciar el Carrito en base de datos
-            carrito = Carrito.objects.filter(usuario=request.user, status=True).first()
-            if carrito:
-                Items.objects.filter(carrito=carrito).delete()
-                
+                # 4. Vaciar el Carrito SOLO si todo lo anterior fue exitoso
+                carrito = Carrito.objects.filter(usuario=request.user, status=True).first()
+                if carrito:
+                    Items.objects.filter(carrito=carrito).delete()
 
-                
+            # Fuera del bloque atomic, si llegamos aquí es que todo se guardó correctamente
             return Response({
                 'exito': True, 
-                'mensaje': 'Pago procesado y compra guardada exitosamente.',
+                'mensaje': 'Pago procesado exitosamente.',
                 'venta_id': venta.id
             }, status=status.HTTP_201_CREATED)
-            
+
         except ValueError as ve:
-            print(f"ERROR DE VALIDACIÓN EN VENTA: {str(ve)}")
             return Response({'error': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            msg_error = str(e)
-            print(f"CRITICAL ERROR EN VENTA: {msg_error}")
+            print(f"CRITICAL ERROR EN PAGO: {str(e)}")
             return Response({
-                'error': 'Error interno del servidor al procesar el pago.',
-                'detalle': msg_error
+                'error': 'Error interno al procesar el pago.',
+                'detalle': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
+
+class MisReservasView(APIView):
+    """
+    GET /api/mis-reservas/
+    Devuelve todas las reservas de paquetes turísticos del turista autenticado.
+    Cada ítem incluye estado semántico: 'Confirmado', 'Cancelado' o 'Realizado'.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from datetime import date as date_type
+        try:
+            if not Turista.objects.filter(pk=request.user.pk).exists():
+                return Response({'error': 'Acceso restringido a turistas.'}, status=status.HTTP_403_FORBIDDEN)
+
+            detalles = Detalles_Venta.objects.filter(
+                venta__usuario=request.user,
+                paquete__gt=0,
+            ).select_related('venta').order_by('-venta__fecha')
+
+            resultado = []
+            hoy = date_type.today()
+
+            for detalle in detalles:
+                paquete = PaqueteTuristico.objects.filter(pk=detalle.paquete).select_related('agencia').prefetch_related('imagen_paquete').first()
+                if not paquete:
+                    continue
+
+                reserva_fecha = ReservaFecha.objects.filter(
+                    paquete=paquete,
+                    venta=detalle.venta
+                ).first()
+
+                fecha_actividad = None
+                if reserva_fecha:
+                    fecha_actividad = str(reserva_fecha.fecha)
+                elif paquete.fecha_realizacion:
+                    fecha_actividad = str(paquete.fecha_realizacion)
+
+                estado_raw = detalle.estado
+                if estado_raw == 'Confirmado':
+                    if fecha_actividad:
+                        try:
+                            from datetime import date as dt
+                            fa = dt.fromisoformat(fecha_actividad)
+                            estado_semantico = 'Realizado' if fa < hoy else 'Confirmado'
+                        except Exception:
+                            estado_semantico = 'Confirmado'
+                    else:
+                        estado_semantico = 'Confirmado'
+                elif estado_raw == 'Cancelado':
+                    estado_semantico = 'Cancelado'
+                elif estado_raw == 'Rechazado':
+                    estado_semantico = 'Rechazado'
+                else:
+                    estado_semantico = estado_raw
+
+                imagen_portada = None
+                portada = paquete.imagen_paquete.filter(es_portada=True).first()
+                if portada:
+                    imagen_portada = portada.imagen.url
+                else:
+                    primera = paquete.imagen_paquete.first()
+                    if primera:
+                        imagen_portada = primera.imagen.url
+
+                requerimientos = ''
+                viajeros_lista = []
+                novedades = detalle.venta.novedades_turistas or []
+                if novedades and isinstance(novedades, list):
+                    for v in novedades:
+                        if isinstance(v, dict):
+                            viajeros_lista.append({
+                                'nombres':   v.get('nombres', ''),
+                                'apellidos': v.get('apellidos', ''),
+                                'tipo_doc':  v.get('tipo_doc', ''),
+                                'num_doc':   v.get('num_doc', ''),
+                                'edad':      v.get('edad', ''),
+                                'novedades': v.get('novedades', '') or v.get('novedad', ''),
+                            })
+                    # Compatibilidad: requerimientos sigue siendo el del primer viajero
+                    if viajeros_lista:
+                        requerimientos = viajeros_lista[0].get('novedades', '')
+
+                resultado.append({
+                    'id': detalle.id,
+                    'venta_id': detalle.venta.id,
+                    'paquete_id': paquete.id,
+                    'nombre': paquete.nombre,
+                    'imagen': imagen_portada,
+                    'agencia': paquete.agencia.nombre_agencia if paquete.agencia else '',
+                    'ubicacion': paquete.ubicacion,
+                    'fecha_actividad': fecha_actividad,
+                    'cantidad': detalle.cantidad,
+                    'precio_unitario': str(detalle.precio_unitario),
+                    'precio_total': str(round(float(detalle.precio_unitario) * detalle.cantidad, 2)),
+                    'estado': estado_semantico,
+                    'requerimientos': requerimientos,
+                    'viajeros': viajeros_lista,
+                    'fecha_compra': str(detalle.venta.fecha.date()),
+                })
+
+            return Response(resultado, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"ERROR EN MisReservasView: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CancelarReservaView(APIView):
+    """
+    PATCH /api/mis-reservas/<pk>/cancelar/
+    Cancela una reserva de paquete turístico del turista autenticado.
+    Si la fecha de actividad es 8 o más días a futuro, restaura los cupos
+    eliminando el registro ReservaFecha correspondiente.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        from datetime import date as date_type, timedelta
+        try:
+            if not Turista.objects.filter(pk=request.user.pk).exists():
+                return Response({'error': 'Acceso restringido a turistas.'}, status=status.HTTP_403_FORBIDDEN)
+
+            detalle = get_object_or_404(Detalles_Venta, pk=pk, venta__usuario=request.user)
+
+            if detalle.paquete == 0:
+                return Response({'error': 'Este ítem no es una reserva de paquete.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if detalle.estado == 'Cancelado':
+                return Response({'error': 'Esta reserva ya fue cancelada anteriormente.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            paquete = PaqueteTuristico.objects.filter(pk=detalle.paquete).first()
+            if not paquete:
+                return Response({'error': 'No se encontró el paquete turístico asociado.'}, status=status.HTTP_404_NOT_FOUND)
+
+            hoy = date_type.today()
+            cupos_restaurados = False
+
+            reserva_fecha = ReservaFecha.objects.filter(
+                paquete=paquete,
+                venta=detalle.venta
+            ).first()
+
+            if reserva_fecha:
+                dias_diferencia = (reserva_fecha.fecha - hoy).days
+                if dias_diferencia >= 8:
+                    # No eliminamos ReservaFecha para mantener visibilidad en la logística de la agencia
+                    cupos_restaurados = True
+
+            detalle.estado = 'Cancelado'
+            detalle.save()
+
+            venta = detalle.venta
+            todos_cancelados = not Detalles_Venta.objects.filter(
+                venta=venta,
+                paquete__gt=0
+            ).exclude(estado='Cancelado').exists()
+            if todos_cancelados:
+                venta.estado = 'Cancelado'
+                venta.save()
+
+            mensaje = 'Reserva cancelada exitosamente.'
+            if cupos_restaurados:
+                mensaje += ' Los cupos han sido restaurados para la fecha de la actividad.'
+
+            return Response({
+                'exito': True,
+                'cupos_restaurados': cupos_restaurados,
+                'mensaje': mensaje,
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"ERROR EN CancelarReservaView: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GestionLogisticaAPIView(APIView):
+    """
+    GET /api/gestion-logistica/
+    Retorna toda la data necesaria para el Gestor de Reservas (Agencias y Proveedores).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        try:
+            # Detectar rol
+            es_agencia = Agencia.objects.filter(pk=user.pk).exists()
+            es_proveedor = Proveedor.objects.filter(pk=user.pk).exists()
+
+            if not es_agencia and not es_proveedor:
+                return Response({'error': 'Perfil de empresa no encontrado.'}, status=status.HTTP_403_FORBIDDEN)
+
+            paquetes_list = []
+            reservas_agrupadas = []
+            rechazados_agrupados = []
+            cancelaciones_list = []
+
+            if es_agencia:
+                # 1. Listado de paquetes de la agencia
+                paquetes_obj = PaqueteTuristico.objects.filter(agencia_id=user.pk)
+                hoy = date.today()
+                for p in paquetes_obj:
+                    cupos = calcular_cupos_disponibles(p, hoy)
+                    paquetes_list.append({
+                        'id': p.id,
+                        'nombre': p.nombre,
+                        'activo': p.activo,
+                        'cupos_disponibles': cupos
+                    })
+
+                # 2. Reservas Agrupadas
+                # Optimizamos trayendo todos los detalles de venta de los paquetes de la agencia de una vez
+                detalles_dict = {}
+                detalles_qs = Detalles_Venta.objects.filter(paquete__in=paquetes_obj.values_list('id', flat=True))
+                for det in detalles_qs:
+                    detalles_dict[(det.venta_id, det.paquete)] = det
+
+                reservas_query = ReservaFecha.objects.filter(paquete__agencia_id=user.pk).select_related('paquete', 'venta', 'venta__usuario').order_by('fecha')
+                
+                agrupado_por_pk = {}
+                agrupado_por_pk_rechazados = {}
+
+                # 2. Agrupamiento por paquete con rastro de estados
+                procesados = set() # (venta_id, pk_id)
+
+                for res in reservas_query:
+                    pk_id = res.paquete.id
+                    
+                    # Obtener detalle pre-cargado
+                    detalle = detalles_dict.get((res.venta.id, pk_id))
+                    
+                    # Determinar estado (por defecto Confirmado si no se encuentra el detalle por alguna discrepancia)
+                    estado_item = detalle.estado if detalle else 'Confirmado'
+                    precio_item = float(detalle.precio_unitario) if detalle else float(res.paquete.precio)
+                    detalle_id = detalle.id if detalle else None
+
+                    # Determinar en qué grupo cae (Activo o Rechazado)
+                    is_rejected = (estado_item in ['Cancelado', 'Rechazado'])
+                    current_agrupado = agrupado_por_pk_rechazados if is_rejected else agrupado_por_pk
+
+                    if pk_id not in current_agrupado:
+                        # Buscar la imagen de portada
+                        portada_obj = DestinoTuristico.objects.filter(paquete_id=pk_id, es_portada=True).first()
+                        if not portada_obj:
+                            portada_obj = DestinoTuristico.objects.filter(paquete_id=pk_id).first()
+                        
+                        current_agrupado[pk_id] = {
+                            'paquete': {
+                                'id': pk_id,
+                                'nombre': res.paquete.nombre,
+                                'portada': portada_obj.imagen.url if portada_obj and hasattr(portada_obj.imagen, 'url') else None,
+                                'capacidad': res.paquete.capacidad,
+                            },
+                            'totalReservas': 0,
+                            'reservasPorFecha': {}
+                        }
+                    
+                    fecha_str = str(res.fecha)
+                    if fecha_str not in current_agrupado[pk_id]['reservasPorFecha']:
+                        current_agrupado[pk_id]['reservasPorFecha'][fecha_str] = {
+                            'fecha': fecha_str,
+                            'totalTuristas': 0,
+                            'turistas': []
+                        }
+                    
+                    novedades = res.venta.novedades_turistas
+                    if isinstance(novedades, str):
+                        try:
+                            novedades = json.loads(novedades)
+                        except:
+                            novedades = []
+                    
+                    if not isinstance(novedades, list):
+                        novedades = []
+
+                    # Si no hay novedades, al menos mostrar al usuario de la venta como comprador
+                    if not novedades:
+                        novedades = [{
+                            'nombres': res.venta.usuario.first_name,
+                            'apellidos': res.venta.usuario.last_name,
+                            'num_doc': 'N/A'
+                        }]
+
+                    for i, nov in enumerate(novedades):
+                        comprador_nombre = f"{nov.get('nombres', '')} {nov.get('apellidos', '')}".strip() or res.venta.usuario.username
+                        
+                        # Obtener foto si es el comprador
+                        comprador_foto = None
+                        if i == 0:
+                            v_u = res.venta.usuario
+                            if hasattr(v_u, 'turista') and v_u.turista.foto_perfil:
+                                comprador_foto = v_u.turista.foto_perfil.url
+                            elif hasattr(v_u, 'proveedor') and v_u.proveedor.foto_perfil:
+                                comprador_foto = v_u.proveedor.foto_perfil.url
+                            elif hasattr(v_u, 'agencia') and v_u.agencia.logotipo:
+                                comprador_foto = v_u.agencia.logotipo.url
+
+                        viajero_data = {
+                            'id_transaccion': f"{res.venta.id}",
+                            'nombre': comprador_nombre,
+                            'identificacion': nov.get('num_doc', 'N/A'),
+                            'contacto': res.venta.usuario.email if i == 0 else 'N/A',
+                            'es_comprador': (i == 0),
+                            'rol': 'Comprador' if i == 0 else 'Pasajero',
+                            'foto': comprador_foto,
+                            'cupos': 1, # Cada fila es 1 persona
+                            'monto_total': float(precio_item * detalle.cantidad) if (i == 0 and detalle) else 0,
+                            'id_detalle': detalle_id,
+                            'estado': estado_item
+                        }
+                        current_agrupado[pk_id]['reservasPorFecha'][fecha_str]['turistas'].append(viajero_data)
+
+                    # Incremento de totales (UNA VEZ por reserva_fecha, no por cada pasajero)
+                    current_agrupado[pk_id]['reservasPorFecha'][fecha_str]['totalTuristas'] += res.cantidad
+                    current_agrupado[pk_id]['totalReservas'] += res.cantidad
+                    procesados.add((res.venta.id, pk_id))
+
+                # BARRIDO DE SEGURIDAD: Capturar rechazos que no tienen registro en ReservaFecha
+                for (v_id, p_id), det in detalles_dict.items():
+                    estado_det = str(det.estado).strip().title()
+                    if estado_det in ['Cancelado', 'Rechazado'] and (v_id, p_id) not in procesados:
+                        if p_id not in agrupado_por_pk_rechazados:
+                            pk_obj = next((p for p in paquetes_obj if p.id == p_id), None)
+                            if not pk_obj: continue
+                            
+                            portada_obj = DestinoTuristico.objects.filter(paquete_id=p_id, es_portada=True).first()
+                            if not portada_obj:
+                                portada_obj = DestinoTuristico.objects.filter(paquete_id=p_id).first()
+
+                            agrupado_por_pk_rechazados[p_id] = {
+                                'paquete': {
+                                    'id': p_id,
+                                    'nombre': pk_obj.nombre,
+                                    'portada': portada_obj.imagen.url if portada_obj and hasattr(portada_obj.imagen, 'url') else None,
+                                    'capacidad': pk_obj.capacidad,
+                                },
+                                'totalReservas': 0,
+                                'reservasPorFecha': {}
+                            }
+                        
+                        # Fallback a fecha de venta si no hay rastro de la fecha de reserva
+                        f_res = str(det.fecha_reserva if hasattr(det, 'fecha_reserva') and det.fecha_reserva else det.venta.fecha.date())
+                        if f_res not in agrupado_por_pk_rechazados[p_id]['reservasPorFecha']:
+                            agrupado_por_pk_rechazados[p_id]['reservasPorFecha'][f_res] = {
+                                'fecha': f_res,
+                                'totalTuristas': 0,
+                                'turistas': []
+                            }
+                        
+                        v_u = det.venta.usuario
+                        comprador_foto = None
+                        if hasattr(v_u, 'turista') and v_u.turista.foto_perfil:
+                            comprador_foto = v_u.turista.foto_perfil.url
+
+                        viajero_data = {
+                            'id_transaccion': f"{det.venta.id}",
+                            'nombre': f"{v_u.first_name} {v_u.last_name}".strip() or v_u.username,
+                            'identificacion': 'N/A',
+                            'contacto': v_u.email,
+                            'es_comprador': True,
+                            'rol': 'Comprador',
+                            'foto': comprador_foto,
+                            'cupos': det.cantidad,
+                            'monto_total': float(det.precio_unitario * det.cantidad),
+                            'id_detalle': det.id,
+                            'estado': estado_det
+                        }
+                        agrupado_por_pk_rechazados[p_id]['reservasPorFecha'][f_res]['turistas'].append(viajero_data)
+                        agrupado_por_pk_rechazados[p_id]['reservasPorFecha'][f_res]['totalTuristas'] += det.cantidad
+                        agrupado_por_pk_rechazados[p_id]['totalReservas'] += det.cantidad
+
+                # Finalizar agrupamientos
+                for pk_data in agrupado_por_pk.values():
+                    pk_data['reservasPorFecha'] = sorted(pk_data['reservasPorFecha'].values(), key=lambda x: x['fecha'])
+                    if pk_data['totalReservas'] > 0:
+                        reservas_agrupadas.append(pk_data)
+
+                for pk_data in agrupado_por_pk_rechazados.values():
+                    pk_data['reservasPorFecha'] = sorted(pk_data['reservasPorFecha'].values(), key=lambda x: x['fecha'])
+                    if pk_data['totalReservas'] > 0:
+                        rechazados_agrupados.append(pk_data)
+
+                # 3. Bitácora de Cancelaciones (Solo las que hace el turista)
+                detalles_cancelados = Detalles_Venta.objects.filter(
+                    paquete__in=paquetes_obj.values_list('id', flat=True),
+                    estado='Cancelado'
+                ).select_related('venta')
+                
+                for dc in detalles_cancelados:
+                    p_info = next((p for p in paquetes_list if p['id'] == dc.paquete), None)
+                    paquete_nombre = p_info['nombre'] if p_info else "Paquete"
+                    
+                    # Intentar obtener la fecha de salida desde ReservaFecha
+                    reserva_fecha = ReservaFecha.objects.filter(venta=dc.venta, paquete__id=dc.paquete).first()
+                    fecha_salida = str(reserva_fecha.fecha) if reserva_fecha else "N/A"
+                        
+                    cancelaciones_list.append({
+                        'id_reserva': f"{dc.venta.id}",
+                        'paquete_nombre': paquete_nombre,
+                        'fecha_salida': fecha_salida,
+                        'fecha_cancelacion': str(dc.venta.fecha),
+                        'monto_reembolso': float(dc.precio_unitario * dc.cantidad)
+                    })
+                
+                # Ordenar la bitácora por fecha de salida (más recientes primero)
+                cancelaciones_list = sorted(cancelaciones_list, key=lambda x: x['fecha_salida'], reverse=True)
+
+            elif es_proveedor:
+                productos_obj = Productos.objects.filter(proveedor_id=user.pk)
+                for prod in productos_obj:
+                    paquetes_list.append({
+                        'id': prod.id,
+                        'nombre': prod.nombre,
+                        'activo': prod.disponible,
+                        'cupos_disponibles': prod.stock
+                    })
+                
+                # Para proveedores, también incluimos rastro de rechazos y cancelaciones
+                ventas_prod = Detalles_Venta.objects.filter(
+                    producto__in=productos_obj.values_list('id', flat=True)
+                ).select_related('venta', 'venta__usuario')
+
+                agrupado_por_prod = {}
+                agrupado_por_prod_rechazados = {}
+
+                for vp in ventas_prod:
+                    prod_id = vp.producto
+                    prod_obj = next((p for p in productos_obj if p.id == prod_id), None)
+                    if not prod_obj: continue
+
+                    is_rejected_p = (vp.estado in ['Cancelado', 'Rechazado'])
+                    current_ag_p = agrupado_por_prod_rechazados if is_rejected_p else agrupado_por_prod
+
+                    if prod_id not in current_ag_p:
+                        current_ag_p[prod_id] = {
+                            'paquete': {'id': prod_id, 'nombre': prod_obj.nombre},
+                            'totalReservas': 0,
+                            'reservasPorFecha': {}
+                        }
+                    
+                    fecha_str = str(vp.venta.fecha.date())
+                    if fecha_str not in current_ag_p[prod_id]['reservasPorFecha']:
+                         current_ag_p[prod_id]['reservasPorFecha'][fecha_str] = {
+                            'fecha': fecha_str,
+                            'totalTuristas': 0,
+                            'turistas': []
+                        }
+                    
+                    turista_data = {
+                        'id_transaccion': f"{vp.venta.id}",
+                        'comprador_principal': f"{vp.venta.usuario.first_name} {vp.venta.usuario.last_name}".strip() or vp.venta.usuario.username,
+                        'identificacion': 'N/A',
+                        'contacto': vp.venta.usuario.email,
+                        'cupos': vp.cantidad,
+                        'monto_total': float(vp.precio_unitario * vp.cantidad),
+                        'acompanantes': [],
+                        'id_detalle': vp.id,
+                        'estado': vp.estado
+                    }
+                    current_ag_p[prod_id]['reservasPorFecha'][fecha_str]['turistas'].append(turista_data)
+                    current_ag_p[prod_id]['reservasPorFecha'][fecha_str]['totalTuristas'] += vp.cantidad
+                    current_ag_p[prod_id]['totalReservas'] += vp.cantidad
+
+                for pr_data in agrupado_por_prod.values():
+                    pr_data['reservasPorFecha'] = sorted(pr_data['reservasPorFecha'].values(), key=lambda x: x['fecha'], reverse=True)
+                    reservas_agrupadas.append(pr_data)
+
+                for pr_data in agrupado_por_prod_rechazados.values():
+                    pr_data['reservasPorFecha'] = sorted(pr_data['reservasPorFecha'].values(), key=lambda x: x['fecha'], reverse=True)
+                    rechazados_agrupados.append(pr_data)
+
+            return Response({
+                'paquetes': paquetes_list,
+                'reservasAgrupadas': reservas_agrupadas,
+                'rechazadosAgrupados': rechazados_agrupados,
+                'cancelaciones': cancelaciones_list
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"Error en GestionLogisticaAPIView: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GestionAnularReservaAPIView(APIView):
+    """
+    POST /api/gestion-logistica/anular/
+    Un proveedor o agencia anula una reserva/venta.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        detalle_id = request.data.get('id_detalle')
+        if not detalle_id:
+            return Response({'error': 'ID de detalle no proporcionado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            detalle = get_object_or_404(Detalles_Venta, pk=detalle_id)
+            
+            es_dueno = False
+            if detalle.paquete > 0:
+                es_dueno = PaqueteTuristico.objects.filter(pk=detalle.paquete, agencia_id=request.user.pk).exists()
+            elif detalle.producto > 0:
+                es_dueno = Productos.objects.filter(pk=detalle.producto, proveedor_id=request.user.pk).exists()
+            
+            if not es_dueno:
+                return Response({'error': 'No tienes permiso para anular esta venta.'}, status=status.HTTP_403_FORBIDDEN)
+
+            if detalle.estado == 'Cancelado':
+                return Response({'error': 'Esta venta ya ha sido anulada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if detalle.paquete > 0:
+                # No eliminamos ReservaFecha para que quede rastro en el dashboard de logística
+                pass
+            elif detalle.producto > 0:
+                prod = Productos.objects.filter(pk=detalle.producto).first()
+                if prod:
+                    prod.stock += detalle.cantidad
+                    prod.save()
+
+            detalle.estado = 'Rechazado'
+            detalle.save()
+
+            return Response({'mensaje': 'Reserva rechazada correctamente.'}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class GestionAnularSalidaAPIView(APIView):
+    """
+    POST /api/gestion-logistica/anular-salida/
+    Anula todas las reservas de un paquete en una fecha específica.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        paquete_id = request.data.get('paquete_id')
+        fecha = request.data.get('fecha')
+
+        if not paquete_id or not fecha:
+            return Response({'error': 'Paquete y fecha son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Verificar que la agencia sea dueña del paquete
+            paquete = get_object_or_404(PaqueteTuristico, pk=paquete_id, agencia_id=request.user.pk)
+            
+            # 1. Buscar todas las reservas vinculadas a esta fecha
+            reservas_fecha = ReservaFecha.objects.filter(paquete=paquete, fecha=fecha)
+            
+            if not reservas_fecha.exists():
+                return Response({'error': 'No hay reservas para esta fecha.'}, status=status.HTTP_404_NOT_FOUND)
+
+            # 2. Obtener IDs de ventas involucradas
+            ventas_ids = reservas_fecha.values_list('venta_id', flat=True)
+
+            # 3. Anular detalles de venta correspondientes
+            detalles = Detalles_Venta.objects.filter(venta_id__in=ventas_ids, paquete=paquete_id).exclude(estado='Rechazado').exclude(estado='Cancelado')
+            
+            count = detalles.count()
+            detalles.update(estado='Rechazado')
+
+            # 4. No eliminamos registros de ReservaFecha para rastro en Dashboard
+            # reservas_fecha.delete()
+
+            return Response({
+                'message': f'Salida rechazada correctamente. {count} reservas marcadas como Rechazadas.',
+                'count': count
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

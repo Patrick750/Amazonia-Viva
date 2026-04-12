@@ -64,6 +64,7 @@ const roleConfigs = {
       {
         title: "Tours Vendidos", value: "156",
         trend: "+12% este mes", trendType: "up",
+        link: "/panel/gestion-reservas",
         icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
         watermark: '<path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,19.93C7.06,19.43 4,16.05 4,12C4,7.95 7.06,4.57 11,4.07V19.93M13,4.07C16.94,4.57 20,7.95 20,12C20,16.05 16.94,19.43 13,19.93V4.07M15,10.5A1.5,1.5 0 0,0 16.5,12A1.5,1.5 0 0,0 18,10.5A1.5,1.5 0 0,0 16.5,9A1.5,1.5 0 0,0 15,10.5M16.5,13.5A1.5,1.5 0 0,0 18,15A1.5,1.5 0 0,0 19.5,13.5A1.5,1.5 0 0,0 18,12A1.5,1.5 0 0,0 16.5,13.5Z"/>'
       },
@@ -76,6 +77,7 @@ const roleConfigs = {
       {
         title: "Reservas Pendientes", value: "12",
         trend: "Requiere atención", trendType: "down",
+        link: "/panel/gestion-reservas",
         icon: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
         watermark: '<path d="M12,19.93A10,10 0 0,0 2,10A10,10 0 0,0 12,2.07A10,10 0 0,0 22,10A10,10 0 0,0 12,19.93M12,4.07V7.07C13.66,7.07 15,8.41 15,10.07S13.66,13.07 12,13.07V16.93C15.86,16.93 19,13.86 19,10S15.86,4.07 12,4.07M12,8.07C10.9,8.07 10,8.97 10,10.07S10.9,12.07 12,12.07V8.07Z"/>'
       }
@@ -92,6 +94,7 @@ const roleConfigs = {
       {
         title: "Total Productos Vendidos", value: "234",
         trend: "+12% desde el mes pasado", trendType: "neutral",
+        link: "/panel/gestion-reservas",
         icon: '<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
         watermark: '<path d="M20 6h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM9 4h6v2H9V4zm11 15H4V8h16v11z"/><path d="M9 10h6v2H9z"/>'
       },
@@ -110,6 +113,7 @@ const roleConfigs = {
       {
         title: "Pedidos Pendientes", value: "8",
         trend: "Requieren atención", trendType: "neutral",
+        link: "/panel/gestion-reservas",
         icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
         watermark: '<path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"/>'
       },
@@ -194,8 +198,10 @@ const currentConfig = computed(() => roleConfigs[userRole.value] || roleConfigs[
 
       <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" :class="currentConfig.gridClass">
         
-        <article v-for="(kpi, index) in currentConfig.kpis" :key="index" 
-                 class="group relative overflow-hidden bg-white/65 backdrop-blur-xl border border-white/80 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/85 animate-fade-in-up" 
+        <component :is="kpi.link ? 'router-link' : 'article'" 
+                 v-for="(kpi, index) in currentConfig.kpis" :key="index" 
+                 :to="kpi.link"
+                 class="group relative overflow-hidden bg-white/65 backdrop-blur-xl border border-white/80 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/85 animate-fade-in-up block no-underline" 
                  :style="{ animationDelay: `${0.1 * (index + 1)}s` }">
           
           <svg class="absolute -bottom-4 -right-4 w-[120px] h-[120px] opacity-[0.04] z-0 pointer-events-none fill-slate-900 transition-all duration-400 group-hover:fill-emerald-600 group-hover:opacity-10 group-hover:-translate-x-2 group-hover:-translate-y-2 group-hover:scale-105" 
@@ -218,7 +224,7 @@ const currentConfig = computed(() => roleConfigs[userRole.value] || roleConfigs[
               {{ kpi.trend }}
             </div>
           </div>
-        </article>
+        </component>
 
       </section>
 
@@ -241,10 +247,10 @@ const currentConfig = computed(() => roleConfigs[userRole.value] || roleConfigs[
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
               Gestión de Productos
             </router-link>
-            <button class="flex items-center gap-3 p-4 bg-white/50 border border-white/80 rounded-xl font-semibold text-slate-900 text-sm transition-all duration-200 hover:bg-white hover:border-emerald-600 hover:text-emerald-600 hover:translate-x-1">
+            <router-link v-if="userRole === 'agencia' || userRole === 'proveedor'" to="/panel/gestion-reservas" class="flex items-center gap-3 p-4 bg-white/50 border border-white/80 rounded-xl font-semibold text-slate-900 text-sm transition-all duration-200 hover:bg-white hover:border-emerald-600 hover:text-emerald-600 hover:translate-x-1">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
               Ver Ventas
-            </button>
+            </router-link>
             <button class="flex items-center gap-3 p-4 bg-white/50 border border-white/80 rounded-xl font-semibold text-slate-900 text-sm transition-all duration-200 hover:bg-white hover:border-emerald-600 hover:text-emerald-600 hover:translate-x-1">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               Experiencias

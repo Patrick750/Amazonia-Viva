@@ -27,6 +27,7 @@ const crearViajero = () => ({
     tipo_doc: 'Cédula de Ciudadanía',
     num_doc: '',
     edad: '',
+    telefono: '',
     novedades: '',
     completado: false,
 });
@@ -407,24 +408,33 @@ const btnClasses = computed(() => {
                     </div>
 
                     <!-- Edad -->
-                    <div class="sm:col-span-2">
+                    <div>
                       <label class="block text-white/50 text-xs font-semibold mb-1.5 uppercase tracking-wider">
                         Edad <span class="text-red-400">*</span>
                       </label>
-                      <div class="flex gap-3 items-center">
-                        <input
-                          v-model="viajero.edad"
-                          @input="onCampoChange(idx)"
-                          type="number"
-                          min="1"
-                          max="120"
-                          placeholder="Años cumplidos"
-                          class="w-40 bg-white/8 border border-white/15 text-white placeholder-white/25 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-500/60 focus:bg-white/10 transition-all"
-                        />
-                        <p class="text-white/25 text-xs leading-snug">
-                          Requerido para el seguro médico de aventura en zonas protegidas.
-                        </p>
-                      </div>
+                      <input
+                        v-model="viajero.edad"
+                        @input="onCampoChange(idx)"
+                        type="number"
+                        min="1"
+                        max="120"
+                        placeholder="Años"
+                        class="w-full bg-white/8 border border-white/15 text-white placeholder-white/25 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-500/60 focus:bg-white/10 transition-all"
+                      />
+                    </div>
+
+                    <!-- Teléfono -->
+                    <div>
+                      <label class="block text-white/50 text-xs font-semibold mb-1.5 uppercase tracking-wider">
+                        Teléfono
+                      </label>
+                      <input
+                        v-model="viajero.telefono"
+                        @input="onCampoChange(idx)"
+                        type="tel"
+                        placeholder="Ej: 300 123 4567"
+                        class="w-full bg-white/8 border border-white/15 text-white placeholder-white/25 rounded-xl px-4 py-3 text-sm outline-none focus:border-emerald-500/60 focus:bg-white/10 transition-all"
+                      />
                     </div>
                     
                     <!-- Novedades / Observaciones -->

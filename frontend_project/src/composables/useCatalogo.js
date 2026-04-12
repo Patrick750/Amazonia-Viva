@@ -17,7 +17,7 @@ const errorProductos = ref(null);
 
 export function useCatalogo() {
     const { mostrarNotificacion } = useNotificacion();
-    const { agregarItem, itemsCarrito } = useCarrito();
+    const { agregarItem } = useCarrito();
 
     const cargarTours = async () => {
         if (tours.value.length > 0) return; // Evitar recargar
@@ -100,14 +100,6 @@ export function useCatalogo() {
      * @param {Object} extra - Datos adicionales { nombre, imagen, subtitulo, fecha_reserva }
      */
     const agregarAlCarrito = (id, precio, tipo = 'paquete', extra = {}) => {
-        const { estaEnCarrito } = useCarrito();
-        
-        // 0. Verificar si ya existe para evitar duplicados según requerimiento
-        if (estaEnCarrito(id, tipo)) {
-             mostrarNotificacion('Este paquete ya está en tu maleta.', 'info');
-             return false;
-        }
-
         // 1. Agregar localmente para feedback inmediato
         agregarItem({
             id,
@@ -161,23 +153,23 @@ export function useCatalogo() {
     };
 
 
+    /**
+     * Actualiza el stock local tras una venta exitosa para feedback inmediato.
+     */
     const actualizarStockLocal = (itemsVendidos) => {
         itemsVendidos.forEach(item => {
             if (item.tipo === 'producto') {
-                const prod = productos.value.find(p => p.id === item.id);
-                if (prod) {
-                    prod.stock = Math.max(0, prod.stock - item.cantidad);
-                    prod.ventas_totales = (prod.ventas_totales || 0) + item.cantidad;
-                }
-            } else if (item.tipo === 'paquete') {
-                const tour = tours.value.find(t => t.id === item.id);
-                if (tour) {
-                    tour.ventas_totales = (tour.ventas_totales || 0) + item.cantidad;
-                    // Si el tour tiene un límite de cupos en el frontend, se podría reducir aquí también
+                const target = productos.value.find(p => p.id === item.id);
+                if (target) target.stock = Math.max(0, target.stock - item.cantidad);
+            } else {
+                const target = tours.value.find(t => t.id === item.id);
+                if (target && target.cupos_disponibles !== undefined) {
+                    target.cupos_disponibles = Math.max(0, target.cupos_disponibles - item.cantidad);
                 }
             }
         });
     };
+
 
     return { 
         tours, productos, categoriasTours,
@@ -187,5 +179,4 @@ export function useCatalogo() {
         obtenerTourPorId, obtenerProductoPorId, toggleFavorito,
         agregarAlCarrito, obtenerCuposDisponibles, actualizarStockLocal
     };
-
 }

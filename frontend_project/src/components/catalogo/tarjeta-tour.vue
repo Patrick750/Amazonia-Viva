@@ -117,12 +117,6 @@ const alertaCupos = (cupos) => cupos !== null && cupos !== undefined && cupos <=
           </template>
         </div>
         <span class="text-xs text-gray-400">{{ Number(tour.rating).toFixed(1) }} · {{ tour.num_calificaciones }} reseñas</span>
-        
-        <!-- Contador de Ventas (Social Proof) -->
-        <span class="ml-auto flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-          {{ tour.reservas_totales || 0 }} reservados
-        </span>
       </div>
 
       <!-- 2. Título destacado -->
@@ -145,8 +139,8 @@ const alertaCupos = (cupos) => cupos !== null && cupos !== undefined && cupos <=
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           Tú eliges la fecha
         </span>
-        <!-- Cupos disponibles -->
-        <span v-if="tour.cupos_disponibles !== undefined"
+        <!-- Cupos: alerta si quedan pocos -->
+        <span v-if="tour.tipo_paquete === 'fijo' && tour.cupos_disponibles !== undefined"
           :class="['inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border',
             alertaCupos(tour.cupos_disponibles)
               ? 'text-red-600 bg-red-50 border-red-100 animate-pulse'

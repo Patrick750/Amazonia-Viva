@@ -225,14 +225,24 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import clienteAxios from '@/api/axios.js'
 import InformacionAvanzada from '@/components/perfil/InformacionAvanzada.vue'
 import MenuLateralPerfil from '@/components/perfil/MenuLateralPerfil.vue'
 import VistaPerfilPublico from '@/components/perfil/VistaPerfilPublico.vue'
 
+
+const route = useRoute()
 const currentView = ref('info')
 const showPasswordModal = ref(false)
+
+// Sincronizar vista con el query parameter 'tab'
+onMounted(() => {
+})
+
+watch(() => route.query.tab, (newTab) => {
+})
 const isUnlocked = ref(false)
 const isVerifyingPassword = ref(false)
 const confirmPassword = ref('')

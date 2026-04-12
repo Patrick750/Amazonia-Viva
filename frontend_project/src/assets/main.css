@@ -1,1 +1,53 @@
 @import 'tailwindcss';
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .bg-dark-forest {
+    background-color: #050a09;
+  }
+  .bg-charcoal {
+    background-color: #0a1210;
+  }
+  .text-emerald-glow {
+    color: #00f5d4;
+    text-shadow: 0 0 10px rgba(0, 245, 212, 0.4);
+  }
+  .glass-pill {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-full;
+  }
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+  .emerald-glow-active {
+    box-shadow: 0 0 20px rgba(0, 245, 212, 0.3), inset 0 0 10px rgba(0, 245, 212, 0.2);
+    border-color: #00f5d4;
+  }
+  .misty-overlay {
+    background: linear-gradient(180deg, rgba(5, 10, 9, 0.4) 0%, rgba(5, 10, 9, 0.8) 100%);
+  }
+  .adventure-card-shadow {
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@keyframes subtle-zoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.1); }
+}
+
+.animate-subtle-zoom {
+  animation: subtle-zoom 20s infinite alternate ease-in-out;
+}
