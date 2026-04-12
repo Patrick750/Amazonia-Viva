@@ -13,47 +13,93 @@ class ExperienciasDashboardView(APIView):
 
     def get(self, request):
         user = request.user
-        # Filtramos por los paquetes que pertenecen a la agencia autenticada
         mis_paquetes_ids = PaqueteTuristico.objects.filter(agencia_id=user.id).values_list('id', flat=True)
         
+        # Automatización: Finalizar tours cuya fecha haya pasado
+        from datetime import date
+        hoy = date.today()
+        from .models import ReservaFecha
+        
+        pendientes_actualizar = Detalles_Venta.objects.filter(
+            paquete__in=mis_paquetes_ids,
+            estado='Confirmado'
+        )
+        for det_up in pendientes_actualizar:
+            res_up = ReservaFecha.objects.filter(venta=det_up.venta, paquete_id=det_up.paquete).first()
+            if res_up and res_up.fecha < hoy:
+                det_up.estado = 'Realizado'
+                det_up.save()
+
+        # Obtener todos los detalles de nuevo tras la actualización
         detalles = Detalles_Venta.objects.filter(paquete__in=mis_paquetes_ids).select_related('venta', 'venta__usuario').order_by('-venta__fecha')
         
-        # Métricas
-        total = detalles.count()
-        completadas = detalles.filter(estado='Realizado').count()
-        pendientes = detalles.filter(estado='Confirmado').count()
-        
-        lista_clientes = []
+        # Grupos por (paquete, fecha)
+        grupos = {}
         for det in detalles:
-            # Buscar el nombre del paquete (el campo es un IntegerField en Detalles_Venta)
-            paquete_obj = PaqueteTuristico.objects.filter(id=det.paquete).first()
-            p_nombre = paquete_obj.nombre if paquete_obj else "Desconocido"
-            
-            # Buscar la fecha de reserva
-            from .models import ReservaFecha
             reserva = ReservaFecha.objects.filter(venta=det.venta, paquete_id=det.paquete).first()
-            fecha_st = reserva.fecha if reserva else det.venta.fecha.date()
+            fecha_val = reserva.fecha if reserva else det.venta.fecha.date()
+            fecha_key = str(fecha_val)
             
-            # Contar evidencias
-            evidencias_count = det.evidencias.count()
+            key = (det.paquete, fecha_key)
+            if key not in grupos:
+                paquete_obj = PaqueteTuristico.objects.filter(id=det.paquete).first()
+                grupos[key] = {
+                    'id': f"{det.paquete}-{fecha_key}",
+                    'tour_id': det.paquete,
+                    'tour': paquete_obj.nombre if paquete_obj else "Desconocido",
+                    'fecha': fecha_key,
+                    'personas': 0,
+                    'estado': 'Realizado', # Default y se degrada si hay pendientes
+                    'evidencias_count': 0,
+                    'imagenes': [],
+                    'leader_id': det.id, # ID para asociar fotos del tour
+                    'turistas': []
+                }
             
-            lista_clientes.append({
+            g = grupos[key]
+            g['personas'] += det.cantidad
+            
+            # Recopilar evidencias
+            for ev in det.evidencias.all():
+                g['imagenes'].append({
+                    'id': ev.id,
+                    'url': ev.imagen.url,
+                    'fecha': ev.fecha_subida.strftime("%Y-%m-%d %H:%M")
+                })
+                g['evidencias_count'] += 1
+            
+            if det.estado == 'Confirmado':
+                g['estado'] = 'Confirmado'
+                
+            # Agregar turista al listado interno
+            calif = det.calificacion.first()
+            
+            # Buscar identificación en novedades_turistas si existe
+            identificacion = "N/A"
+            if det.venta.novedades_turistas and isinstance(det.venta.novedades_turistas, list):
+                # El primer viajero suele ser el que coincide con el usuario si no hay detalle por pasajero
+                identificacion = det.venta.novedades_turistas[0].get('num_doc', 'N/A')
+
+            g['turistas'].append({
                 'id': det.id,
-                'cliente': f"{det.venta.usuario.first_name} {det.venta.usuario.last_name}".strip() or det.venta.usuario.username,
-                'tour': p_nombre,
-                'fecha': str(fecha_st),
-                'personas': det.cantidad,
+                'nombre': f"{det.venta.usuario.first_name} {det.venta.usuario.last_name}".strip() or det.venta.usuario.username,
+                'identificacion': identificacion,
                 'estado': det.estado,
-                'evidencias': evidencias_count,
+                'rating': calif.puntuacion if calif else None
             })
+
+        lista_registro = list(grupos.values())
+        
+        # Métricas basadas en grupos
+        metrics = {
+            'total': len(lista_registro),
+            'completadas': sum(1 for g in lista_registro if g['estado'] == 'Realizado'),
+            'pendientes': sum(1 for g in lista_registro if g['estado'] == 'Confirmado')
+        }
             
         return Response({
-            'metrics': {
-                'total': total,
-                'completadas': completadas,
-                'pendientes': pendientes
-            },
-            'registro': lista_clientes
+            'metrics': metrics,
+            'registro': lista_registro
         })
 
 class SubirEvidenciaView(APIView):
@@ -62,29 +108,24 @@ class SubirEvidenciaView(APIView):
 
     def post(self, request, pk):
         detalle = get_object_or_404(Detalles_Venta, pk=pk)
-        archivo = request.FILES.get('imagen')
+        archivos = request.FILES.getlist('imagenes')
         
-        if not archivo:
-            return Response({'error': 'No se proporcionó ninguna imagen.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not archivos:
+            return Response({'error': 'No se proporcionaron imágenes.'}, status=status.HTTP_400_BAD_REQUEST)
             
-        evidencia = ExperienciaEvidencia.objects.create(
-            detalle_venta=detalle,
-            imagen=archivo
-        )
+        creados = []
+        for archivo in archivos:
+            evidencia = ExperienciaEvidencia.objects.create(
+                detalle_venta=detalle,
+                imagen=archivo
+            )
+            creados.append(evidencia.imagen.url)
         
         return Response({
-            'mensaje': 'Evidencia subida correctamente',
-            'url': evidencia.imagen.url
+            'mensaje': f'{len(creados)} evidencias subidas correctamente',
+            'urls': creados
         }, status=status.HTTP_201_CREATED)
 
-class MarcarRealizadaView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk):
-        detalle = get_object_or_404(Detalles_Venta, pk=pk)
-        detalle.estado = 'Realizado'
-        detalle.save()
-        return Response({'mensaje': 'Experiencia marcada como realizada.'})
 
 class DetalleFeedbackView(APIView):
     """Vista para que el turista vea las fotos y califique"""

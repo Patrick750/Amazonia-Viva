@@ -883,7 +883,13 @@ class MisReservasView(APIView):
                         try:
                             from datetime import date as dt
                             fa = dt.fromisoformat(fecha_actividad)
-                            estado_semantico = 'Realizado' if fa < hoy else 'Confirmado'
+                            if fa < hoy:
+                                estado_semantico = 'Realizado'
+                                # Persistencia: Actualizamos el estado en la base de datos
+                                detalle.estado = 'Realizado'
+                                detalle.save()
+                            else:
+                                estado_semantico = 'Confirmado'
                         except Exception:
                             estado_semantico = 'Confirmado'
                     else:
