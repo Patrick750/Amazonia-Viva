@@ -31,16 +31,11 @@ const tooltipPos = ref({ x: 0, y: 0 });
 let tooltipTimeout = null;
 
 // --- FECHAS Y CUPOS ---
+const fechaElegida = ref('');
 const cuposDisponibles = ref(null);
 const cargandoCupos = ref(false);
-const fechaSeleccionada = ref('');
 
-const hoyStr = new Date().toISOString().split('T')[0];
-const fechaMinima = computed(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 8); // Mismo criterio que en el carrito: hoy + 7 días
-    return d.toISOString().split('T')[0];
-});
+const hoy = new Date().toISOString().split('T')[0];
 
 const consultarCupos = async (fecha) => {
     if (!tour.value) return;
@@ -55,6 +50,11 @@ const consultarCupos = async (fecha) => {
         cargandoCupos.value = false;
     }
 };
+
+watch(fechaElegida, (nuevaFecha) => {
+    if (nuevaFecha) consultarCupos(nuevaFecha);
+    else cuposDisponibles.value = null;
+});
 
 const sinCupos = computed(() => cuposDisponibles.value !== null && cuposDisponibles.value === 0);
 const pocoCupos = computed(() => cuposDisponibles.value !== null && cuposDisponibles.value > 0 && cuposDisponibles.value <= 5);
@@ -156,15 +156,19 @@ const handleAccion = async (tipo, event) => {
     }
 
     if (tipo === 'carrito') {
-        const fechaParaCarrito = tour.value.tipo_paquete === 'fijo' 
-            ? tour.value.fecha_realizacion 
-            : fechaSeleccionada.value;
-
-        if (cuposDisponibles.value === 0) {
-            mostrarNotificacion('Lo sentimos, no hay cupos para la fecha seleccionada.', 'error');
+        // Validar fecha si el paquete es flexible
+        if (tour.value.tipo_paquete === 'flexible' && !fechaElegida.value) {
+            mostrarNotificacion('Debes elegir una fecha para este tour flexible.', 'warning');
             return;
         }
-
+        // Validar cupos
+        if (cuposDisponibles.value !== null && cuposDisponibles.value <= 0) {
+            mostrarNotificacion('No hay cupos disponibles para la fecha seleccionada.', 'error');
+            return;
+        }
+        const fechaParaCarrito = tour.value.tipo_paquete === 'fijo' 
+            ? tour.value.fecha_realizacion 
+            : fechaElegida.value;
         await agregarAlCarrito(
             tour.value.id,
             tour.value.precio,
@@ -173,9 +177,7 @@ const handleAccion = async (tipo, event) => {
                 nombre: tour.value.nombre,
                 imagen: imagenPrincipal.value || null,
                 subtitulo: `${tour.value.duracion}h · ${tour.value.ubicacion}`,
-                fecha_reserva: fechaParaCarrito,
-                tipo_paquete: tour.value.tipo_paquete,
-                fecha_realizacion: tour.value.fecha_realizacion,
+                fecha_reserva: fechaParaCarrito || null,
             }
         );
     } else if (tipo === 'favorito') {
@@ -224,13 +226,6 @@ const formatTime = (timeStr) => {
     hrs = hrs % 12 || 12;
     return `${hrs}:${mins} ${period}`;
 };
-
-// Observar cambio de fecha para consultar cupos en paquetes flexibles
-watch(fechaSeleccionada, (nuevaFecha) => {
-    if (nuevaFecha && tour.value?.tipo_paquete === 'flexible') {
-        consultarCupos(nuevaFecha);
-    }
-});
 </script>
 
 <template>
@@ -538,17 +533,38 @@ watch(fechaSeleccionada, (nuevaFecha) => {
                                     </div>
                                 </div>
 
-                                <!-- PAQUETE FLEXIBLE (Info sin selector) -->
+                                <!-- PAQUETE FLEXIBLE -->
                                 <div v-else-if="tour.tipo_paquete === 'flexible'" class="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-100 space-y-3">
-                                    <div class="flex items-center gap-3">
+                                    <div class="flex items-center gap-2 mb-1">
                                         <div class="p-2 bg-emerald-100 rounded-xl text-emerald-600">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                         </div>
                                         <div>
-                                            <p class="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">Fecha Flexible</p>
-                                            <p class="text-[11px] text-emerald-700 font-medium leading-tight">Podrás elegir la fecha de tu aventura directamente en tu maleta de viaje.</p>
+                                            <p class="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">Elige tu fecha</p>
+                                            <p class="text-xs text-emerald-700 font-medium">Tú decides cuándo realizarlo</p>
                                         </div>
                                     </div>
+                                    <input
+                                        v-model="fechaElegida"
+                                        type="date"
+                                        :min="hoy"
+                                        class="w-full bg-white border-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-800 focus:outline-none transition-all"
+                                        :class="fechaElegida ? 'border-emerald-400 focus:border-emerald-500' : 'border-emerald-200 focus:border-emerald-400'"
+                                    >
+                                    <!-- Cupos flexíble -->
+                                    <div v-if="cargandoCupos" class="text-xs text-emerald-500 flex items-center gap-1.5">
+                                        <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                        Verificando disponibilidad...
+                                    </div>
+                                    <div v-else-if="fechaElegida && cuposDisponibles !== null" 
+                                        :class="['flex items-center gap-2 px-3 py-2 rounded-xl font-semibold text-xs',
+                                            sinCupos ? 'bg-red-100 text-red-700' : pocoCupos ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700']">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                        <span v-if="sinCupos">¡No hay cupos para esta fecha!</span>
+                                        <span v-else-if="pocoCupos">¡Últimos {{ cuposDisponibles }} cupos!</span>
+                                        <span v-else>{{ cuposDisponibles }} cupos disponibles</span>
+                                    </div>
+                                    <p v-else-if="!fechaElegida" class="text-xs text-emerald-500 font-medium">↩ Selecciona una fecha para ver disponibilidad</p>
                                 </div>
                             </div>
 
@@ -557,13 +573,14 @@ watch(fechaSeleccionada, (nuevaFecha) => {
                                     @click="handleAccion('carrito', $event)"
                                     class="w-full flex items-center justify-center gap-2 px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-emerald-200 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
                                     :class="{ 'opacity-50 grayscale cursor-not-allowed': rol === 'proveedor' || rol === 'agencia' }"
-                                    :disabled="sinCupos"
+                                    :disabled="sinCupos || (tour.tipo_paquete === 'flexible' && !fechaElegida)"
                                 >
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                                     </svg>
                                     <span v-if="sinCupos">Sin cupos disponibles</span>
-                                    <span v-else>Añadir a la maleta</span>
+                                    <span v-else-if="tour.tipo_paquete === 'flexible' && !fechaElegida">Elige una fecha primero</span>
+                                    <span v-else>Agregar al carrito</span>
                                 </button>
                                 
                                 <button 

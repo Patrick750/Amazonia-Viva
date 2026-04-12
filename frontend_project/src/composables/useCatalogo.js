@@ -17,7 +17,7 @@ const errorProductos = ref(null);
 
 export function useCatalogo() {
     const { mostrarNotificacion } = useNotificacion();
-    const { agregarItem, itemsCarrito } = useCarrito();
+    const { agregarItem } = useCarrito();
 
     const cargarTours = async () => {
         if (tours.value.length > 0) return; // Evitar recargar
@@ -100,14 +100,6 @@ export function useCatalogo() {
      * @param {Object} extra - Datos adicionales { nombre, imagen, subtitulo, fecha_reserva }
      */
     const agregarAlCarrito = (id, precio, tipo = 'paquete', extra = {}) => {
-        const { estaEnCarrito } = useCarrito();
-        
-        // 0. Verificar si ya existe para evitar duplicados según requerimiento
-        if (estaEnCarrito(id, tipo)) {
-             mostrarNotificacion('Este paquete ya está en tu maleta.', 'info');
-             return false;
-        }
-
         // 1. Agregar localmente para feedback inmediato
         agregarItem({
             id,
@@ -117,8 +109,6 @@ export function useCatalogo() {
             imagen: extra.imagen || null,
             subtitulo: extra.subtitulo || '',
             fecha_reserva: extra.fecha_reserva || null,
-            tipo_paquete: extra.tipo_paquete || null,
-            fecha_realizacion: extra.fecha_realizacion || null,
         });
 
         // 2. Sincronizar con el backend si está autenticado
@@ -161,31 +151,12 @@ export function useCatalogo() {
     };
 
 
-    const actualizarStockLocal = (itemsVendidos) => {
-        itemsVendidos.forEach(item => {
-            if (item.tipo === 'producto') {
-                const prod = productos.value.find(p => p.id === item.id);
-                if (prod) {
-                    prod.stock = Math.max(0, prod.stock - item.cantidad);
-                    prod.ventas_totales = (prod.ventas_totales || 0) + item.cantidad;
-                }
-            } else if (item.tipo === 'paquete') {
-                const tour = tours.value.find(t => t.id === item.id);
-                if (tour) {
-                    tour.ventas_totales = (tour.ventas_totales || 0) + item.cantidad;
-                    // Si el tour tiene un límite de cupos en el frontend, se podría reducir aquí también
-                }
-            }
-        });
-    };
-
     return { 
         tours, productos, categoriasTours,
         cargandoTours, cargandoProductos, cargandoCategorias,
         errorTours, errorProductos, 
         cargarTours, cargarProductos, cargarCategorias,
         obtenerTourPorId, obtenerProductoPorId, toggleFavorito,
-        agregarAlCarrito, obtenerCuposDisponibles, actualizarStockLocal
+        agregarAlCarrito, obtenerCuposDisponibles
     };
-
 }
