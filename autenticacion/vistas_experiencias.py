@@ -1,3 +1,8 @@
+import io
+import zipfile
+import requests
+from datetime import date
+from django.http import HttpResponse, FileResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -185,12 +190,27 @@ class MisExperienciasTuristaView(APIView):
 
     def get(self, request):
         from .models import ReservaFecha
+        from datetime import date
         user = request.user
+        hoy = date.today()
         
-        # Obtenemos detalles de venta que sean paquetes y que pertenezcan a las ventas del usuario
+        # 1. Automatización: Marcar como 'Realizado' si la fecha ya pasó
+        pendientes = Detalles_Venta.objects.filter(
+            venta__usuario=user,
+            paquete__gt=0,
+            estado='Confirmado'
+        )
+        for det_up in pendientes:
+            res_up = ReservaFecha.objects.filter(venta=det_up.venta, paquete_id=det_up.paquete).first()
+            if res_up and res_up.fecha < hoy:
+                det_up.estado = 'Realizado'
+                det_up.save()
+
+        # 2. Obtener solo detalles que ya han sido 'Realizados'
         detalles = Detalles_Venta.objects.filter(
             venta__usuario=user,
-            paquete__gt=0
+            paquete__gt=0,
+            estado='Realizado'
         ).select_related('venta').order_by('-venta__fecha')
         
         resultado = []
@@ -229,3 +249,71 @@ class MisExperienciasTuristaView(APIView):
                 continue
             
         return Response(resultado)
+
+
+class DescargarEvidenciasZipView(APIView):
+    """Genera un archivo ZIP con todas las fotos de un tour"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        detalle = get_object_or_404(Detalles_Venta, pk=pk)
+        evidencias = detalle.evidencias.all()
+        
+        if not evidencias:
+            return Response(
+                {'error': 'No hay imágenes disponibles para descargar.'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Crear el buffer en memoria
+        buffer = io.BytesIO()
+        
+        # Crear el ZIP
+        files_added = 0
+        errors = []
+        
+        try:
+            # Usamos una sesión para reutilizar conexiones y ser más eficientes
+            session = requests.Session()
+            session.headers.update({'User-Agent': 'Mozilla/5.0'})
+            
+            with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_STORED) as zip_file:
+                # Archivo de control para verificar que el ZIP no está vacío estructuralmente
+                zip_file.writestr("leeme.txt", f"Paquete de fotos para el tour #{pk}\nGenerado el: {date.today()}\n")
+                
+                for i, ev in enumerate(evidencias):
+                    try:
+                        # Descargar la imagen
+                        img_resp = session.get(ev.imagen.url, timeout=30)
+                        if img_resp.status_code == 200:
+                            content = img_resp.content
+                            if len(content) > 0:
+                                # Detección de extensión desde la URL (más seguro que el objeto)
+                                url_path = ev.imagen.url.split('?')[0] # Limpiar query params
+                                ext = url_path.split('.')[-1].lower() if '.' in url_path else 'jpg'
+                                if len(ext) > 4: ext = 'jpg' # Backup por si acaso
+                                
+                                filename = f"foto_{i+1}.{ext}"
+                                zip_file.writestr(filename, content)
+                                files_added += 1
+                            else:
+                                errors.append(f"Imagen {ev.id}: contenido vacío")
+                        else:
+                            errors.append(f"Imagen {ev.id}: error HTTP {img_resp.status_code}")
+                    except Exception as e:
+                        errors.append(f"Imagen {ev.id}: error {str(e)}")
+                        continue
+                
+                # Añadir manifiesto de errores si los hubo
+                if errors:
+                    zip_file.writestr("errores_log.txt", "\n".join(errors))
+
+        except Exception as e:
+            return Response({'error': f'Error fatal al generar el ZIP: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Preparar la respuesta usando FileResponse para mayor eficiencia
+        buffer.seek(0)
+        response = FileResponse(buffer, as_attachment=True, filename=f"experiencia_{pk}.zip")
+        response['Content-Type'] = 'application/zip'
+        
+        return response

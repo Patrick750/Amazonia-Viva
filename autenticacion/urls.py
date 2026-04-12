@@ -13,7 +13,7 @@ from .vistas_reportes import ExportarManifiestoAPIView
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
 from .vistas_experiencias import (
     ExperienciasDashboardView, SubirEvidenciaView, DetalleFeedbackView,
-    MisExperienciasTuristaView
+    MisExperienciasTuristaView, DescargarEvidenciasZipView
 )
 
 urlpatterns = [
@@ -61,4 +61,5 @@ urlpatterns = [
     path("experiencias/dashboard/", ExperienciasDashboardView.as_view(), name='experiencias_dashboard'),
     path("experiencias/<int:pk>/evidencia/", SubirEvidenciaView.as_view(), name='subir_evidencia'),
     path("experiencias/<int:pk>/feedback/", DetalleFeedbackView.as_view(), name='detalle_feedback'),
-]
+    path("experiencias/<int:pk>/zip/", DescargarEvidenciasZipView.as_view(), name='descargar_evidencias_zip'),
+]

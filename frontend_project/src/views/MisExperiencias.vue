@@ -11,6 +11,7 @@ const selectedExp = ref(null);
 const rating = ref(0);
 const comment = ref('');
 const isSubmitting = ref(false);
+const downloadingZip = ref(null);
 
 const fetchData = async () => {
     isLoading.value = true;
@@ -56,6 +57,32 @@ const downloadImage = (url, name) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+};
+
+const downloadPack = async (expId, tourName) => {
+    downloadingZip.value = expId;
+    try {
+        const response = await axios.get(`api/experiencias/${expId}/zip/`, {
+            responseType: 'blob'
+        });
+        
+        // Crear un link temporal para la descarga
+        const url = window.URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `fotos-${tourName.replace(/\s+/g, '-')}.zip`);
+        document.body.appendChild(link);
+        link.click();
+        
+        // Limpiar
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error downloading zip pack:', error);
+        alert('Hubo un error al generar el archivo ZIP. Inténtalo de nuevo.');
+    } finally {
+        downloadingZip.value = null;
+    }
 };
 
 onMounted(fetchData);
@@ -147,9 +174,18 @@ onMounted(fetchData);
               {{ exp.calificacion ? 'Editar Calificación' : 'Calificar Experiencia' }}
             </button>
 
-            <button v-if="exp.evidencias.length > 0" @click="downloadImage(exp.evidencias[0].url, `pack-${exp.tour_nombre}`)" class="flex items-center gap-2 px-6 py-3 bg-emerald-500/5 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/10 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              Descargar Pack Fotos
+            <button 
+              v-if="exp.evidencias.length > 0" 
+              @click="downloadPack(exp.id, exp.tour_nombre)" 
+              :disabled="downloadingZip === exp.id"
+              class="flex items-center gap-2 px-6 py-3 bg-emerald-500/5 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/10 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg v-if="downloadingZip === exp.id" class="animate-spin h-5 w-5 text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              {{ downloadingZip === exp.id ? 'Preparando ZIP...' : 'Descargar Pack Fotos' }}
             </button>
           </div>
 
