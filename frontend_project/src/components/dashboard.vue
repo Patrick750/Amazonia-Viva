@@ -45,9 +45,9 @@ onMounted(() => {
   });
 });
 
-// 3. BASE DE DATOS LOCAL (Aquí cambiamos 'admin' por 'agencia')
+// 3. BASE DE DATOS LOCAL
 const roleConfigs = {
-  agencia: { // <--- CORRECCIÓN APLICADA AQUÍ
+  agencia: {
     header: {
       title: "Amazonia Viva",
       subtitle: "Gestión de Experiencias y Biodiversidad"
@@ -128,6 +128,30 @@ const roleConfigs = {
         trend: "Clientes únicos atendidos", trendType: "neutral",
         icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
         watermark: '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>'
+      }
+    ]
+  },
+  turista: {
+    header: {
+      title: "Hola, Viajero",
+      subtitle: "Gestiona tus viajes y revive tus mejores momentos en la Amazonía"
+    },
+    gridClass: "lg:grid-cols-2",
+    theme: 'turismo',
+    kpis: [
+      {
+        title: "Mis Reservas", value: "Activas",
+        trend: "Consulta tus próximos tours", trendType: "neutral",
+        link: "/panel/reservas",
+        icon: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+        watermark: '<path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,19.93C7.06,19.43 4,16.05 4,12C4,7.95 7.06,4.57 11,4.07V19.93M13,4.07C16.94,4.57 20,7.95 20,12C20,16.05 16.94,19.43 13,19.93V4.07M15,10.5A1.5,1.5 0 0,0 16.5,12A1.5,1.5 0 0,0 18,10.5A1.5,1.5 0 0,0 16.5,9A1.5,1.5 0 0,0 15,10.5M16.5,13.5A1.5,1.5 0 0,0 18,15A1.5,1.5 0 0,0 19.5,13.5A1.5,1.5 0 0,0 18,12A1.5,1.5 0 0,0 16.5,13.5Z"/>'
+      },
+      {
+        title: "Mis Experiencias", value: "Fotos y Reseñas",
+        trend: "Ver fotos subidas por la agencia", trendType: "up",
+        link: "/panel/mis-experiencias",
+        icon: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline>',
+        watermark: '<path d="M22,12C22,12 21.36,10.58 20.35,9.65C19.35,8.72 18,8.22 18,8.22C18,8.22 16.89,7.5 15.68,7.21C14.47,6.91 13.16,7.05 13.16,7.05C13.16,7.05 11.5,6.67 10.15,6.58C8.81,6.48 7.5,6.67 7.5,6.67C7.5,6.67 6.13,6.33 4.88,6.29C3.62,6.25 2.5,6.5 2.5,6.5C2.5,6.5 3.39,8.22 4.14,9.65C4.89,11.08 5.39,12.5 5.39,12.5V14.17C5.39,14.17 5.72,15.58 6.72,16.52C7.73,17.45 9.06,17.95 9.06,17.95H11.58C11.58,17.95 12.92,18.29 14.17,18.25C15.42,18.21 16.56,17.78 16.56,17.78L19,16.52C19,16.52 20.36,15.11 20.86,13.68C21.36,12.25 21.36,10.82 21.36,10.82C21.36,10.82 22,12 22,12Z"/>'
       }
     ]
   },
@@ -255,6 +279,10 @@ const currentConfig = computed(() => roleConfigs[userRole.value] || roleConfigs[
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               Experiencias
             </router-link>
+            <router-link v-if="userRole === 'turista'" to="/panel/mis-experiencias" class="flex items-center gap-3 p-4 bg-white/50 border border-white/80 rounded-xl font-semibold text-slate-900 text-sm transition-all duration-200 hover:bg-white hover:border-emerald-600 hover:text-emerald-600 hover:translate-x-1">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              Mis Experiencias
+            </router-link>
           </div>
         </div>
       </section>
@@ -264,9 +292,6 @@ const currentConfig = computed(() => roleConfigs[userRole.value] || roleConfigs[
 </template>
 
 <style scoped>
-/* ==============================================
-   ESTILOS DE ANIMACIÓN EN CSS PURO
-   ============================================== */
 .animate-fade-in-down {
   animation: fadeInDown 0.8s ease-out forwards;
 }
@@ -285,7 +310,6 @@ const currentConfig = computed(() => roleConfigs[userRole.value] || roleConfigs[
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* AGENCIA - Fauna Animada */
 .macaw-wrapper {
   position: absolute; width: 350px; height: 350px; animation: flyAcross 30s linear infinite; filter: drop-shadow(0 20px 30px rgba(0,0,0,0.15)); opacity: 0.8;
 }
@@ -301,7 +325,6 @@ const currentConfig = computed(() => roleConfigs[userRole.value] || roleConfigs[
 .morpho-wings { transform-origin: center; animation: flutterFast 0.15s ease-in-out infinite alternate; }
 @keyframes flutterFast { 0% { transform: scaleX(1); } 100% { transform: scaleX(0.2); } }
 
-/* PROVEEDOR - Turismo Animado */
 .balloon-wrapper {
   position: absolute; width: 250px; height: 250px; top: 10%; right: -300px; animation: floatBalloon 45s linear infinite; filter: drop-shadow(0 20px 30px rgba(0,0,0,0.1));
 }

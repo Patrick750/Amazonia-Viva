@@ -13,7 +13,7 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 - **Frontend:** Vue 3 + Vite + Vue Router
 - **Base de datos:** PostgreSQL
 - **Autenticación:** JWT / Sesiones Django
-- **Servicios en la nube:** Cloudinary (Imágenes)
+- **Servicios en la nube:** Cloudinary (Imágenes) + Github + Render + Neon 
 - **Control de versiones:** Git
 
 ---

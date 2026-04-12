@@ -4,7 +4,7 @@ export const navegacion = {
     { label: 'Inicio', path: '/' },
     { label: 'Catálogo', path: '/catalogo/tours' },
     { label: 'Mis Reservas', path: '/panel/reservas' },
-    { label: 'Mis Experiencias', path: '/panel/experiencias' }
+    { label: 'Mis Experiencias', path: '/panel/mis-experiencias' }
   ],
   agencia: [
     { label: 'Inicio', path: '/' },

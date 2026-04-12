@@ -17,6 +17,7 @@ import MisReservas from '@/views/mis-reservas.vue'
 import GestionReservasView from '@/views/gestion-reservas-view.vue'
 import ExperienciasDashboard from '@/views/experiencias-dashboard.vue'
 import FeedbackExperiencia from '@/views/feedback-experiencia.vue'
+import MisExperiencias from '@/views/MisExperiencias.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -145,6 +146,12 @@ const router = createRouter({
       component: FeedbackExperiencia,
       meta: { requiresAuth: true, roles: ['turista'] },
     },
+    {
+      path: '/panel/mis-experiencias',
+      name: 'mis_experiencias',
+      component: MisExperiencias,
+      meta: { requiresAuth: true, roles: ['turista'] },
+    },
   ],
   scrollBehavior(to, from, savedPosition) {
     // Siempre desplazar al inicio de la página en cada navegación
@@ -176,25 +183,34 @@ router.beforeEach((to, from, next) => {
   // Restricciones de rutas con meta.requiresAuth
   if (to.meta?.requiresAuth) {
     if (!token || !rol) return next('/')
-    if (to.meta.roles && !to.meta.roles.includes(rol)) return next('/')
+    
+    // Verificación de roles insensible a mayúsculas
+    if (to.meta.roles) {
+      const allowedRoles = to.meta.roles.map(r => r.toLowerCase());
+      if (!allowedRoles.includes(rol.toLowerCase())) {
+        return next('/')
+      }
+    }
   }
 
   // Restricciones de Panel para usuarios autenticados
+  const rolLower = rol.toLowerCase();
+  
   if (to.path === '/panel' || to.path === '/panel/dashboard') {
-    if (rol === 'turista') {
+    if (rolLower === 'turista') {
       return next('/')
     }
   }
 
-  if (to.path === '/panel/gestion-paquetes' && rol !== 'agencia') {
+  if (to.path === '/panel/gestion-paquetes' && rolLower !== 'agencia') {
     return next('/')
   }
 
-  if (to.path === '/panel/productos' && rol !== 'proveedor') {
+  if (to.path === '/panel/productos' && rolLower !== 'proveedor') {
     return next('/')
   }
 
-  if (to.path === '/panel/gestion-reservas' && !['agencia', 'proveedor'].includes(rol)) {
+  if (to.path === '/panel/gestion-reservas' && !['agencia', 'proveedor'].includes(rolLower)) {
     return next('/')
   }
 

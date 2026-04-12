@@ -12,10 +12,12 @@ from .views import (
 from .vistas_reportes import ExportarManifiestoAPIView
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
 from .vistas_experiencias import (
-    ExperienciasDashboardView, SubirEvidenciaView, DetalleFeedbackView
+    ExperienciasDashboardView, SubirEvidenciaView, DetalleFeedbackView,
+    MisExperienciasTuristaView
 )
 
 urlpatterns = [
+    path("turista/experiencias/", MisExperienciasTuristaView.as_view(), name='mis_experiencias_turista'),
     path('signup/agencia/', RegistroAgencia.as_view(), name='signup_agencia'),
     path('signup/proveedor/', RegistroProveedor.as_view(), name='signup_proveedor'),
     path('signup/turista/', RegistroTurista.as_view(), name='signup_turista'),

@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser
 from django.shortcuts import get_object_or_404
-from .models import Detalles_Venta, ExperienciaEvidencia, ExperienciaCalificacion, PaqueteTuristico, Venta
+from .models import Detalles_Venta, ExperienciaEvidencia, ExperienciaCalificacion, PaqueteTuristico, Venta, Usuario
 from .serializers import ExperienciaEvidenciaSerializer, ExperienciaCalificacionSerializer
 from django.db.models import Count, Q
 
@@ -177,3 +177,55 @@ class DetalleFeedbackView(APIView):
             PaqueteTuristico.objects.filter(id=paquete_id).update(rating=avg_rating)
         except Exception as e:
             print(f"Error actualizando rating: {e}")
+
+
+class MisExperienciasTuristaView(APIView):
+    """Vista para que el turista vea todos sus tours realizados y pendientes de calificar"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .models import ReservaFecha
+        user = request.user
+        
+        # Obtenemos detalles de venta que sean paquetes y que pertenezcan a las ventas del usuario
+        detalles = Detalles_Venta.objects.filter(
+            venta__usuario=user,
+            paquete__gt=0
+        ).select_related('venta').order_by('-venta__fecha')
+        
+        resultado = []
+        for det in detalles:
+            try:
+                paquete_obj = PaqueteTuristico.objects.filter(id=det.paquete).first()
+                if not paquete_obj:
+                    continue
+                    
+                reserva = ReservaFecha.objects.filter(venta=det.venta, paquete_id=det.paquete).first()
+                fecha_val = reserva.fecha if reserva else det.venta.fecha.date()
+                
+                evidencias = det.evidencias.all()
+                calificacion = det.calificacion.first()
+                
+                # Acceso robusto a la información de la agencia
+                agencia_info = {'id': None, 'nombre': "Agencia Local"}
+                if paquete_obj.agencia:
+                    agencia_info['id'] = paquete_obj.agencia.id
+                    agencia_info['nombre'] = paquete_obj.agencia.nombre_agencia or paquete_obj.agencia.username
+
+                resultado.append({
+                    'id': det.id,
+                    'tour_id': paquete_obj.id,
+                    'tour_nombre': paquete_obj.nombre,
+                    'agencia': agencia_info,
+                    'fecha': fecha_val.strftime("%d de %B de %Y") if hasattr(fecha_val, 'strftime') else str(fecha_val),
+                    'fecha_raw': str(fecha_val),
+                    'personas': det.cantidad,
+                    'estado': det.estado,
+                    'evidencias': ExperienciaEvidenciaSerializer(evidencias, many=True).data,
+                    'calificacion': ExperienciaCalificacionSerializer(calificacion).data if calificacion else None
+                })
+            except Exception as e:
+                print(f"Error procesando detalle {det.id}: {e}")
+                continue
+            
+        return Response(resultado)
