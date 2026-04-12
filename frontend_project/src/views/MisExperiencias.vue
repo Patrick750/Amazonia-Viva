@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from '@/api/axios.js';
 
 const experiencias = ref([]);
@@ -9,9 +9,11 @@ const isLoading = ref(true);
 const showRatingModal = ref(false);
 const selectedExp = ref(null);
 const rating = ref(0);
-const comment = ref('');
-const isSubmitting = ref(false);
-const downloadingZip = ref(null);
+const comment         = ref('');
+const isSubmitting    = ref(false);
+const downloadingZip  = ref(null);
+const searchQuery     = ref('');
+const searchDate      = ref('');
 
 const fetchData = async () => {
     isLoading.value = true;
@@ -85,6 +87,31 @@ const downloadPack = async (expId, tourName) => {
     }
 };
 
+const filteredExperiencias = computed(() => {
+    let list = experiencias.value;
+
+    // 1. Filtro por texto (Nombre de tour o agencia)
+    if (searchQuery.value.trim()) {
+        const query = searchQuery.value.toLowerCase();
+        list = list.filter(exp => 
+            exp.tour_nombre.toLowerCase().includes(query) || 
+            exp.agencia.nombre.toLowerCase().includes(query)
+        );
+    }
+
+    // 2. Filtro por fecha exacta (Usando fecha_raw para coincidencia ISO)
+    if (searchDate.value) {
+        list = list.filter(exp => exp.fecha_raw === searchDate.value);
+    }
+
+    return list;
+});
+
+const clearFilters = () => {
+    searchQuery.value = '';
+    searchDate.value = '';
+};
+
 onMounted(fetchData);
 </script>
 
@@ -108,16 +135,70 @@ onMounted(fetchData);
       <div v-if="isLoading" class="space-y-6">
         <div v-for="i in 2" :key="i" class="bg-[#12221b] h-64 rounded-2xl animate-pulse border border-[#1e362a]"></div>
       </div>
+      
+      <!-- Buscador y Filtros -->
+      <div v-else class="space-y-6">
+        
+        <div v-if="experiencias.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Buscador por Nombre -->
+          <div class="relative group">
+            <div class="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-2xl blur opacity-30 group-focus-within:opacity-100 transition duration-500"></div>
+            <div class="relative bg-[#0f2318] border border-white/10 rounded-2xl flex items-center px-5 py-3 transition-all focus-within:border-emerald-500/50 shadow-2xl">
+              <svg class="w-5 h-5 text-emerald-500/50 group-focus-within:text-emerald-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <input 
+                v-model="searchQuery"
+                type="text" 
+                placeholder="Busca el nombre del tour..."
+                class="w-full bg-transparent border-none focus:ring-0 text-white placeholder:text-white/20 text-sm ml-3 font-medium"
+              />
+            </div>
+          </div>
 
-      <!-- Lista de Experiencias -->
-      <div v-else class="space-y-8">
+          <!-- Buscador por Fecha -->
+          <div class="relative group">
+            <div class="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-2xl blur opacity-30 group-focus-within:opacity-100 transition duration-500"></div>
+            <div class="relative bg-[#0f2318] border border-white/10 rounded-2xl flex items-center px-5 py-3 transition-all focus-within:border-emerald-500/50 shadow-2xl">
+              <svg class="w-5 h-5 text-emerald-500/50 group-focus-within:text-emerald-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <input 
+                v-model="searchDate"
+                type="date" 
+                class="w-full bg-transparent border-none focus:ring-0 text-white [color-scheme:dark] text-sm ml-3 font-medium"
+              />
+              <div v-if="searchDate" @click="searchDate = ''" class="cursor-pointer text-white/20 hover:text-white transition-colors ml-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="searchQuery || searchDate" class="flex justify-start">
+          <button @click="clearFilters" class="text-[10px] font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-400 transition-colors px-1">
+            Limpiar todos los filtros
+          </button>
+        </div>
+
         <div v-if="experiencias.length === 0" class="py-20 text-center bg-[#12221b] rounded-3xl border border-dashed border-[#1e362a]">
           <svg class="w-16 h-16 text-gray-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"/></svg>
           <p class="text-xl font-bold text-gray-500">Aún no tienes experiencias registradas</p>
           <router-link to="/catalogo/tours" class="mt-4 inline-block text-emerald-400 font-black uppercase text-xs tracking-widest hover:underline">¡Empieza tu aventura ahora!</router-link>
         </div>
 
-        <div v-for="exp in experiencias" :key="exp.id" class="bg-[#12221b] border border-[#1e362a] rounded-3xl shadow-2xl overflow-hidden transition-all hover:border-emerald-500/30 group">
+        <!-- Estado Vacío por Búsqueda -->
+        <div v-else-if="filteredExperiencias.length === 0" class="py-20 text-center">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 mb-4 border border-emerald-500/20">
+            <svg class="w-8 h-8 text-emerald-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+          <p class="text-xl font-bold text-gray-500">No encontramos resultados para tu búsqueda</p>
+          <button @click="clearFilters" class="mt-4 text-emerald-400 font-black uppercase text-xs tracking-widest hover:underline">Limpiar todos los filtros</button>
+        </div>
+
+        <div v-for="exp in filteredExperiencias" :key="exp.id" class="bg-[#12221b] border border-[#1e362a] rounded-3xl shadow-2xl overflow-hidden transition-all hover:border-emerald-500/30 group">
           
           <!-- SECCIÓN SUPERIOR: Información y Estado -->
           <div class="p-8 pb-6 flex flex-col md:flex-row justify-between items-start gap-6">

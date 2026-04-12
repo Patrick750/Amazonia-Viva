@@ -928,6 +928,10 @@ class MisReservasView(APIView):
                     if viajeros_lista:
                         requerimientos = viajeros_lista[0].get('novedades', '')
 
+                # Calificación si existe
+                calificacion = ExperienciaCalificacion.objects.filter(detalle_venta=detalle).first()
+                calif_data = ExperienciaCalificacionSerializer(calificacion).data if calificacion else None
+
                 resultado.append({
                     'id': detalle.id,
                     'venta_id': detalle.venta.id,
@@ -941,6 +945,7 @@ class MisReservasView(APIView):
                     'precio_unitario': str(detalle.precio_unitario),
                     'precio_total': str(round(float(detalle.precio_unitario) * detalle.cantidad, 2)),
                     'estado': estado_semantico,
+                    'calificacion': calif_data,
                     'requerimientos': requerimientos,
                     'viajeros': viajeros_lista,
                     'fecha_compra': str(detalle.venta.fecha.date()),
