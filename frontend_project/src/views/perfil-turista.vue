@@ -134,6 +134,14 @@
                 <p v-else class="text-[11px] text-emerald-600 mt-2 font-bold animate-pulse">✓ Este dato se bloqueará una vez sea guardado.</p>
               </div>
 
+              <!-- Teléfono -->
+              <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Número de teléfono</label>
+                <input id="numero-telefono" v-model="form.numero_telefonico" type="tel"
+                  class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium"
+                  placeholder="Ej: 300 123 4567" />
+              </div>
+
               <!-- Botón guardar -->
               <div class="pt-4 flex items-center gap-4">
                 <button id="btn-guardar-turista" type="submit" :disabled="isLoading"
@@ -187,6 +195,7 @@ const perfil = reactive({
   first_name: '', last_name: '',
   email: '', fecha_nacimiento: '',
   numero_identidad: '', foto_url: null,
+  numero_telefonico: '',
 })
 
 const form = reactive({
@@ -194,6 +203,7 @@ const form = reactive({
   last_name: '',
   fecha_nacimiento: '',
   numero_identidad: '',
+  numero_telefonico: '',
 })
 
 const iniciales = computed(() => {
@@ -210,6 +220,7 @@ onMounted(async () => {
     form.last_name        = data.last_name  || ''
     form.fecha_nacimiento = data.fecha_nacimiento || ''
     form.numero_identidad = data.numero_identidad || ''
+    form.numero_telefonico = data.numero_telefonico || ''
   } catch (err) {
     console.error('Error cargando perfil:', err)
   }
@@ -276,6 +287,7 @@ async function guardar() {
       last_name: form.last_name,
       fecha_nacimiento: form.fecha_nacimiento,
       numero_identidad: form.numero_identidad,
+      numero_telefonico: form.numero_telefonico,
     })
     Object.assign(perfil, data)
     // ── Actualizar header en tiempo real ──

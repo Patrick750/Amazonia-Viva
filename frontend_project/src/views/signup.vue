@@ -334,6 +334,11 @@
                     </div>
                 </div>
             </div>
+
+            <div class="flex flex-col">
+                <label class="block text-xs font-bold text-gray-800 mb-1.5 ml-1 uppercase tracking-wider opacity-90">Teléfono (Opcional)</label>
+                <input v-model="formulario.numero_telefonico" type="tel" placeholder="300 123 4567" class="w-full bg-slate-100/70 border border-gray-200/50 text-gray-950 text-sm rounded-xl focus:ring-2 focus:ring-teal-300 focus:border-teal-400 block p-3.5 outline-none transition-all duration-200 placeholder:text-gray-400 shadow-inner" />
+            </div>
           </template>
 
           <template v-if="tabActiva === 'agencia'">
