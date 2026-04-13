@@ -189,7 +189,7 @@ onMounted(() => {
               <span v-if="g.estado === 'Realizado'" class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">
                 Realizado
               </span>
-              <span v-else class="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
+              <span v-else-if="g.estado === 'Confirmado'" class="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
                 Confirmado
               </span>
             </div>
@@ -259,7 +259,7 @@ onMounted(() => {
                   <span v-if="g.estado === 'Realizado'" class="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">
                     Realizado
                   </span>
-                  <span v-else class="px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
+                  <span v-else-if="g.estado === 'Confirmado'" class="px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
                     Confirmado
                   </span>
                 </td>

@@ -210,7 +210,7 @@ class MisExperienciasTuristaView(APIView):
         detalles = Detalles_Venta.objects.filter(
             venta__usuario=user,
             paquete__gt=0,
-            estado='Realizado'
+            estado__in=['Confirmado', 'Realizado']
         ).select_related('venta').order_by('-venta__fecha')
         
         resultado = []

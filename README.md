@@ -26,6 +26,22 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 4.1.0 — Gestión de Experiencias, Blindaje de Pagos y Feedback (SCRUM-63)
+> Archivos: `vistas_experiencias.py`, `experiencias-dashboard.vue`, `pago.vue`, `useCatalogo.js`
+
+- **[Feature] Dashboard de Experiencias para Agencias**: Implementación de una interfaz centralizada para que las agencias gestionen las evidencias (fotos) y el feedback de los tours realizados.
+- **[Feature] Blindaje de Pagos y UX**: Reforzamiento de la seguridad en las transacciones y optimización de la experiencia de usuario en el flujo de reserva.
+- **[Feature] Sistema de Evidencias**: Capacidad para subir y visualizar fotos reales de las experiencias prestadas, permitiendo la construcción de un portafolio visual.
+- **[Fix] Tarjetas de Paquetes**: Ajustes estéticos y funcionales en las tarjetas de tours para una visualización más profesional.
+
+### 4.0.0 — Módulo de Mis Reservas y Detalle de Expedicionarios (SCRUM-60)
+> Archivos: `mis-reservas.vue`, `views.py`, `urls.py`, `router/index.js`
+
+- **[Feature] Interfaz "Mis Reservas"**: Creación de un panel interactivo para turistas que permite visualizar el historial de viajes clasificado por estado (Confirmadas, Realizadas, Canceladas).
+- **[Feature] Gestión de Expedicionarios**: Visualización detallada de todos los viajeros registrados en cada reserva, incluyendo nombres, identificación, edad y novedades especiales (acordeón interactivo).
+- **[Feature] Política de Cancelación Inteligente**: Sistema automatizado que permite cancelar reservas con restauración automática de cupos si se realiza con al menos 8 días de antelación.
+- **[UX] Estados Semánticos**: Cálculo dinámico del estado del tour (Confirmado vs Realizado) basado en la fecha de la actividad, mejorando la claridad de la información para el turista.
+
 ### 3.9.1 — Control de Duplicados en el Carrito
 > Archivos: `useCarrito.js`, `useCatalogo.js`
 
