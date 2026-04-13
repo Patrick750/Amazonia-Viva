@@ -37,9 +37,8 @@ class ExperienciasDashboardView(APIView):
 
         # Obtener todos los detalles de nuevo tras la actualización
         detalles = Detalles_Venta.objects.filter(
-            paquete__in=mis_paquetes_ids
-        ).exclude(
-            estado__in=['Cancelado', 'Rechazado']
+            paquete__in=mis_paquetes_ids,
+            estado__in=['Confirmado', 'Realizado']
         ).select_related('venta', 'venta__usuario').order_by('-venta__fecha')
         
         # Grupos por (paquete, fecha)
