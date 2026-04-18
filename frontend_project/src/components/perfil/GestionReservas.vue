@@ -25,9 +25,9 @@
 
       <div class="relative z-10 w-full max-w-[1400px] mx-auto px-6 md:px-8 mt-4 md:mt-6 flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
-          <span class="text-[#00f5d4] text-[10px] font-black uppercase tracking-[0.3em] mb-2 block">Operaciones Amazónicas</span>
+          <span class="text-[#00f5d4] text-[10px] font-black uppercase tracking-[0.3em] mb-2 block">{{ labels.heroTitlePre }}</span>
           <h1 class="text-3xl md:text-5xl font-black text-white tracking-tighter">
-            GESTIÓN <span class="text-emerald-400/50 uppercase">Logística</span>
+            GESTIÓN <span class="text-emerald-400/50 uppercase">{{ labels.heroTitlePost }}</span>
           </h1>
         </div>
 
@@ -37,7 +37,7 @@
             :class="['px-4 md:px-6 py-2 md:py-2.5 rounded-full text-[9px] md:text-[10px] font-black tracking-widest uppercase transition-all duration-500 whitespace-nowrap',
               currentTab === tab.id ? 'bg-[#00f5d4] text-[#050a09] emerald-glow-active' : 'text-white/40 hover:text-white']"
           >
-            {{ tab.name }}
+            {{ labels[tab.id] || tab.name }}
           </button>
         </div>
       </div>
@@ -47,8 +47,8 @@
     <div class="flex-1 overflow-y-auto bg-[#050a09]">
       <div class="max-w-[1400px] mx-auto p-8 pt-10">
         
-        <!-- === SECCIÓN: RESERVADOS / RECHAZADOS === -->
-        <section v-if="currentTab === 'reservados' || currentTab === 'rechazados'" class="space-y-6">
+        <!-- === SECCIÓN: RESERVADOS / RECHAZADOS / PROVEEDOR TABS === -->
+        <section v-if="currentTab !== 'cancelaciones'" class="space-y-6">
           
           <!-- BREADCRUMBS PREMIUM -->
           <nav class="flex flex-wrap items-center gap-2 md:gap-4 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-white/20 mb-8 md:mb-10 pb-4 border-b border-white/5">
@@ -63,11 +63,11 @@
               :class="navigationLevel === 2 ? 'text-[#00f5d4]' : 'hover:text-white/60'"
               class="transition-colors max-w-[120px] md:max-w-[200px] truncate"
             >
-              {{ selectedPackage?.paquete?.nombre || 'PAQUETE' }}
+              {{ selectedPackage?.paquete?.nombre || labels.itemLabel }}
             </button>
             <span v-if="navigationLevel === 3" class="text-white/5 shrink-0">/</span>
             <span v-if="navigationLevel === 3" class="text-[#00f5d4] opacity-50 shrink-0">
-              MANIFIESTO
+              {{ labels.manifestTitle }}
             </span>
             
             <!-- Buscador responsivo -->
@@ -75,7 +75,7 @@
               <input 
                 v-model="searchQuery"
                 type="text" 
-                placeholder="BUSCAR EXPEDICIÓN..." 
+                :placeholder="labels.searchPlaceholder" 
                 class="bg-white/5 border border-white/10 rounded-full px-10 py-2.5 md:py-2 text-[9px] md:text-[10px] font-black text-white placeholder:text-white/20 focus:border-[#00f5d4]/40 transition-all outline-none w-full md:w-[280px]"
               >
               <svg class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -111,7 +111,7 @@
                 <!-- BADGE DE SALIDAS (DERECHA) -->
                 <div class="absolute top-4 right-4">
                   <span :class="currentTab === 'reservados' ? 'bg-[#00f5d4] text-[#050a09]' : 'bg-zinc-800 text-zinc-400'" class="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm">
-                    {{ grupo.reservasPorFecha.length }} {{ grupo.reservasPorFecha.length === 1 ? 'Salida' : 'Salidas' }}
+                    {{ grupo.reservasPorFecha.length }} {{ grupo.reservasPorFecha.length === 1 ? labels.unitSingle : labels.unitPlural }}
                   </span>
                 </div>
               </div>
@@ -126,7 +126,7 @@
                   <div class="space-y-4">
                     <div class="flex justify-between items-end">
                       <span class="text-[10px] font-black uppercase tracking-[0.1em] text-white/30">
-                        {{ currentTab === 'reservados' ? 'Ocupación Confirmada' : 'Total Cancelaciones' }}
+                        {{ ['Cancelado', 'Reembolsado', 'Devuelto'].includes(currentTab) ? 'Total Incidencias' : 'Ocupación Confirmada' }}
                       </span>
                       <span class="text-base font-black text-white">{{ grupo.totalReservas }} pax</span>
                     </div>
@@ -134,7 +134,7 @@
                 </div>
 
                 <div class="pt-5 border-t border-white/5 flex items-center justify-between">
-                  <span class="text-[10px] font-black text-white/40 uppercase tracking-widest group-hover:text-[#00f5d4] transition-colors">Ver Detalles de Ventas</span>
+                  <span class="text-[10px] font-black text-white/40 uppercase tracking-widest group-hover:text-[#00f5d4] transition-colors">{{ labels.viewDetails }}</span>
                   <div class="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:bg-[#00f5d4] group-hover:text-[#050a09] transition-all shadow-md group-hover:shadow-[#00f5d4]/40">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7-7 7"/></svg>
                   </div>
@@ -147,7 +147,7 @@
             <div v-if="reservasFiltradas.length === 0" class="col-span-full py-24 text-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/20">
               <svg class="w-12 h-12 text-slate-200 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0l-8 4-8-4"/></svg>
               <h3 class="text-lg font-bold text-slate-700">Sin actividad registrada</h3>
-              <p class="text-xs text-slate-400 mt-2 font-medium">No se encontraron paquetes con reservas en el estado actual.</p>
+              <p class="text-xs text-slate-400 mt-2 font-medium">No se encontraron {{ labels.unitPlural.toLowerCase() }} en el estado actual.</p>
             </div>
           </div>
 
@@ -198,8 +198,8 @@
                   <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 </div>
                 <div>
-                  <h4 class="text-2xl font-black text-white tracking-tighter">MANIFIESTO OPERATIVO</h4>
-                  <p class="text-[10px] text-white/30 font-black uppercase tracking-[0.3em] mt-1">Control de Despacho y Logística de Campo</p>
+                  <h4 class="text-2xl font-black text-white tracking-tighter">{{ labels.manifestTitle }}</h4>
+                  <p class="text-[10px] text-white/30 font-black uppercase tracking-[0.3em] mt-1">{{ labels.manifestSubtitle }}</p>
                 </div>
               </div>
               
@@ -221,9 +221,10 @@
                 >
                   DESCARGAR
                 </button>
-                <div class="h-10 w-px bg-white/5 mx-2 hidden lg:block"></div>
+                <div class="h-10 w-px bg-white/5 mx-2 hidden lg:block" v-if="userRole === 'agencia'"></div>
 
                 <button 
+                  v-if="userRole === 'agencia'"
                   @click="abrirConfirmarAnularSalida"
                   class="px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all duration-500"
                 >
@@ -235,7 +236,7 @@
             <!-- PASAJEROS (CARDS DARK) -->
             <div class="space-y-4">
               <div class="flex items-center justify-between px-6">
-                <span class="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Lista de Pasajeros Registrados ({{ selectedDateGroup?.turistas.length }})</span>
+                <span class="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">{{ labels.listTitle }} ({{ selectedDateGroup?.turistas.length }})</span>
               </div>
 
               <div v-for="turista in (selectedDateGroup?.turistas || [])" :key="turista?.id_transaccion + '-' + turista?.nombre" 
@@ -281,14 +282,43 @@
                 <!-- ACCIONES -->
                 <div class="flex items-center gap-4 border-t border-white/5 md:border-t-0 pt-6 md:pt-0">
                   <div class="flex items-center gap-3">
-                    <button @click="abrirConfirmarAnulacion(turista)" 
-                      v-if="currentTab === 'reservados'"
+                    <!-- ACCIONES DE PEDIDO (SOLO PROVEEDOR) -->
+                    <div v-if="userRole === 'proveedor' && currentTab !== 'anulados'" class="flex items-center gap-3">
+                      <button v-if="turista.estado === 'Pendiente de Empaque' || turista.estado === 'Confirmado'"
+                        @click.stop="actualizarEstadoPedido(turista, 'Enviado')"
+                        class="px-4 py-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl text-[9px] font-black uppercase hover:bg-emerald-500 hover:text-white transition-all shadow-lg"
+                      >
+                        Enviar
+                      </button>
+                      <button v-if="turista.estado === 'Enviado'"
+                        @click.stop="actualizarEstadoPedido(turista, 'En Tránsito')"
+                        class="px-4 py-3 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-2xl text-[9px] font-black uppercase hover:bg-blue-500 hover:text-white transition-all shadow-lg"
+                      >
+                        En Tránsito
+                      </button>
+                      <button v-if="turista.estado === 'En Tránsito'"
+                        @click.stop="actualizarEstadoPedido(turista, 'Entregado')"
+                        class="px-4 py-3 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-2xl text-[9px] font-black uppercase hover:bg-amber-500 hover:text-white transition-all shadow-lg"
+                      >
+                        Entregar
+                      </button>
+                      <button v-if="turista.estado === 'Entregado'"
+                        @click.stop="actualizarEstadoPedido(turista, 'Devuelto')"
+                        class="px-4 py-3 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-2xl text-[9px] font-black uppercase hover:bg-rose-500 hover:text-white transition-all shadow-lg"
+                      >
+                        Devolución
+                      </button>
+                    </div>
+
+                    <!-- ACCIONES DE AGENCIA -->
+                    <button v-if="userRole === 'agencia' && currentTab === 'reservados' && !['Cancelado', 'Rechazado'].includes(turista.estado)" 
+                      @click="abrirConfirmarAnulacion(turista)" 
                       class="h-12 px-6 flex items-center gap-3 bg-white/5 text-white/40 hover:bg-rose-500/10 hover:text-rose-500 border border-white/10 hover:border-rose-500/30 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                       ANULAR
                     </button>
-                    <span v-else class="text-[10px] font-black text-rose-500 uppercase bg-rose-500/10 px-6 py-3 rounded-2xl border border-rose-500/20 tracking-[0.2em]">ANULADO</span>
+                    <span v-if="userRole === 'agencia' && currentTab === 'rechazados'" class="text-[10px] font-black text-rose-500 uppercase bg-rose-500/10 px-6 py-3 rounded-2xl border border-rose-500/20 tracking-[0.2em]">ANULADO</span>
                   </div>
                 </div>
               </div>
@@ -500,12 +530,25 @@ const searchQuery = ref('')
 const exportFormat = ref('')
 
 // --- NAVEGACIÓN CORPORATIVA ---
-const tabs = [
-  { id: 'reservados', name: 'Almacén Reservas' },
-  { id: 'rechazados', name: 'Filtro Rechazos' },
-  { id: 'cancelaciones', name: 'Cancelaciones' }
-]
-const currentTab = ref('reservados')
+const tabs = computed(() => {
+  if (userRole.value === 'proveedor') {
+    return [
+      { id: 'pendientes', name: 'Pendientes' },
+      { id: 'encamino', name: 'En camino' },
+      { id: 'entregados', name: 'Entregados' },
+      { id: 'anulados', name: 'Anulados' }
+    ]
+  }
+  return [
+    { id: 'reservados', name: 'Almacén Reservas' },
+    { id: 'rechazados', name: 'Filtro Rechazos' },
+    { id: 'cancelaciones', name: 'Cancelaciones' }
+  ]
+})
+// --- DETECCIÓN DE ROL ---
+const userRole = ref(localStorage.getItem('rol') || 'agencia')
+
+const currentTab = ref(userRole.value === 'proveedor' ? 'pendientes' : 'reservados')
 const navigationLevel = ref(1)
 
 // --- ESTADO DE SELECCIÓN ---
@@ -515,20 +558,86 @@ const selectedDateGroup = ref(null)
 
 
 const reservasAgrupadas = computed(() => {
-  if (currentTab.value === 'reservados') return reservasAgrupadasRaw.value
-  if (currentTab.value === 'rechazados') return rechazadosAgrupadasRaw.value
-  return []
+  if (userRole.value === 'agencia') {
+    if (currentTab.value === 'reservados') return reservasAgrupadasRaw.value
+    if (currentTab.value === 'rechazados') return rechazadosAgrupadasRaw.value
+    return []
+  } else {
+    // Proceso para Proveedor (Filtro por Estado de Envío)
+    const allData = [...reservasAgrupadasRaw.value, ...rechazadosAgrupadasRaw.value]
+
+    const tabStateMap = {
+      pendientes: ['Pendiente de Empaque', 'Confirmado'],
+      encamino: ['Enviado', 'En Tránsito'],
+      entregados: ['Entregado'],
+      anulados: ['Devuelto', 'Cancelado', 'Reembolsado']
+    }
+    
+    const targetStates = tabStateMap[currentTab.value] || []
+    
+    // Si por alguna razón el tab no está en el mapeo de estados, pero coincide directamente con vp.estado, funcionará
+    return allData.map(prod => {
+      const realFilteredDates = prod.reservasPorFecha.map(dateGroup => {
+        const filteredTuristas = dateGroup.turistas.filter(t => targetStates.includes(t.estado))
+        return { ...dateGroup, turistas: filteredTuristas, totalTuristas: filteredTuristas.length }
+      }).filter(dg => dg.turistas.length > 0)
+
+      return { 
+        ...prod, 
+        reservasPorFecha: realFilteredDates, 
+        totalReservas: realFilteredDates.reduce((acc, curr) => acc + curr.totalTuristas, 0)
+      }
+    }).filter(p => p.totalReservas > 0)
+  }
 })
 
 const reservasFiltradas = computed(() => {
   return reservasAgrupadas.value.filter(p => p.paquete.nombre.toLowerCase().includes(searchQuery.value.toLowerCase()))
 })
 
+// Role detection moved up
+
+// --- ETIQUETAS DINÁMICAS POR ROL ---
+const labels = computed(() => {
+  if (userRole.value === 'proveedor') {
+    return {
+      heroTitlePre: 'OPERACIONES COMERCIALES',
+      heroTitlePost: 'CONCILIACIÓN',
+      pendientes: 'Pedidos Activos',
+      anulados: 'Filtro Incidencias',
+      itemLabel: 'PRODUCTO',
+      searchPlaceholder: 'BUSCAR PRODUCTO...',
+      unitSingle: 'Pedido',
+      unitPlural: 'Pedidos',
+      viewDetails: 'Ver Detalles de Pedidos',
+      manifestTitle: 'REPORTE DE DESPACHO',
+      manifestSubtitle: 'Control de Inventario y Envíos',
+      listTitle: 'Lista de Clientes Registrados',
+      apiBase: '/api/gestion-proveedor/logistica/'
+    }
+  }
+  return {
+    heroTitlePre: 'Operaciones Amazónicas',
+    heroTitlePost: 'Logística',
+    reservados: 'Almacén Reservas',
+    rechazados: 'Filtro Rechazos',
+    itemLabel: 'PAQUETE',
+    searchPlaceholder: 'BUSCAR EXPEDICIÓN...',
+    unitSingle: 'Salida',
+    unitPlural: 'Salidas',
+    viewDetails: 'Ver Detalles de Ventas',
+    manifestTitle: 'MANIFIESTO OPERATIVO',
+    manifestSubtitle: 'Control de Despacho y Logística de Campo',
+    listTitle: 'Lista de Pasajeros Registrados',
+    apiBase: '/api/gestion-agencia/logistica/'
+  }
+})
+
 const fetchGestionReservas = async () => {
   loading.value = true
   try {
-    const { data } = await axios.get('/api/gestion-logistica/')
-    paquetesRaw.value = data.paquetes_list
+    const { data } = await axios.get(labels.value.apiBase)
+    paquetesRaw.value = data.paquetes
     reservasAgrupadasRaw.value = data.reservasAgrupadas
     rechazadosAgrupadasRaw.value = data.rechazadosAgrupados
     cancelaciones.value = data.cancelaciones
@@ -558,7 +667,7 @@ const ejecutarDescarga = async () => {
   }
 
   try {
-    const response = await axios.post('/api/gestion-logistica/exportar/', {
+    const response = await axios.post(`${labels.value.apiBase}exportar/`, {
       paquete_id: selectedPackage.value.paquete.id,
       fecha: selectedDate.value,
       formato: exportFormat.value
@@ -572,7 +681,7 @@ const ejecutarDescarga = async () => {
     // Generar nombre de archivo amigable
     const tourName = selectedPackage.value.paquete.nombre.replace(/\s+/g, '_')
     const ext = exportFormat.value.toLowerCase() === 'xls' ? 'xlsx' : exportFormat.value.toLowerCase()
-    link.download = `Manifiesto_${tourName}_${selectedDate.value}.${ext}`
+    link.download = `${labels.value.manifestTitle.split(' ').join('_')}_${tourName}_${selectedDate.value}.${ext}`
     
     // Forzar descarga
     document.body.appendChild(link)
@@ -596,7 +705,7 @@ const confirmarAnulacion = async () => {
   const t = cancelModal.turista
   cancelModal.isProcessing = true
   try {
-    await axios.post('/api/gestion-logistica/anular/', { id_detalle: t.id_detalle })
+    await axios.post(`${labels.value.apiBase}anular/`, { id_detalle: t.id_detalle })
     cancelaciones.value.unshift({ 
       id_reserva: t.id_transaccion, 
       paquete_nombre: selectedPackage.value.paquete.nombre, 
@@ -615,7 +724,6 @@ const confirmarAnulacion = async () => {
     }
     closeCancelModal()
     
-    // REDIRECCIÓN Y RECARGA SOLICITADA POR EL USUARIO
     await fetchGestionReservas()
     currentTab.value = 'reservados'
     backToLevel(1)
@@ -632,12 +740,11 @@ const closeCancelSalidaModal = () => { cancelSalidaModal.isOpen = false }
 const confirmarAnularSalida = async () => {
   cancelSalidaModal.isProcessing = true
   try {
-    await axios.post('/api/gestion-logistica/anular-salida/', { 
+    await axios.post(`${labels.value.apiBase}anular-salida/`, { 
       paquete_id: selectedPackage.value.paquete.id,
       fecha: selectedDate.value
     })
     
-    // Al anular toda la salida, regresamos al Nivel 1 del Almacén de Reservas por solicitud
     await fetchGestionReservas()
     currentTab.value = 'reservados'
     backToLevel(1)
@@ -647,6 +754,33 @@ const confirmarAnularSalida = async () => {
     alert('Fallo en la anulación masiva de la salida.')
   } finally {
     cancelSalidaModal.isProcessing = false
+  }
+}
+
+// --- GESTIÓN DE ESTADOS DE PEDIDO (PROVEEDOR) ---
+const actualizarEstadoPedido = async (turista, nuevoEstado) => {
+  try {
+    const isConfirmed = confirm(`¿Cambiar el estado de este pedido a "${nuevoEstado}"?`)
+    if (!isConfirmed) return
+
+    await axios.post(`${labels.value.apiBase}actualizar-estado/`, {
+      id_detalle: turista.id_detalle,
+      estado: nuevoEstado
+    })
+    
+    // Actualización silenciosa/rápida o recarga total
+    await fetchGestionReservas()
+    
+    // Si ya no pertenece al tab actual, regresamos un nivel si la fecha quedó vacía
+    if (selectedDateGroup.value) {
+        const itemPertenecia = selectedDateGroup.value.turistas.find(t => t.id_detalle === turista.id_detalle)
+        if (itemPertenecia) {
+            itemPertenecia.estado = nuevoEstado
+        }
+    }
+  } catch (err) {
+    console.error(err)
+    alert('Error al actualizar el estado del pedido.')
   }
 }
 
@@ -679,6 +813,9 @@ const formatDate = (dateStr) => {
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* OPTIMIZACIÓN DE SCROLL */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }

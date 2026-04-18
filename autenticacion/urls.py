@@ -1,4 +1,5 @@
 from django.urls import path
+from . import views, vistas_reportes
 from .views import (
     RegistroAgencia, RegistroProveedor, VerificarEmail, RegistroTurista, 
     Login, Logout, Actividades, NewPack, UpdatePack, PaquetesTuristicos, 
@@ -6,10 +7,8 @@ from .views import (
     CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
     DetalleProductoPublico, UserStatsView, PerfilView, PerfilFotoView,
     VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView,
-    CuposDisponiblesView, MisReservasView, CancelarReservaView,
-    GestionLogisticaAPIView, GestionAnularReservaAPIView, GestionAnularSalidaAPIView
+    CuposDisponiblesView, MisReservasView, CancelarReservaView
 )
-from .vistas_reportes import ExportarManifiestoAPIView
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
 from .vistas_experiencias import (
     ExperienciasDashboardView, SubirEvidenciaView, DetalleFeedbackView,
@@ -52,10 +51,17 @@ urlpatterns = [
     path("cupos/<int:pk>/", CuposDisponiblesView.as_view(), name="cupos_disponibles"),
     path("mis-reservas/", MisReservasView.as_view(), name="mis_reservas"),
     path("mis-reservas/<int:pk>/cancelar/", CancelarReservaView.as_view(), name='cancelar_reserva'),
-    path("gestion-logistica/", GestionLogisticaAPIView.as_view(), name='gestion_logistica'),
-    path("gestion-logistica/anular/", GestionAnularReservaAPIView.as_view(), name='gestion_logistica_anular'),
-    path("gestion-logistica/anular-salida/", GestionAnularSalidaAPIView.as_view(), name='gestion_logistica_anular_salida'),
-    path("gestion-logistica/exportar/", ExportarManifiestoAPIView.as_view(), name='exportar_manifiesto'),
+    # --- GESTIÓN LOGÍSTICA (AGENCIAS) ---
+    path("gestion-agencia/logistica/", views.GestionAgenciaLogisticaAPIView.as_view(), name='gestion_agencia_logistica'),
+    path("gestion-agencia/logistica/anular/", views.GestionAnularAgenciaAPIView.as_view(), name='gestion_agencia_anular'),
+    path("gestion-agencia/logistica/anular-salida/", views.GestionAnularSalidaAgenciaAPIView.as_view(), name='gestion_agencia_anular_salida'),
+    path("gestion-agencia/logistica/exportar/", vistas_reportes.ExportarManifiestoAgenciaAPIView.as_view(), name='exportar_manifiesto_agencia'),
+
+    # --- GESTIÓN LOGÍSTICA (PROVEEDORES) ---
+    path("gestion-proveedor/logistica/", views.GestionProveedorLogisticaAPIView.as_view(), name='gestion_proveedor_logistica'),
+    path("gestion-proveedor/logistica/anular/", views.GestionAnularProveedorAPIView.as_view(), name='gestion_proveedor_anular'),
+    path("gestion-proveedor/logistica/actualizar-estado/", views.GestionActualizarEstadoPedidoAPIView.as_view(), name='gestion_proveedor_actualizar_estado'),
+    path("gestion-proveedor/logistica/exportar/", vistas_reportes.ExportarDespachoProveedorAPIView.as_view(), name='exportar_despacho_proveedor'),
 
     # Endpoints de Experiencias y Feedback
     path("experiencias/dashboard/", ExperienciasDashboardView.as_view(), name='experiencias_dashboard'),

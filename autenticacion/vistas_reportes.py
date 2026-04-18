@@ -16,10 +16,10 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
-class ExportarManifiestoAPIView(APIView):
+class ExportarManifiestoAgenciaAPIView(APIView):
     """
-    POST /api/gestion-logistica/exportar/
-    Exporta el manifiesto de pasajeros en formato CSV, XLSX o PDF.
+    POST /api/gestion-agencia/logistica/exportar/
+    Exporta el manifiesto de pasajeros para agencias.
     """
     permission_classes = [IsAuthenticated]
 
@@ -31,16 +31,12 @@ class ExportarManifiestoAPIView(APIView):
         if not paquete_id or not fecha:
             return HttpResponse(json.dumps({'error': 'Paquete y fecha son requeridos.'}), status=400, content_type='application/json')
 
-        # 1. Validar pertenencia del paquete
         paquete = get_object_or_404(PaqueteTuristico, pk=paquete_id, agencia_id=request.user.pk)
-        
-        # 2. Obtener datos de la salida (turistas)
         reservas_fecha = ReservaFecha.objects.filter(paquete=paquete, fecha=fecha).select_related('venta', 'venta__usuario')
         
         if not reservas_fecha.exists():
             return HttpResponse(json.dumps({'error': 'No hay pasajeros registrados para esta fecha.'}), status=404, content_type='application/json')
 
-        # 3. Recolectar lista de turistas (similar a la lógica de GestionLogisticaAPIView)
         turistas_data = []
         for res in reservas_fecha:
             novedades = res.venta.novedades_turistas
@@ -49,25 +45,16 @@ class ExportarManifiestoAPIView(APIView):
                 except: novedades = []
             
             if not isinstance(novedades, list) or not novedades:
-                novedades = [{
-                    'nombres': res.venta.usuario.first_name,
-                    'apellidos': res.venta.usuario.last_name,
-                    'num_doc': 'N/A'
-                }]
+                novedades = [{'nombres': res.venta.usuario.first_name, 'apellidos': res.venta.usuario.last_name, 'num_doc': 'N/A'}]
 
             for i, nov in enumerate(novedades):
-                # Lógica de búsqueda: Perfil específico -> Transacción (novedad)
                 usr = res.venta.usuario
                 telefono = None
-                
-                # Buscar en el perfil correspondiente según el rol
                 if hasattr(usr, 'agencia'): telefono = usr.agencia.numero_telefonico
                 elif hasattr(usr, 'proveedor'): telefono = usr.proveedor.numero_telefonico
                 elif hasattr(usr, 'turista'): telefono = usr.turista.numero_telefonico
                 
-                # Fallback a los datos de la transacción si el perfil no tiene teléfono
-                if not telefono:
-                    telefono = nov.get('telefono') or nov.get('celular')
+                if not telefono: telefono = nov.get('telefono') or nov.get('celular')
                 
                 turistas_data.append({
                     'nombre': f"{nov.get('nombres', '')} {nov.get('apellidos', '')}".strip() or usr.username,
@@ -79,16 +66,58 @@ class ExportarManifiestoAPIView(APIView):
                 })
 
         filename = f"Manifiesto_{paquete.nombre.replace(' ', '_')}_{fecha}"
+        return self._generar_reporte(turistas_data, filename, formato, paquete.nombre, fecha)
 
-        # 4. Generar archivo según formato
-        if formato == 'CSV':
-            return self._export_csv(turistas_data, filename)
-        elif formato == 'XLS':
-            return self._export_xlsx(turistas_data, filename, paquete.nombre, fecha)
-        elif formato == 'PDF':
-            return self._export_pdf(turistas_data, filename, paquete.nombre, fecha)
-        else:
-            return HttpResponse(json.dumps({'error': 'Formato no soportado.'}), status=400, content_type='application/json')
+    def _generar_reporte(self, data, filename, formato, service_name, fecha):
+        if formato == 'CSV': return ExportarManifiestoBase()._export_csv(data, filename)
+        elif formato == 'XLS': return ExportarManifiestoBase()._export_xlsx(data, filename, service_name, fecha)
+        elif formato == 'PDF': return ExportarManifiestoBase()._export_pdf(data, filename, service_name, fecha)
+        return HttpResponse(json.dumps({'error': 'Formato no soportado.'}), status=400, content_type='application/json')
+
+class ExportarDespachoProveedorAPIView(APIView):
+    """
+    POST /api/gestion-proveedor/logistica/exportar/
+    Exporta el reporte de despacho para proveedores.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        producto_id = request.data.get('paquete_id') # Mantenemos el nombre del campo por compatibilidad con el front
+        fecha = request.data.get('fecha')
+        formato = request.data.get('formato', 'XLS').upper()
+
+        if not producto_id or not fecha:
+            return HttpResponse(json.dumps({'error': 'Producto y fecha son requeridos.'}), status=400, content_type='application/json')
+
+        producto = get_object_or_404(Productos, pk=producto_id, proveedor_id=request.user.pk)
+        detalles = Detalles_Venta.objects.filter(producto=producto_id, venta__fecha__date=fecha).select_related('venta', 'venta__usuario')
+
+        if not detalles.exists():
+            return HttpResponse(json.dumps({'error': 'No hay pedidos para esta fecha.'}), status=404, content_type='application/json')
+
+        clientes_data = []
+        for det in detalles:
+            usr = det.venta.usuario
+            clientes_data.append({
+                'nombre': f"{usr.first_name} {usr.last_name}".strip() or usr.username,
+                'identificacion': 'N/A',
+                'correo': usr.email,
+                'telefono': usr.proveedor.numero_telefonico if hasattr(usr, 'proveedor') else 'S/R',
+                'rol': 'Cliente',
+                'referencia': f"TRX-{det.venta.id} (Cant: {det.cantidad})"
+            })
+
+        filename = f"Despacho_{producto.nombre.replace(' ', '_')}_{fecha}"
+        return self._generar_reporte(clientes_data, filename, formato, producto.nombre, fecha)
+
+    def _generar_reporte(self, data, filename, formato, service_name, fecha):
+        if formato == 'CSV': return ExportarManifiestoBase()._export_csv(data, filename)
+        elif formato == 'XLS': return ExportarManifiestoBase()._export_xlsx(data, filename, service_name, fecha)
+        elif formato == 'PDF': return ExportarManifiestoBase()._export_pdf(data, filename, service_name, fecha)
+        return HttpResponse(json.dumps({'error': 'Formato no soportado.'}), status=400, content_type='application/json')
+
+class ExportarManifiestoBase:
+    """Clase base con utilidades de exportación para no repetir lógica."""
 
     def _export_csv(self, data, filename):
         output = io.StringIO()

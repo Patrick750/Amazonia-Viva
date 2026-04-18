@@ -273,6 +273,7 @@ class Detalles_Venta(models.Model):
         ('Reembolsado', 'Reembolsado'),
         ('En Tránsito', 'En Tránsito'),
         ('Entregado', 'Entregado'),
+        ('Devuelto', 'Devuelto'),
     ]
     ESTADO_PAQUETE_CHOICES = [
         ('Confirmado', 'Confirmado'),

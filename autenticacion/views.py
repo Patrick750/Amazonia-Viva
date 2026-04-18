@@ -1026,301 +1026,179 @@ class CancelarReservaView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GestionLogisticaAPIView(APIView):
+class GestionAgenciaLogisticaAPIView(APIView):
     """
-    GET /api/gestion-logistica/
-    Retorna toda la data necesaria para el Gestor de Reservas (Agencias y Proveedores).
+    GET /api/gestion-agencia/logistica/
+    Retorna la data logística específica para Agencias (Tours).
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
         try:
-            # Detectar rol
-            es_agencia = Agencia.objects.filter(pk=user.pk).exists()
-            es_proveedor = Proveedor.objects.filter(pk=user.pk).exists()
-
-            if not es_agencia and not es_proveedor:
-                return Response({'error': 'Perfil de empresa no encontrado.'}, status=status.HTTP_403_FORBIDDEN)
+            if not hasattr(user, 'agencia'):
+                return Response({'error': 'Perfil de agencia no encontrado.'}, status=status.HTTP_403_FORBIDDEN)
 
             paquetes_list = []
             reservas_agrupadas = []
             rechazados_agrupados = []
             cancelaciones_list = []
 
-            if es_agencia:
-                # 1. Listado de paquetes de la agencia
-                paquetes_obj = PaqueteTuristico.objects.filter(agencia_id=user.pk)
-                hoy = date.today()
-                for p in paquetes_obj:
-                    cupos = calcular_cupos_disponibles(p, hoy)
-                    paquetes_list.append({
-                        'id': p.id,
-                        'nombre': p.nombre,
-                        'activo': p.activo,
-                        'cupos_disponibles': cupos
-                    })
+            # 1. Listado de paquetes de la agencia
+            paquetes_obj = PaqueteTuristico.objects.filter(agencia_id=user.pk)
+            hoy = date.today()
+            for p in paquetes_obj:
+                cupos = calcular_cupos_disponibles(p, hoy)
+                paquetes_list.append({
+                    'id': p.id,
+                    'nombre': p.nombre,
+                    'activo': p.activo,
+                    'cupos_disponibles': cupos
+                })
 
-                # 2. Reservas Agrupadas
-                # Optimizamos trayendo todos los detalles de venta de los paquetes de la agencia de una vez
-                detalles_dict = {}
-                detalles_qs = Detalles_Venta.objects.filter(paquete__in=paquetes_obj.values_list('id', flat=True))
-                for det in detalles_qs:
-                    detalles_dict[(det.venta_id, det.paquete)] = det
+            # 2. Reservas Agrupadas
+            detalles_dict = {}
+            detalles_qs = Detalles_Venta.objects.filter(paquete__in=paquetes_obj.values_list('id', flat=True))
+            for det in detalles_qs:
+                detalles_dict[(det.venta_id, det.paquete)] = det
 
-                reservas_query = ReservaFecha.objects.filter(paquete__agencia_id=user.pk).select_related('paquete', 'venta', 'venta__usuario').order_by('fecha')
+            reservas_query = ReservaFecha.objects.filter(paquete__agencia_id=user.pk).select_related('paquete', 'venta', 'venta__usuario').order_by('fecha')
+            
+            agrupado_por_pk = {}
+            agrupado_por_pk_rechazados = {}
+            procesados = set()
+
+            for res in reservas_query:
+                pk_id = res.paquete.id
+                detalle = detalles_dict.get((res.venta.id, pk_id))
                 
-                agrupado_por_pk = {}
-                agrupado_por_pk_rechazados = {}
+                estado_item = detalle.estado if detalle else 'Confirmado'
+                precio_item = float(detalle.precio_unitario) if detalle else float(res.paquete.precio)
+                detalle_id = detalle.id if detalle else None
 
-                # 2. Agrupamiento por paquete con rastro de estados
-                procesados = set() # (venta_id, pk_id)
+                is_rejected = (estado_item in ['Cancelado', 'Rechazado'])
+                current_agrupado = agrupado_por_pk_rechazados if is_rejected else agrupado_por_pk
 
-                for res in reservas_query:
-                    pk_id = res.paquete.id
+                if pk_id not in current_agrupado:
+                    portada_obj = DestinoTuristico.objects.filter(paquete_id=pk_id, es_portada=True).first()
+                    if not portada_obj:
+                        portada_obj = DestinoTuristico.objects.filter(paquete_id=pk_id).first()
                     
-                    # Obtener detalle pre-cargado
-                    detalle = detalles_dict.get((res.venta.id, pk_id))
-                    
-                    # Determinar estado (por defecto Confirmado si no se encuentra el detalle por alguna discrepancia)
-                    estado_item = detalle.estado if detalle else 'Confirmado'
-                    precio_item = float(detalle.precio_unitario) if detalle else float(res.paquete.precio)
-                    detalle_id = detalle.id if detalle else None
+                    current_agrupado[pk_id] = {
+                        'paquete': {
+                            'id': pk_id,
+                            'nombre': res.paquete.nombre,
+                            'portada': portada_obj.imagen.url if portada_obj and hasattr(portada_obj.imagen, 'url') else None,
+                            'capacidad': res.paquete.capacidad,
+                        },
+                        'totalReservas': 0,
+                        'reservasPorFecha': {}
+                    }
+                
+                fecha_str = str(res.fecha)
+                if fecha_str not in current_agrupado[pk_id]['reservasPorFecha']:
+                    current_agrupado[pk_id]['reservasPorFecha'][fecha_str] = {
+                        'fecha': fecha_str,
+                        'totalTuristas': 0,
+                        'turistas': []
+                    }
+                
+                novedades = res.venta.novedades_turistas
+                if isinstance(novedades, str):
+                    try: novedades = json.loads(novedades)
+                    except: novedades = []
+                
+                if not isinstance(novedades, list) or not novedades:
+                    novedades = [{'nombres': res.venta.usuario.first_name, 'apellidos': res.venta.usuario.last_name, 'num_doc': 'N/A'}]
 
-                    # Determinar en qué grupo cae (Activo o Rechazado)
-                    is_rejected = (estado_item in ['Cancelado', 'Rechazado'])
-                    current_agrupado = agrupado_por_pk_rechazados if is_rejected else agrupado_por_pk
+                for i, nov in enumerate(novedades):
+                    comprador_nombre = f"{nov.get('nombres', '')} {nov.get('apellidos', '')}".strip() or res.venta.usuario.username
+                    comprador_foto = None
+                    if i == 0:
+                        v_u = res.venta.usuario
+                        if hasattr(v_u, 'turista') and v_u.turista.foto_perfil: comprador_foto = v_u.turista.foto_perfil.url
 
-                    if pk_id not in current_agrupado:
-                        # Buscar la imagen de portada
-                        portada_obj = DestinoTuristico.objects.filter(paquete_id=pk_id, es_portada=True).first()
-                        if not portada_obj:
-                            portada_obj = DestinoTuristico.objects.filter(paquete_id=pk_id).first()
-                        
-                        current_agrupado[pk_id] = {
+                    viajero_data = {
+                        'id_transaccion': f"{res.venta.id}",
+                        'nombre': comprador_nombre,
+                        'identificacion': nov.get('num_doc', 'N/A'),
+                        'contacto': res.venta.usuario.email if i == 0 else 'N/A',
+                        'es_comprador': (i == 0),
+                        'rol': 'Comprador' if i == 0 else 'Pasajero',
+                        'foto': comprador_foto,
+                        'cupos': 1,
+                        'monto_total': float(precio_item * detalle.cantidad) if (i == 0 and detalle) else 0,
+                        'id_detalle': detalle_id,
+                        'estado': estado_item
+                    }
+                    current_agrupado[pk_id]['reservasPorFecha'][fecha_str]['turistas'].append(viajero_data)
+
+                current_agrupado[pk_id]['reservasPorFecha'][fecha_str]['totalTuristas'] += res.cantidad
+                current_agrupado[pk_id]['totalReservas'] += res.cantidad
+                procesados.add((res.venta.id, pk_id))
+
+            # Barrido de seguridad para rechazados sin ReservaFecha
+            for (v_id, p_id), det in detalles_dict.items():
+                estado_det = str(det.estado).strip().title()
+                if estado_det in ['Cancelado', 'Rechazado'] and (v_id, p_id) not in procesados:
+                    if p_id not in agrupado_por_pk_rechazados:
+                        pk_obj = next((p for p in paquetes_obj if p.id == p_id), None)
+                        if not pk_obj: continue
+                        portada_obj = DestinoTuristico.objects.filter(paquete_id=p_id, es_portada=True).first() or DestinoTuristico.objects.filter(paquete_id=p_id).first()
+                        agrupado_por_pk_rechazados[p_id] = {
                             'paquete': {
-                                'id': pk_id,
-                                'nombre': res.paquete.nombre,
+                                'id': p_id,
+                                'nombre': pk_obj.nombre,
                                 'portada': portada_obj.imagen.url if portada_obj and hasattr(portada_obj.imagen, 'url') else None,
-                                'capacidad': res.paquete.capacidad,
+                                'capacidad': pk_obj.capacidad,
                             },
                             'totalReservas': 0,
                             'reservasPorFecha': {}
                         }
                     
-                    fecha_str = str(res.fecha)
-                    if fecha_str not in current_agrupado[pk_id]['reservasPorFecha']:
-                        current_agrupado[pk_id]['reservasPorFecha'][fecha_str] = {
-                            'fecha': fecha_str,
-                            'totalTuristas': 0,
-                            'turistas': []
-                        }
+                    f_res = str(det.fecha_reserva if hasattr(det, 'fecha_reserva') and det.fecha_reserva else det.venta.fecha.date())
+                    if f_res not in agrupado_por_pk_rechazados[p_id]['reservasPorFecha']:
+                        agrupado_por_pk_rechazados[p_id]['reservasPorFecha'][f_res] = {'fecha': f_res, 'totalTuristas': 0, 'turistas': []}
                     
-                    novedades = res.venta.novedades_turistas
-                    if isinstance(novedades, str):
-                        try:
-                            novedades = json.loads(novedades)
-                        except:
-                            novedades = []
-                    
-                    if not isinstance(novedades, list):
-                        novedades = []
-
-                    # Si no hay novedades, al menos mostrar al usuario de la venta como comprador
-                    if not novedades:
-                        novedades = [{
-                            'nombres': res.venta.usuario.first_name,
-                            'apellidos': res.venta.usuario.last_name,
-                            'num_doc': 'N/A'
-                        }]
-
-                    for i, nov in enumerate(novedades):
-                        comprador_nombre = f"{nov.get('nombres', '')} {nov.get('apellidos', '')}".strip() or res.venta.usuario.username
-                        
-                        # Obtener foto si es el comprador
-                        comprador_foto = None
-                        if i == 0:
-                            v_u = res.venta.usuario
-                            if hasattr(v_u, 'turista') and v_u.turista.foto_perfil:
-                                comprador_foto = v_u.turista.foto_perfil.url
-                            elif hasattr(v_u, 'proveedor') and v_u.proveedor.foto_perfil:
-                                comprador_foto = v_u.proveedor.foto_perfil.url
-                            elif hasattr(v_u, 'agencia') and v_u.agencia.logotipo:
-                                comprador_foto = v_u.agencia.logotipo.url
-
-                        viajero_data = {
-                            'id_transaccion': f"{res.venta.id}",
-                            'nombre': comprador_nombre,
-                            'identificacion': nov.get('num_doc', 'N/A'),
-                            'contacto': res.venta.usuario.email if i == 0 else 'N/A',
-                            'es_comprador': (i == 0),
-                            'rol': 'Comprador' if i == 0 else 'Pasajero',
-                            'foto': comprador_foto,
-                            'cupos': 1, # Cada fila es 1 persona
-                            'monto_total': float(precio_item * detalle.cantidad) if (i == 0 and detalle) else 0,
-                            'id_detalle': detalle_id,
-                            'estado': estado_item
-                        }
-                        current_agrupado[pk_id]['reservasPorFecha'][fecha_str]['turistas'].append(viajero_data)
-
-                    # Incremento de totales (UNA VEZ por reserva_fecha, no por cada pasajero)
-                    current_agrupado[pk_id]['reservasPorFecha'][fecha_str]['totalTuristas'] += res.cantidad
-                    current_agrupado[pk_id]['totalReservas'] += res.cantidad
-                    procesados.add((res.venta.id, pk_id))
-
-                # BARRIDO DE SEGURIDAD: Capturar rechazos que no tienen registro en ReservaFecha
-                for (v_id, p_id), det in detalles_dict.items():
-                    estado_det = str(det.estado).strip().title()
-                    if estado_det in ['Cancelado', 'Rechazado'] and (v_id, p_id) not in procesados:
-                        if p_id not in agrupado_por_pk_rechazados:
-                            pk_obj = next((p for p in paquetes_obj if p.id == p_id), None)
-                            if not pk_obj: continue
-                            
-                            portada_obj = DestinoTuristico.objects.filter(paquete_id=p_id, es_portada=True).first()
-                            if not portada_obj:
-                                portada_obj = DestinoTuristico.objects.filter(paquete_id=p_id).first()
-
-                            agrupado_por_pk_rechazados[p_id] = {
-                                'paquete': {
-                                    'id': p_id,
-                                    'nombre': pk_obj.nombre,
-                                    'portada': portada_obj.imagen.url if portada_obj and hasattr(portada_obj.imagen, 'url') else None,
-                                    'capacidad': pk_obj.capacidad,
-                                },
-                                'totalReservas': 0,
-                                'reservasPorFecha': {}
-                            }
-                        
-                        # Fallback a fecha de venta si no hay rastro de la fecha de reserva
-                        f_res = str(det.fecha_reserva if hasattr(det, 'fecha_reserva') and det.fecha_reserva else det.venta.fecha.date())
-                        if f_res not in agrupado_por_pk_rechazados[p_id]['reservasPorFecha']:
-                            agrupado_por_pk_rechazados[p_id]['reservasPorFecha'][f_res] = {
-                                'fecha': f_res,
-                                'totalTuristas': 0,
-                                'turistas': []
-                            }
-                        
-                        v_u = det.venta.usuario
-                        comprador_foto = None
-                        if hasattr(v_u, 'turista') and v_u.turista.foto_perfil:
-                            comprador_foto = v_u.turista.foto_perfil.url
-
-                        viajero_data = {
-                            'id_transaccion': f"{det.venta.id}",
-                            'nombre': f"{v_u.first_name} {v_u.last_name}".strip() or v_u.username,
-                            'identificacion': 'N/A',
-                            'contacto': v_u.email,
-                            'es_comprador': True,
-                            'rol': 'Comprador',
-                            'foto': comprador_foto,
-                            'cupos': det.cantidad,
-                            'monto_total': float(det.precio_unitario * det.cantidad),
-                            'id_detalle': det.id,
-                            'estado': estado_det
-                        }
-                        agrupado_por_pk_rechazados[p_id]['reservasPorFecha'][f_res]['turistas'].append(viajero_data)
-                        agrupado_por_pk_rechazados[p_id]['reservasPorFecha'][f_res]['totalTuristas'] += det.cantidad
-                        agrupado_por_pk_rechazados[p_id]['totalReservas'] += det.cantidad
-
-                # Finalizar agrupamientos
-                for pk_data in agrupado_por_pk.values():
-                    pk_data['reservasPorFecha'] = sorted(pk_data['reservasPorFecha'].values(), key=lambda x: x['fecha'])
-                    if pk_data['totalReservas'] > 0:
-                        reservas_agrupadas.append(pk_data)
-
-                for pk_data in agrupado_por_pk_rechazados.values():
-                    pk_data['reservasPorFecha'] = sorted(pk_data['reservasPorFecha'].values(), key=lambda x: x['fecha'])
-                    if pk_data['totalReservas'] > 0:
-                        rechazados_agrupados.append(pk_data)
-
-                # 3. Bitácora de Cancelaciones (Solo las que hace el turista)
-                detalles_cancelados = Detalles_Venta.objects.filter(
-                    paquete__in=paquetes_obj.values_list('id', flat=True),
-                    estado='Cancelado'
-                ).select_related('venta')
-                
-                for dc in detalles_cancelados:
-                    p_info = next((p for p in paquetes_list if p['id'] == dc.paquete), None)
-                    paquete_nombre = p_info['nombre'] if p_info else "Paquete"
-                    
-                    # Intentar obtener la fecha de salida desde ReservaFecha
-                    reserva_fecha = ReservaFecha.objects.filter(venta=dc.venta, paquete__id=dc.paquete).first()
-                    fecha_salida = str(reserva_fecha.fecha) if reserva_fecha else "N/A"
-                        
-                    cancelaciones_list.append({
-                        'id_reserva': f"{dc.venta.id}",
-                        'paquete_nombre': paquete_nombre,
-                        'fecha_salida': fecha_salida,
-                        'fecha_cancelacion': str(dc.venta.fecha),
-                        'monto_reembolso': float(dc.precio_unitario * dc.cantidad)
-                    })
-                
-                # Ordenar la bitácora por fecha de salida (más recientes primero)
-                cancelaciones_list = sorted(cancelaciones_list, key=lambda x: x['fecha_salida'], reverse=True)
-
-            elif es_proveedor:
-                productos_obj = Productos.objects.filter(proveedor_id=user.pk)
-                for prod in productos_obj:
-                    paquetes_list.append({
-                        'id': prod.id,
-                        'nombre': prod.nombre,
-                        'activo': prod.disponible,
-                        'cupos_disponibles': prod.stock
-                    })
-                
-                # Para proveedores, también incluimos rastro de rechazos y cancelaciones
-                ventas_prod = Detalles_Venta.objects.filter(
-                    producto__in=productos_obj.values_list('id', flat=True)
-                ).select_related('venta', 'venta__usuario')
-
-                agrupado_por_prod = {}
-                agrupado_por_prod_rechazados = {}
-
-                for vp in ventas_prod:
-                    prod_id = vp.producto
-                    prod_obj = next((p for p in productos_obj if p.id == prod_id), None)
-                    if not prod_obj: continue
-
-                    is_rejected_p = (vp.estado in ['Cancelado', 'Rechazado'])
-                    current_ag_p = agrupado_por_prod_rechazados if is_rejected_p else agrupado_por_prod
-
-                    if prod_id not in current_ag_p:
-                        current_ag_p[prod_id] = {
-                            'paquete': {'id': prod_id, 'nombre': prod_obj.nombre},
-                            'totalReservas': 0,
-                            'reservasPorFecha': {}
-                        }
-                    
-                    fecha_str = str(vp.venta.fecha.date())
-                    if fecha_str not in current_ag_p[prod_id]['reservasPorFecha']:
-                         current_ag_p[prod_id]['reservasPorFecha'][fecha_str] = {
-                            'fecha': fecha_str,
-                            'totalTuristas': 0,
-                            'turistas': []
-                        }
-                    
-                    turista_data = {
-                        'id_transaccion': f"{vp.venta.id}",
-                        'comprador_principal': f"{vp.venta.usuario.first_name} {vp.venta.usuario.last_name}".strip() or vp.venta.usuario.username,
+                    v_u = det.venta.usuario
+                    viajero_data = {
+                        'id_transaccion': f"{det.venta.id}",
+                        'nombre': f"{v_u.first_name} {v_u.last_name}".strip() or v_u.username,
                         'identificacion': 'N/A',
-                        'contacto': vp.venta.usuario.email,
-                        'cupos': vp.cantidad,
-                        'monto_total': float(vp.precio_unitario * vp.cantidad),
-                        'acompanantes': [],
-                        'id_detalle': vp.id,
-                        'estado': vp.estado
+                        'contacto': v_u.email,
+                        'es_comprador': True,
+                        'rol': 'Comprador',
+                        'foto': v_u.turista.foto_perfil.url if hasattr(v_u, 'turista') and v_u.turista.foto_perfil else None,
+                        'cupos': det.cantidad,
+                        'monto_total': float(det.precio_unitario * det.cantidad),
+                        'id_detalle': det.id,
+                        'estado': estado_det
                     }
-                    current_ag_p[prod_id]['reservasPorFecha'][fecha_str]['turistas'].append(turista_data)
-                    current_ag_p[prod_id]['reservasPorFecha'][fecha_str]['totalTuristas'] += vp.cantidad
-                    current_ag_p[prod_id]['totalReservas'] += vp.cantidad
+                    agrupado_por_pk_rechazados[p_id]['reservasPorFecha'][f_res]['turistas'].append(viajero_data)
+                    agrupado_por_pk_rechazados[p_id]['reservasPorFecha'][f_res]['totalTuristas'] += det.cantidad
+                    agrupado_por_pk_rechazados[p_id]['totalReservas'] += det.cantidad
 
-                for pr_data in agrupado_por_prod.values():
-                    pr_data['reservasPorFecha'] = sorted(pr_data['reservasPorFecha'].values(), key=lambda x: x['fecha'], reverse=True)
-                    reservas_agrupadas.append(pr_data)
+            for pk_data in agrupado_por_pk.values():
+                pk_data['reservasPorFecha'] = sorted(pk_data['reservasPorFecha'].values(), key=lambda x: x['fecha'])
+                if pk_data['totalReservas'] > 0: reservas_agrupadas.append(pk_data)
 
-                for pr_data in agrupado_por_prod_rechazados.values():
-                    pr_data['reservasPorFecha'] = sorted(pr_data['reservasPorFecha'].values(), key=lambda x: x['fecha'], reverse=True)
-                    rechazados_agrupados.append(pr_data)
+            for pk_data in agrupado_por_pk_rechazados.values():
+                pk_data['reservasPorFecha'] = sorted(pk_data['reservasPorFecha'].values(), key=lambda x: x['fecha'])
+                if pk_data['totalReservas'] > 0: rechazados_agrupados.append(pk_data)
+
+            # 3. Bitácora de Cancelaciones
+            detalles_cancelados = Detalles_Venta.objects.filter(paquete__in=paquetes_obj.values_list('id', flat=True), estado='Cancelado').select_related('venta')
+            for dc in detalles_cancelados:
+                p_info = next((p for p in paquetes_list if p['id'] == dc.paquete), None)
+                reserva_fecha = ReservaFecha.objects.filter(venta=dc.venta, paquete__id=dc.paquete).first()
+                cancelaciones_list.append({
+                    'id_reserva': f"{dc.venta.id}",
+                    'paquete_nombre': p_info['nombre'] if p_info else "Paquete",
+                    'fecha_salida': str(reserva_fecha.fecha) if reserva_fecha else "N/A",
+                    'fecha_cancelacion': str(dc.venta.fecha),
+                    'monto_reembolso': float(dc.precio_unitario * dc.cantidad)
+                })
+            cancelaciones_list = sorted(cancelaciones_list, key=lambda x: x['fecha_salida'], reverse=True)
 
             return Response({
                 'paquetes': paquetes_list,
@@ -1328,16 +1206,100 @@ class GestionLogisticaAPIView(APIView):
                 'rechazadosAgrupados': rechazados_agrupados,
                 'cancelaciones': cancelaciones_list
             }, status=status.HTTP_200_OK)
-
         except Exception as e:
-            print(f"Error en GestionLogisticaAPIView: {e}")
+            print(f"Error en GestionAgenciaLogisticaAPIView: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class GestionProveedorLogisticaAPIView(APIView):
+    """
+    GET /api/gestion-proveedor/logistica/
+    Retorna la data logística específica para Proveedores (Productos).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        try:
+            if not hasattr(user, 'proveedor'):
+                return Response({'error': 'Perfil de proveedor no encontrado.'}, status=status.HTTP_403_FORBIDDEN)
+
+            paquetes_list = []
+            reservas_agrupadas = []
+            rechazados_agrupados = []
+            cancelaciones_list = []
+
+            productos_obj = Productos.objects.filter(proveedor_id=user.pk)
+            for prod in productos_obj:
+                paquetes_list.append({
+                    'id': prod.id,
+                    'nombre': prod.nombre,
+                    'activo': prod.disponible,
+                    'cupos_disponibles': prod.stock
+                })
+            
+            ventas_prod = Detalles_Venta.objects.filter(producto__in=productos_obj.values_list('id', flat=True)).select_related('venta', 'venta__usuario')
+
+            agrupado_por_prod = {}
+            agrupado_por_prod_rechazados = {}
+
+            for vp in ventas_prod:
+                prod_id = vp.producto
+                prod_obj = next((p for p in productos_obj if p.id == prod_id), None)
+                if not prod_obj: continue
+
+                is_rejected_p = (vp.estado in ['Cancelado', 'Rechazado'])
+                current_ag_p = agrupado_por_prod_rechazados if is_rejected_p else agrupado_por_prod
+
+                if prod_id not in current_ag_p:
+                    current_ag_p[prod_id] = {
+                        'paquete': {'id': prod_id, 'nombre': prod_obj.nombre},
+                        'totalReservas': 0,
+                        'reservasPorFecha': {}
+                    }
+                
+                fecha_str = str(vp.venta.fecha.date())
+                if fecha_str not in current_ag_p[prod_id]['reservasPorFecha']:
+                     current_ag_p[prod_id]['reservasPorFecha'][fecha_str] = {'fecha': fecha_str, 'totalTuristas': 0, 'turistas': []}
+                
+                turista_data = {
+                    'id_transaccion': f"{vp.venta.id}",
+                    'nombre': f"{vp.venta.usuario.first_name} {vp.venta.usuario.last_name}".strip() or vp.venta.usuario.username,
+                    'identificacion': 'N/A',
+                    'contacto': vp.venta.usuario.email,
+                    'cupos': vp.cantidad,
+                    'monto_total': float(vp.precio_unitario * vp.cantidad),
+                    'id_detalle': vp.id,
+                    'estado': vp.estado,
+                    'es_comprador': True,
+                    'rol': 'Cliente'
+                }
+                current_ag_p[prod_id]['reservasPorFecha'][fecha_str]['turistas'].append(turista_data)
+                current_ag_p[prod_id]['reservasPorFecha'][fecha_str]['totalTuristas'] += vp.cantidad
+                current_ag_p[prod_id]['totalReservas'] += vp.cantidad
+
+            for pr_data in agrupado_por_prod.values():
+                pr_data['reservasPorFecha'] = sorted(pr_data['reservasPorFecha'].values(), key=lambda x: x['fecha'], reverse=True)
+                reservas_agrupadas.append(pr_data)
+
+            for pr_data in agrupado_por_prod_rechazados.values():
+                pr_data['reservasPorFecha'] = sorted(pr_data['reservasPorFecha'].values(), key=lambda x: x['fecha'], reverse=True)
+                rechazados_agrupados.append(pr_data)
+
+            return Response({
+                'paquetes': paquetes_list, # El frontend espera 'paquetes' para el listado general
+                'reservasAgrupadas': reservas_agrupadas,
+                'rechazadosAgrupados': rechazados_agrupados,
+                'cancelaciones': cancelaciones_list
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f"Error en GestionProveedorLogisticaAPIView: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GestionAnularReservaAPIView(APIView):
+class GestionAnularAgenciaAPIView(APIView):
     """
-    POST /api/gestion-logistica/anular/
-    Un proveedor o agencia anula una reserva/venta.
+    POST /api/gestion-agencia/logistica/anular/
+    Una agencia anula una reserva de tour.
     """
     permission_classes = [IsAuthenticated]
 
@@ -1348,39 +1310,83 @@ class GestionAnularReservaAPIView(APIView):
 
         try:
             detalle = get_object_or_404(Detalles_Venta, pk=detalle_id)
-            
-            es_dueno = False
-            if detalle.paquete > 0:
-                es_dueno = PaqueteTuristico.objects.filter(pk=detalle.paquete, agencia_id=request.user.pk).exists()
-            elif detalle.producto > 0:
-                es_dueno = Productos.objects.filter(pk=detalle.producto, proveedor_id=request.user.pk).exists()
-            
+            if detalle.paquete <= 0:
+                return Response({'error': 'El detalle no corresponde a un paquete.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            es_dueno = PaqueteTuristico.objects.filter(pk=detalle.paquete, agencia_id=request.user.pk).exists()
             if not es_dueno:
                 return Response({'error': 'No tienes permiso para anular esta venta.'}, status=status.HTTP_403_FORBIDDEN)
 
-            if detalle.estado == 'Cancelado':
-                return Response({'error': 'Esta venta ya ha sido anulada.'}, status=status.HTTP_400_BAD_REQUEST)
+            detalle.estado = 'Rechazado'
+            detalle.save()
+            return Response({'mensaje': 'Reserva rechazada correctamente.'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            if detalle.paquete > 0:
-                # No eliminamos ReservaFecha para que quede rastro en el dashboard de logística
-                pass
-            elif detalle.producto > 0:
-                prod = Productos.objects.filter(pk=detalle.producto).first()
-                if prod:
-                    prod.stock += detalle.cantidad
-                    prod.save()
+class GestionAnularProveedorAPIView(APIView):
+    """
+    POST /api/gestion-proveedor/logistica/anular/
+    Un proveedor anula una venta de producto.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        detalle_id = request.data.get('id_detalle')
+        if not detalle_id:
+            return Response({'error': 'ID de detalle no proporcionado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            detalle = get_object_or_404(Detalles_Venta, pk=detalle_id)
+            if detalle.producto <= 0:
+                return Response({'error': 'El detalle no corresponde a un producto.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            es_dueno = Productos.objects.filter(pk=detalle.producto, proveedor_id=request.user.pk).exists()
+            if not es_dueno:
+                return Response({'error': 'No tienes permiso para anular esta venta.'}, status=status.HTTP_403_FORBIDDEN)
+
+            prod = Productos.objects.filter(pk=detalle.producto).first()
+            if prod:
+                prod.stock += detalle.cantidad
+                prod.save()
 
             detalle.estado = 'Rechazado'
             detalle.save()
-
-            return Response({'mensaje': 'Reserva rechazada correctamente.'}, status=status.HTTP_200_OK)
-
+            return Response({'mensaje': 'Venta de producto rechazada correctamente.'}, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class GestionAnularSalidaAPIView(APIView):
+class GestionActualizarEstadoPedidoAPIView(APIView):
     """
-    POST /api/gestion-logistica/anular-salida/
+    POST /api/gestion-proveedor/logistica/actualizar-estado/
+    Un proveedor actualiza el estado de un pedido (envío).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        detalle_id = request.data.get('id_detalle')
+        nuevo_estado = request.data.get('estado')
+        
+        if not detalle_id or not nuevo_estado:
+            return Response({'error': 'ID de detalle y nuevo estado son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            detalle = get_object_or_404(Detalles_Venta, pk=detalle_id)
+            if detalle.producto <= 0:
+                 return Response({'error': 'El detalle no corresponde a un producto.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            es_dueno = Productos.objects.filter(pk=detalle.producto, proveedor_id=request.user.pk).exists()
+            if not es_dueno:
+                return Response({'error': 'No tienes permiso para actualizar este pedido.'}, status=status.HTTP_403_FORBIDDEN)
+
+            detalle.estado = nuevo_estado
+            detalle.save()
+            return Response({'mensaje': f'Estado actualizado a {nuevo_estado} correctamente.'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class GestionAnularSalidaAgenciaAPIView(APIView):
+    """
+    POST /api/gestion-agencia/logistica/anular-salida/
     Anula todas las reservas de un paquete en una fecha específica.
     """
     permission_classes = [IsAuthenticated]
@@ -1393,31 +1399,17 @@ class GestionAnularSalidaAPIView(APIView):
             return Response({'error': 'Paquete y fecha son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Verificar que la agencia sea dueña del paquete
             paquete = get_object_or_404(PaqueteTuristico, pk=paquete_id, agencia_id=request.user.pk)
-            
-            # 1. Buscar todas las reservas vinculadas a esta fecha
             reservas_fecha = ReservaFecha.objects.filter(paquete=paquete, fecha=fecha)
             
             if not reservas_fecha.exists():
                 return Response({'error': 'No hay reservas para esta fecha.'}, status=status.HTTP_404_NOT_FOUND)
 
-            # 2. Obtener IDs de ventas involucradas
             ventas_ids = reservas_fecha.values_list('venta_id', flat=True)
-
-            # 3. Anular detalles de venta correspondientes
             detalles = Detalles_Venta.objects.filter(venta_id__in=ventas_ids, paquete=paquete_id).exclude(estado='Rechazado').exclude(estado='Cancelado')
             
             count = detalles.count()
             detalles.update(estado='Rechazado')
-
-            # 4. No eliminamos registros de ReservaFecha para rastro en Dashboard
-            # reservas_fecha.delete()
-
-            return Response({
-                'message': f'Salida rechazada correctamente. {count} reservas marcadas como Rechazadas.',
-                'count': count
-            }, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
