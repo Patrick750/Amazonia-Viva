@@ -126,9 +126,9 @@
                   <div class="space-y-4">
                     <div class="flex justify-between items-end">
                       <span class="text-[10px] font-black uppercase tracking-[0.1em] text-white/30">
-                        {{ ['Cancelado', 'Reembolsado', 'Devuelto'].includes(currentTab) ? 'Total Incidencias' : 'Ocupación Confirmada' }}
+                        {{ ['Cancelado', 'Reembolsado', 'anulados'].includes(currentTab) ? 'Total Incidencias' : labels.qtyTotal }}
                       </span>
-                      <span class="text-base font-black text-white">{{ grupo.totalReservas }} pax</span>
+                      <span class="text-base font-black text-white">{{ grupo.totalReservas }} {{ labels.qtyLabel }}</span>
                     </div>
                   </div>
                 </div>
@@ -177,7 +177,7 @@
                 <div class="flex items-center gap-6">
                   <div class="text-right">
                     <p class="text-xl font-black text-white leading-none">{{ fechaObj.totalTuristas }}</p>
-                    <p class="text-[9px] text-[#00f5d4] font-black uppercase tracking-widest mt-1">Pax</p>
+                    <p class="text-[9px] text-[#00f5d4] font-black uppercase tracking-widest mt-1">{{ labels.qtyLabel }}</p>
                   </div>
                   <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-white/20 group-hover:text-white transition-all">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7-7 7"/></svg>
@@ -267,12 +267,22 @@
                   </div>
                 </div>
 
-                <!-- INFO LOGÍSTICA -->
-                <div class="grid grid-cols-2 lg:flex items-center gap-12 flex-1 lg:justify-center px-4">
+                <!-- INFO LOGÍSTICA / PRODUCTO -->
+                <div class="grid grid-cols-2 lg:flex items-center gap-8 flex-1 lg:justify-center px-4">
                   <div class="space-y-2">
                     <p class="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Contacto</p>
                     <p class="text-xs font-bold text-white/60 tracking-wide">{{ turista.contacto !== 'N/A' ? turista.contacto : 'SECURE_REG' }}</p>
                   </div>
+                  
+                  <!-- PRODUCTO ESPECÍFICO (PARA PROVEEDORES) -->
+                  <div v-if="userRole === 'proveedor'" class="space-y-2 border-l border-white/5 pl-8">
+                    <p class="text-[9px] font-black text-[#00f5d4]/40 uppercase tracking-[0.2em]">Producto / Cantidad</p>
+                    <p class="text-xs font-bold text-white/80 leading-tight">
+                      {{ turista.producto_nombre }} 
+                      <span class="ml-2 px-2 py-0.5 bg-[#00f5d4]/10 text-[#00f5d4] rounded text-[10px] font-black">x{{ turista.cupos }}</span>
+                    </p>
+                  </div>
+
                   <div class="space-y-2">
                     <p class="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Referencia</p>
                     <p class="text-xs font-mono font-black text-[#00f5d4]/50">TRX-{{ turista.id_transaccion }}</p>
@@ -613,6 +623,8 @@ const labels = computed(() => {
       manifestTitle: 'REPORTE DE DESPACHO',
       manifestSubtitle: 'Control de Inventario y Envíos',
       listTitle: 'Lista de Clientes Registrados',
+      qtyLabel: 'unid.',
+      qtyTotal: 'Total Productos',
       apiBase: '/api/gestion-proveedor/logistica/'
     }
   }
@@ -629,6 +641,8 @@ const labels = computed(() => {
     manifestTitle: 'MANIFIESTO OPERATIVO',
     manifestSubtitle: 'Control de Despacho y Logística de Campo',
     listTitle: 'Lista de Pasajeros Registrados',
+    qtyLabel: 'pax',
+    qtyTotal: 'Ocupación Confirmada',
     apiBase: '/api/gestion-agencia/logistica/'
   }
 })

@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404
 from .models import PaqueteTuristico, ReservaFecha, Detalles_Venta, Agencia
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -182,7 +183,7 @@ class ExportarManifiestoBase:
         # Ajustar anchos
         for col in ws.columns:
             max_length = 0
-            column = col[0].column_letter
+            column = get_column_letter(col[0].column)
             for cell in col:
                 try:
                     if len(str(cell.value)) > max_length:

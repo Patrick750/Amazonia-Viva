@@ -1266,6 +1266,7 @@ class GestionProveedorLogisticaAPIView(APIView):
                     'nombre': f"{vp.venta.usuario.first_name} {vp.venta.usuario.last_name}".strip() or vp.venta.usuario.username,
                     'identificacion': 'N/A',
                     'contacto': vp.venta.usuario.email,
+                    'producto_nombre': prod_obj.nombre,
                     'cupos': vp.cantidad,
                     'monto_total': float(vp.precio_unitario * vp.cantidad),
                     'id_detalle': vp.id,
