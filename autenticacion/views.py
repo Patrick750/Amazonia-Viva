@@ -1239,10 +1239,40 @@ class GestionProveedorLogisticaAPIView(APIView):
             
             ventas_prod = Detalles_Venta.objects.filter(producto__in=productos_obj.values_list('id', flat=True)).select_related('venta', 'venta__usuario')
 
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            # --- SIMULACIÓN DE ESTADOS EN TIEMPO REAL ---
+            STATE_TIMELINE = [
+                ('Pendiente de Empaque', timedelta(hours=0)),
+                ('Enviado', timedelta(hours=15)),
+                ('En Tránsito', timedelta(hours=30)),
+                ('Entregado', timedelta(hours=45))
+            ]
+            TERMINAL_STATES = ['Cancelado', 'Rechazado', 'Reembolsado', 'Devuelto']
+            STATE_INDICES = {s[0]: i for i, s in enumerate(STATE_TIMELINE)}
+            now = timezone.now()
+
             agrupado_por_prod = {}
             agrupado_por_prod_rechazados = {}
 
             for vp in ventas_prod:
+                # 1. Simular transición de estado por tiempo
+                if vp.estado not in TERMINAL_STATES:
+                    time_passed = now - vp.venta.fecha
+                    
+                    expected_state_idx = 0
+                    for idx, (state_name, delay) in enumerate(STATE_TIMELINE):
+                        if time_passed >= delay:
+                            expected_state_idx = idx
+                            
+                    current_idx = STATE_INDICES.get(vp.estado, 0)
+                    
+                    if expected_state_idx > current_idx:
+                        vp.estado = STATE_TIMELINE[expected_state_idx][0]
+                        # Guardamos el nuevo estado simulado en base de datos
+                        vp.save(update_fields=['estado'])
+                
                 prod_id = vp.producto
                 prod_obj = next((p for p in productos_obj if p.id == prod_id), None)
                 if not prod_obj: continue
@@ -1383,6 +1413,120 @@ class GestionActualizarEstadoPedidoAPIView(APIView):
             detalle.save()
             return Response({'mensaje': f'Estado actualizado a {nuevo_estado} correctamente.'}, status=status.HTTP_200_OK)
         except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class MisProductosTuristaView(APIView):
+    """
+    GET /api/mis-productos/
+    Devuelve todos los pedidos de productos del turista/usuario autenticado.
+    Aplica la misma simulación de estados en tiempo real que el panel del proveedor.
+    """
+    permission_classes = [IsAuthenticated]
+
+    STATE_TIMELINE = [
+        ('Pendiente de Empaque', 0),
+        ('Enviado',              15),
+        ('En Tránsito',         30),
+        ('Entregado',           45),
+    ]
+    TERMINAL_STATES = {'Cancelado', 'Rechazado', 'Reembolsado', 'Devuelto'}
+
+    def _simular_estado(self, detalle, now):
+        """Calcula el estado esperado según las horas transcurridas y lo persiste si cambia."""
+        if detalle.estado in self.TERMINAL_STATES:
+            return detalle.estado
+
+        hours_passed = (now - detalle.venta.fecha).total_seconds() / 3600
+        expected = 'Pendiente de Empaque'
+        for state_name, threshold in self.STATE_TIMELINE:
+            if hours_passed >= threshold:
+                expected = state_name
+
+        if expected != detalle.estado:
+            detalle.estado = expected
+            detalle.save(update_fields=['estado'])
+        return expected
+
+    def _next_state_info(self, current_state, hours_passed):
+        """Devuelve el nombre del próximo estado y las horas restantes para llegar."""
+        names  = [s[0] for s in self.STATE_TIMELINE]
+        thresholds = [s[1] for s in self.STATE_TIMELINE]
+        if current_state in self.TERMINAL_STATES:
+            return None, None
+        try:
+            idx = names.index(current_state)
+        except ValueError:
+            return None, None
+        if idx + 1 >= len(self.STATE_TIMELINE):
+            return None, None
+        next_name      = self.STATE_TIMELINE[idx + 1][0]
+        next_threshold = thresholds[idx + 1]
+        hours_remaining = max(0, round(next_threshold - hours_passed, 1))
+        return next_name, hours_remaining
+
+    def get(self, request):
+        from django.utils import timezone
+        user = request.user
+        try:
+            if not (
+                Turista.objects.filter(pk=user.pk).exists() or
+                hasattr(user, 'agencia')
+            ):
+                pass  # Permitimos a todos los usuarios ver sus pedidos de productos
+
+            detalles = (
+                Detalles_Venta.objects
+                .filter(venta__usuario=user, producto__gt=0)
+                .select_related('venta', 'venta__usuario')
+                .order_by('-venta__fecha')
+            )
+
+            now     = timezone.now()
+            result  = []
+
+            for det in detalles:
+                # Simular y persistir estado
+                estado = self._simular_estado(det, now)
+                hours_passed = (now - det.venta.fecha).total_seconds() / 3600
+
+                # Producto
+                prod = Productos.objects.filter(pk=det.producto).prefetch_related('imagen_producto').first()
+                portada = None
+                if prod:
+                    img = prod.imagen_producto.filter(es_portada=True).first() or prod.imagen_producto.first()
+                    if img:
+                        portada = img.imagen.url
+
+                # Próximo estado y tiempo estimado
+                next_state, hours_remaining = self._next_state_info(estado, hours_passed)
+
+                # Progreso numérico (0-3)
+                names = [s[0] for s in self.STATE_TIMELINE]
+                progress_idx = names.index(estado) if estado in names else 0
+
+                result.append({
+                    'id_detalle':       det.id,
+                    'id_transaccion':   f'TRX-{det.venta.id}',
+                    'producto_id':      det.producto,
+                    'producto_nombre':  prod.nombre if prod else '—',
+                    'producto_imagen':  portada,
+                    'cantidad':         det.cantidad,
+                    'precio_unitario':  str(det.precio_unitario),
+                    'precio_total':     str(round(float(det.precio_unitario) * det.cantidad, 2)),
+                    'estado':           estado,
+                    'estado_idx':       progress_idx,
+                    'fecha_pedido':     det.venta.fecha.isoformat(),
+                    'horas_transcurridas': round(hours_passed, 1),
+                    'proximo_estado':      next_state,
+                    'horas_para_proximo':  hours_remaining,
+                    'es_terminal':         estado in self.TERMINAL_STATES,
+                })
+
+            return Response(result, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f'ERROR MisProductosTuristaView: {e}')
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GestionAnularSalidaAgenciaAPIView(APIView):

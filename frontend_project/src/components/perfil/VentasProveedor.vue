@@ -20,6 +20,7 @@ const perPage      = ref(10)
 const sortKey      = ref('fecha_pedido')
 const sortAsc      = ref(false)
 const activeMenu   = ref(null)
+const dropdownPos  = ref({ top: 0, right: 0 })
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────
 const TAB_STATE_MAP = {
@@ -160,8 +161,17 @@ const toggleSort = (key) => {
   else { sortKey.value = key; sortAsc.value = true }
 }
 
-const toggleMenu = (id) => { activeMenu.value = activeMenu.value === id ? null : id }
-const closeMenu  = () => { activeMenu.value = null }
+const toggleMenu = (id, event) => {
+  if (activeMenu.value === id) { activeMenu.value = null; return }
+  const btn  = event.currentTarget
+  const rect = btn.getBoundingClientRect()
+  dropdownPos.value = {
+    top:   rect.bottom + 6,
+    right: window.innerWidth - rect.right
+  }
+  activeMenu.value = id
+}
+const closeMenu = () => { activeMenu.value = null }
 
 const actualizarEstado = async (order, nuevoEstado) => {
   closeMenu()
@@ -182,10 +192,19 @@ const getBadge = (estado) => BADGE_MAP[estado] || { text: estado, cls: 'badge-ne
 const getNext  = (estado) => NEXT_STATE_MAP[estado] || null
 const fDate    = (s) => s ? new Date(s).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }) : '—'
 
-// Click outside to close menu
-const handleOutsideClick = (e) => { if (!e.target.closest('.row-menu-wrapper')) closeMenu() }
-onMounted(() => document.addEventListener('click', handleOutsideClick))
-onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
+// Click outside to close menu — también cierra al hacer scroll
+const handleOutsideClick = (e) => {
+  if (!e.target.closest('.row-menu-wrapper') && !e.target.closest('.vp-dropdown-fixed')) closeMenu()
+}
+const handleScroll = () => closeMenu()
+onMounted(() => {
+  document.addEventListener('click', handleOutsideClick)
+  window.addEventListener('scroll', handleScroll, true)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleOutsideClick)
+  window.removeEventListener('scroll', handleScroll, true)
+})
 </script>
 
 <template>
@@ -451,7 +470,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
                         <button
                           class="vp-more-btn"
                           :id="`row-menu-btn-${order.id_detalle}`"
-                          @click.stop="toggleMenu(order.id_detalle)"
+                          @click.stop="toggleMenu(order.id_detalle, $event)"
                           :aria-expanded="activeMenu === order.id_detalle"
                           title="Acciones"
                         >
@@ -459,12 +478,15 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
                             <circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>
                           </svg>
                         </button>
+                      </div>
 
-                        <!-- Dropdown -->
+                      <!-- Dropdown via Teleport para escapar overflow -->
+                      <Teleport to="body">
                         <transition name="menu-fade">
                           <div
                             v-if="activeMenu === order.id_detalle"
-                            class="vp-dropdown"
+                            class="vp-dropdown-fixed"
+                            :style="{ top: dropdownPos.top + 'px', right: dropdownPos.right + 'px' }"
                             role="menu"
                             @click.stop
                           >
@@ -485,7 +507,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
                             </button>
                           </div>
                         </transition>
-                      </div>
+                      </Teleport>
                     </td>
                   </tr>
 
@@ -1159,7 +1181,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
 .badge-neutral { background: var(--bg-neutral); color: var(--c-neutral); }
 
 /* ═══ ROW ACTIONS ════════════════════════════════════════ */
-.row-menu-wrapper { position: relative; display: inline-block; }
+.row-menu-wrapper { display: inline-flex; align-items: center; justify-content: center; }
 .vp-more-btn {
   width: 30px;
   height: 30px;
@@ -1179,18 +1201,20 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
   color: var(--text-1);
 }
 
-.vp-dropdown {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  width: 218px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-2);
+/* Dropdown — renderizado via Teleport en body, position:fixed
+   IMPORTANTE: No usar var() aquí, el elemento vive fuera de .vp-shell */
+.vp-dropdown-fixed {
+  position: fixed;
+  width: 224px;
+  background: #131c18;
+  border: 1px solid #253c2e;
   border-radius: 10px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.2);
-  z-index: 100;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 2px 10px rgba(0,0,0,0.3);
+  z-index: 9999;
   overflow: hidden;
   padding: 4px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #dff0e8;
 }
 .vp-dd-item {
   display: flex;
@@ -1204,15 +1228,15 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
   cursor: pointer;
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--text-1);
-  font-family: var(--font);
+  color: #dff0e8;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   text-align: left;
   transition: background 0.11s;
 }
-.vp-dd-item:hover { background: var(--surface-3); }
-.vp-dd-item--accent { color: var(--accent); }
-.vp-dd-item--accent:hover { background: var(--accent-dim); }
-.vp-dd-divider { height: 1px; background: var(--border); margin: 3px 4px; }
+.vp-dd-item:hover { background: #192320; }
+.vp-dd-item--accent { color: #00d68f; }
+.vp-dd-item--accent:hover { background: rgba(0,214,143,0.07); }
+.vp-dd-divider { height: 1px; background: #1d2e25; margin: 3px 4px; }
 
 .menu-fade-enter-active, .menu-fade-leave-active { transition: opacity 0.11s, transform 0.11s; }
 .menu-fade-enter-from, .menu-fade-leave-to { opacity: 0; transform: translateY(-4px) scale(0.97); }

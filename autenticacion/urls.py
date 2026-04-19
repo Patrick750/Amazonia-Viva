@@ -51,6 +51,7 @@ urlpatterns = [
     path("cupos/<int:pk>/", CuposDisponiblesView.as_view(), name="cupos_disponibles"),
     path("mis-reservas/", MisReservasView.as_view(), name="mis_reservas"),
     path("mis-reservas/<int:pk>/cancelar/", CancelarReservaView.as_view(), name='cancelar_reserva'),
+    path("mis-productos/", views.MisProductosTuristaView.as_view(), name='mis_productos_turista'),
     # --- GESTIÓN LOGÍSTICA (AGENCIAS) ---
     path("gestion-agencia/logistica/", views.GestionAgenciaLogisticaAPIView.as_view(), name='gestion_agencia_logistica'),
     path("gestion-agencia/logistica/anular/", views.GestionAnularAgenciaAPIView.as_view(), name='gestion_agencia_anular'),

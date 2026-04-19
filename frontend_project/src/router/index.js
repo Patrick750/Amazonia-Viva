@@ -18,6 +18,7 @@ import GestionReservasView from '@/views/gestion-reservas-view.vue'
 import ExperienciasDashboard from '@/views/experiencias-dashboard.vue'
 import FeedbackExperiencia from '@/views/feedback-experiencia.vue'
 import MisExperiencias from '@/views/MisExperiencias.vue'
+import MisProductosTurista from '@/views/mis-productos.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -151,6 +152,12 @@ const router = createRouter({
       name: 'mis_experiencias',
       component: MisExperiencias,
       meta: { requiresAuth: true, roles: ['turista'] },
+    },
+    {
+      path: '/panel/mis-productos',
+      name: 'mis_productos_turista',
+      component: MisProductosTurista,
+      meta: { requiresAuth: true },
     },
   ],
   scrollBehavior(to, from, savedPosition) {
