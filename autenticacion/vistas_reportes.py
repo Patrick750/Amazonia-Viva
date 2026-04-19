@@ -19,7 +19,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 class ExportarManifiestoAgenciaAPIView(APIView):
     """
-    POST /api/gestion-agencia/logistica/exportar/
+    POST /api/agencia/gestion-logistica/exportar/
     Exporta el manifiesto de pasajeros para agencias.
     """
     permission_classes = [IsAuthenticated]
@@ -77,7 +77,7 @@ class ExportarManifiestoAgenciaAPIView(APIView):
 
 class ExportarDespachoProveedorAPIView(APIView):
     """
-    POST /api/gestion-proveedor/logistica/exportar/
+    POST /api/proveedor/gestion-logistica/exportar/
     Exporta el reporte de despacho para proveedores.
     """
     permission_classes = [IsAuthenticated]

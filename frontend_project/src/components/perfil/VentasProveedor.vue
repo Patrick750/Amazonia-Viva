@@ -22,19 +22,28 @@ const sortAsc      = ref(false)
 const activeMenu   = ref(null)
 const dropdownPos  = ref({ top: 0, right: 0 })
 
+// Filtros Avanzados
+const showFilters  = ref(false)
+const fDateFrom    = ref('')
+const fDateTo      = ref('')
+const fMinVal      = ref(null)
+const fMaxVal      = ref(null)
+const fMinQty      = ref(null)
+const fMaxQty      = ref(null)
+
 // ── CONSTANTS ─────────────────────────────────────────────────────────────
 const TAB_STATE_MAP = {
   pendientes: ['Pendiente de Empaque', 'Confirmado'],
   encamino:   ['Enviado', 'En Tránsito'],
   entregados: ['Entregado'],
-  anulados:   ['Devuelto', 'Cancelado', 'Reembolsado']
+  anulados:   ['Cancelado'] // Antes: ['Devuelto', 'Cancelado', 'Reembolsado']
 }
 
 const TABS = [
   { id: 'pendientes', label: 'Pedidos Activos' },
   { id: 'encamino',   label: 'En Camino' },
   { id: 'entregados', label: 'Entregados' },
-  { id: 'anulados',   label: 'Anulados' }
+  { id: 'anulados',   label: 'Cancelados' }
 ]
 
 const BADGE_MAP = {
@@ -42,6 +51,7 @@ const BADGE_MAP = {
   'Confirmado':           { text: 'Confirmado',   cls: 'badge-warn',    dot: '#fbbf24' },
   'Enviado':              { text: 'Enviado',       cls: 'badge-info',    dot: '#60a5fa' },
   'En Tránsito':          { text: 'En Tránsito',  cls: 'badge-info',    dot: '#60a5fa' },
+  'Llegó':                { text: 'Llegó',        cls: 'badge-llegó',   dot: '#2dd4bf' },
   'Entregado':            { text: 'Entregado',     cls: 'badge-success', dot: '#4ade80' },
   'Devuelto':             { text: 'Devuelto',      cls: 'badge-error',   dot: '#f87171' },
   'Cancelado':            { text: 'Cancelado',     cls: 'badge-error',   dot: '#f87171' },
@@ -52,8 +62,11 @@ const NEXT_STATE_MAP = {
   'Pendiente de Empaque': 'Enviado',
   'Confirmado':           'Enviado',
   'Enviado':              'En Tránsito',
-  'En Tránsito':          'Entregado',
-  'Entregado':            'Devuelto'
+  'En Tránsito':          'Llegó',
+  'Llegó':                'Entregado',
+  'Entregado':            'Devuelto',
+  'Devuelto':             'Reembolsado',
+  'Cancelado':            'Reembolsado'
 }
 
 const NAV_ITEMS = [
@@ -74,7 +87,7 @@ const ICONS = {
 const fetchData = async () => {
   loading.value = true
   try {
-    const { data } = await axios.get('/api/gestion-proveedor/logistica/')
+    const { data } = await axios.get('/api/proveedor/gestion-logistica/')
     rawData.value = data
   } catch (e) {
     console.error('VentasProveedor fetch error:', e)
@@ -123,6 +136,28 @@ const filtered = computed(() => {
       String(o.id_transaccion || '').includes(q)
     )
   }
+
+  // 3. Filtros Avanzados
+  if (fDateFrom.value) {
+    const from = new Date(fDateFrom.value).getTime()
+    rows = rows.filter(o => o.fecha_pedido && new Date(o.fecha_pedido).getTime() >= from)
+  }
+  if (fDateTo.value) {
+    const to = new Date(fDateTo.value).getTime()
+    rows = rows.filter(o => o.fecha_pedido && new Date(o.fecha_pedido).getTime() <= to)
+  }
+  if (fMinVal.value != null) {
+    rows = rows.filter(o => (o.precio_total || 0) >= fMinVal.value)
+  }
+  if (fMaxVal.value != null) {
+    rows = rows.filter(o => (o.precio_total || 0) <= fMaxVal.value)
+  }
+  if (fMinQty.value != null) {
+    rows = rows.filter(o => (o.cupos || 0) >= fMinQty.value)
+  }
+  if (fMaxQty.value != null) {
+    rows = rows.filter(o => (o.cupos || 0) <= fMaxQty.value)
+  }
   return [...rows].sort((a, b) => {
     const vA = a[sortKey.value]
     const vB = b[sortKey.value]
@@ -156,6 +191,20 @@ const setTab = (id) => {
   activeMenu.value  = null
 }
 
+const resetFilters = () => {
+  fDateFrom.value = ''
+  fDateTo.value   = ''
+  fMinVal.value   = null
+  fMaxVal.value   = null
+  fMinQty.value   = null
+  fMaxQty.value   = null
+  searchQuery.value = ''
+}
+
+const hasActiveFilters = computed(() => {
+  return fDateFrom.value || fDateTo.value || fMinVal.value != null || fMaxVal.value != null || fMinQty.value != null || fMaxQty.value != null
+})
+
 const toggleSort = (key) => {
   if (sortKey.value === key) sortAsc.value = !sortAsc.value
   else { sortKey.value = key; sortAsc.value = true }
@@ -176,7 +225,7 @@ const closeMenu = () => { activeMenu.value = null }
 const actualizarEstado = async (order, nuevoEstado) => {
   closeMenu()
   try {
-    await axios.post('/api/gestion-proveedor/logistica/actualizar-estado/', {
+    await axios.post('/api/proveedor/gestion-logistica/actualizar-estado/', {
       id_detalle: order.id_detalle,
       estado: nuevoEstado
     })
@@ -184,6 +233,18 @@ const actualizarEstado = async (order, nuevoEstado) => {
   } catch (e) {
     console.error(e)
     alert('Error al actualizar el estado del pedido.')
+  }
+}
+
+const anularPedido = async (order) => {
+  closeMenu()
+  if (!confirm('¿Estás seguro de que deseas anular este pedido? El stock será devuelto automáticamente.')) return
+  try {
+    await axios.post('/api/proveedor/gestion-logistica/anular/', { id_detalle: order.id_detalle })
+    await fetchData()
+  } catch (e) {
+    console.error(e)
+    alert('Error al anular el pedido.')
   }
 }
 
@@ -358,7 +419,60 @@ onBeforeUnmount(() => {
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
               </div>
+
+              <!-- Advanced Filters Toggle -->
+              <button 
+                class="vp-filters-toggle" 
+                :class="{ 'is-active': showFilters || hasActiveFilters }"
+                @click="showFilters = !showFilters"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+                </svg>
+                <span>Filtros</span>
+                <div v-if="hasActiveFilters" class="vp-filters-dot"></div>
+              </button>
             </div>
+
+            <!-- ── ADVANCED FILTERS PANEL ────────────────────────────────── -->
+            <transition name="filter-slide">
+              <div v-if="showFilters" class="vp-advanced-filters">
+                <div class="vp-af-grid">
+                  <!-- Col: Fecha -->
+                  <div class="vp-af-col">
+                    <label class="vp-af-label">Rango de Fecha</label>
+                    <div class="vp-af-row">
+                      <input type="date" v-model="fDateFrom" class="vp-af-input" placeholder="Desde" />
+                      <span class="vp-af-sep">al</span>
+                      <input type="date" v-model="fDateTo" class="vp-af-input" placeholder="Hasta" />
+                    </div>
+                  </div>
+                  <!-- Col: Valor -->
+                  <div class="vp-af-col">
+                    <label class="vp-af-label">Valor del Pedido</label>
+                    <div class="vp-af-row">
+                      <input type="number" v-model.number="fMinVal" class="vp-af-input" placeholder="Min $" />
+                      <span class="vp-af-sep">-</span>
+                      <input type="number" v-model.number="fMaxVal" class="vp-af-input" placeholder="Max $" />
+                    </div>
+                  </div>
+                  <!-- Col: Cantidad -->
+                  <div class="vp-af-col">
+                    <label class="vp-af-label">Cantidad (Unidades)</label>
+                    <div class="vp-af-row">
+                      <input type="number" v-model.number="fMinQty" class="vp-af-input" placeholder="Min" />
+                      <span class="vp-af-sep">-</span>
+                      <input type="number" v-model.number="fMaxQty" class="vp-af-input" placeholder="Max" />
+                    </div>
+                  </div>
+                  <!-- Col: Acciones -->
+                  <div class="vp-af-actions">
+                    <button class="vp-af-clear" @click="resetFilters">Limpiar Todos</button>
+                    <button class="vp-af-close" @click="showFilters = false">Cerrar</button>
+                  </div>
+                </div>
+              </div>
+            </transition>
 
             <!-- ── DATA TABLE ────────────────────────────────────────────── -->
             <div class="vp-table-wrap" role="region" aria-labelledby="ventas-title">
@@ -499,8 +613,21 @@ onBeforeUnmount(() => {
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                                 Avanzar a "{{ getNext(order.estado) }}"
                               </button>
-                              <div class="vp-dd-divider"></div>
                             </template>
+
+                            <!-- Opción de Anular (Solo en Empaque) -->
+                            <template v-if="order.estado === 'Pendiente de Empaque'">
+                                <button
+                                    class="vp-dd-item vp-dd-item--danger"
+                                    @click="anularPedido(order)"
+                                    role="menuitem"
+                                >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6m0-6 6 6"/></svg>
+                                    Anular Pedido
+                                </button>
+                            </template>
+
+                            <div v-if="getNext(order.estado) || order.estado === 'Pendiente de Empaque'" class="vp-dd-divider"></div>
                             <button class="vp-dd-item" @click="closeMenu" role="menuitem">
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                               Ver detalles del pedido
@@ -1175,6 +1302,7 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 .badge-success { background: var(--bg-success); color: var(--c-success); }
+.badge-llegó   { background: rgba(45,212,191,0.08); color: #2dd4bf; border: 1px solid rgba(45,212,191,0.2); }
 .badge-warn    { background: var(--bg-warn);    color: var(--c-warn); }
 .badge-info    { background: var(--bg-info);    color: var(--c-info); }
 .badge-error   { background: var(--bg-error);   color: var(--c-error); }
@@ -1236,6 +1364,8 @@ onBeforeUnmount(() => {
 .vp-dd-item:hover { background: #192320; }
 .vp-dd-item--accent { color: #00d68f; }
 .vp-dd-item--accent:hover { background: rgba(0,214,143,0.07); }
+.vp-dd-item--danger { color: #f87171; }
+.vp-dd-item--danger:hover { background: rgba(248,113,113,0.08); }
 .vp-dd-divider { height: 1px; background: #1d2e25; margin: 3px 4px; }
 
 .menu-fade-enter-active, .menu-fade-leave-active { transition: opacity 0.11s, transform 0.11s; }
@@ -1329,6 +1459,133 @@ onBeforeUnmount(() => {
 .vp-table-wrap::-webkit-scrollbar { height: 4px; }
 .vp-table-wrap::-webkit-scrollbar-track { background: transparent; }
 .vp-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* Filters Toggle Button */
+.vp-filters-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  font-family: var(--font);
+}
+.vp-filters-toggle:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+  border-color: var(--border-2);
+}
+.vp-filters-toggle.is-active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.vp-filters-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* Advanced Filters Panel */
+.vp-advanced-filters {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: 18px 24px;
+}
+.vp-af-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  align-items: flex-end;
+}
+.vp-af-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vp-af-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-3);
+  letter-spacing: 0.05em;
+}
+.vp-af-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vp-af-sep {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.vp-af-input {
+  flex: 1;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-1);
+  outline: none;
+  font-family: var(--font);
+  transition: all 0.2s;
+  min-width: 0;
+}
+.vp-af-input:focus {
+  border-color: var(--accent);
+  background: rgba(0,214,143,0.03);
+}
+.vp-af-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.8) sepia(1) saturate(5) hue-rotate(100deg);
+  cursor: pointer;
+}
+
+.vp-af-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+}
+.vp-af-clear {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.14s;
+}
+.vp-af-clear:hover { color: var(--c-error); }
+.vp-af-close {
+  background: var(--border);
+  border: 1px solid var(--border-2);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.14s;
+}
+.vp-af-close:hover { background: var(--border-2); color: var(--text-1); }
+
+/* Transitions */
+.filter-slide-enter-active, .filter-slide-leave-active { transition: all 0.25s ease; }
+.filter-slide-enter-from, .filter-slide-leave-to { opacity: 0; transform: translateY(-10px); }
 
 /* ═══ RESPONSIVE ══════════════════════════════════════════ */
 @media (max-width: 860px) {

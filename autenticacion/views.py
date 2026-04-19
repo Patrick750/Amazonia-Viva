@@ -1026,9 +1026,9 @@ class CancelarReservaView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GestionAgenciaLogisticaAPIView(APIView):
+class GestionLogisticaAgenciaAPIView(APIView):
     """
-    GET /api/gestion-agencia/logistica/
+    GET /api/agencia/gestion-logistica/
     Retorna la data logística específica para Agencias (Tours).
     """
     permission_classes = [IsAuthenticated]
@@ -1210,9 +1210,9 @@ class GestionAgenciaLogisticaAPIView(APIView):
             print(f"Error en GestionAgenciaLogisticaAPIView: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class GestionProveedorLogisticaAPIView(APIView):
+class GestionLogisticaProveedorAPIView(APIView):
     """
-    GET /api/gestion-proveedor/logistica/
+    GET /api/proveedor/gestion-logistica/
     Retorna la data logística específica para Proveedores (Productos).
     """
     permission_classes = [IsAuthenticated]
@@ -1257,22 +1257,6 @@ class GestionProveedorLogisticaAPIView(APIView):
             agrupado_por_prod_rechazados = {}
 
             for vp in ventas_prod:
-                # 1. Simular transición de estado por tiempo
-                if vp.estado not in TERMINAL_STATES:
-                    time_passed = now - vp.venta.fecha
-                    
-                    expected_state_idx = 0
-                    for idx, (state_name, delay) in enumerate(STATE_TIMELINE):
-                        if time_passed >= delay:
-                            expected_state_idx = idx
-                            
-                    current_idx = STATE_INDICES.get(vp.estado, 0)
-                    
-                    if expected_state_idx > current_idx:
-                        vp.estado = STATE_TIMELINE[expected_state_idx][0]
-                        # Guardamos el nuevo estado simulado en base de datos
-                        vp.save(update_fields=['estado'])
-                
                 prod_id = vp.producto
                 prod_obj = next((p for p in productos_obj if p.id == prod_id), None)
                 if not prod_obj: continue
@@ -1327,9 +1311,9 @@ class GestionProveedorLogisticaAPIView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class GestionAnularAgenciaAPIView(APIView):
+class GestionAnularReservaAgenciaAPIView(APIView):
     """
-    POST /api/gestion-agencia/logistica/anular/
+    POST /api/agencia/gestion-logistica/anular/
     Una agencia anula una reserva de tour.
     """
     permission_classes = [IsAuthenticated]
@@ -1354,9 +1338,9 @@ class GestionAnularAgenciaAPIView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class GestionAnularProveedorAPIView(APIView):
+class GestionAnularReservaProveedorAPIView(APIView):
     """
-    POST /api/gestion-proveedor/logistica/anular/
+    POST /api/proveedor/gestion-logistica/anular/
     Un proveedor anula una venta de producto.
     """
     permission_classes = [IsAuthenticated]
@@ -1388,7 +1372,7 @@ class GestionAnularProveedorAPIView(APIView):
 
 class GestionActualizarEstadoPedidoAPIView(APIView):
     """
-    POST /api/gestion-proveedor/logistica/actualizar-estado/
+    POST /api/proveedor/gestion-logistica/actualizar-estado/
     Un proveedor actualiza el estado de un pedido (envío).
     """
     permission_classes = [IsAuthenticated]
@@ -1428,12 +1412,13 @@ class MisProductosTuristaView(APIView):
         ('Pendiente de Empaque', 0),
         ('Enviado',              15),
         ('En Tránsito',         30),
+        ('Llegó',               40),
         ('Entregado',           45),
     ]
     TERMINAL_STATES = {'Cancelado', 'Rechazado', 'Reembolsado', 'Devuelto'}
 
     def _simular_estado(self, detalle, now):
-        """Calcula el estado esperado según las horas transcurridas y lo persiste si cambia."""
+        """Calcula el estado esperado según las horas transcurridas SIN PERSISTIR (Solo Informativo)."""
         if detalle.estado in self.TERMINAL_STATES:
             return detalle.estado
 
@@ -1443,10 +1428,10 @@ class MisProductosTuristaView(APIView):
             if hours_passed >= threshold:
                 expected = state_name
 
-        if expected != detalle.estado:
-            detalle.estado = expected
-            detalle.save(update_fields=['estado'])
-        return expected
+        # SOLO retornamos el estado esperado si el actual es inferior, 
+        # pero SIN GUARDAR en DB para respetar la gestión manual del proveedor.
+        # Si el usuario quiere ver "Estado Real (DB)", devolvemos detalle.estado.
+        return detalle.estado
 
     def _next_state_info(self, current_state, hours_passed):
         """Devuelve el nombre del próximo estado y las horas restantes para llegar."""
@@ -1529,9 +1514,68 @@ class MisProductosTuristaView(APIView):
             print(f'ERROR MisProductosTuristaView: {e}')
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class SolicitarDevolucionAPIView(APIView):
+    """
+    POST /api/mis-productos/devolucion/
+    Permite al turista solicitar la devolución de un producto entregado.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        id_detalle = request.data.get('id_detalle')
+        if not id_detalle:
+            return Response({'error': 'ID de detalle requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            detalle = get_object_or_404(Detalles_Venta, pk=id_detalle, venta__usuario=request.user)
+            
+            if detalle.estado != 'Entregado':
+                return Response({'error': f'No se puede devolver un producto en estado: {detalle.estado}. Solo permitido para "Entregado".'}, status=status.HTTP_400_BAD_REQUEST)
+
+            detalle.estado = 'Devuelto'
+            detalle.save(update_fields=['estado'])
+
+            return Response({'message': 'Devolución procesada correctamente.'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CancelarPedidoTuristaAPIView(APIView):
+    """
+    POST /api/mis-productos/cancelar/
+    Permite al turista cancelar un pedido que está en 'Pendiente de Empaque'.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        id_detalle = request.data.get('id_detalle')
+        if not id_detalle:
+            return Response({'error': 'ID de detalle requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Buscamos el detalle asegurando que sea del usuario autenticado
+            detalle = get_object_or_404(Detalles_Venta, pk=id_detalle, venta__usuario=request.user)
+            
+            # Solo se puede cancelar si está en empaque
+            if detalle.estado != 'Pendiente de Empaque':
+                return Response({'error': f'No se puede cancelar un pedido en estado: {detalle.estado}. Solo permitido para "Pendiente de Empaque".'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Devolvemos el stock al producto
+            prod = Productos.objects.filter(pk=detalle.producto).first()
+            if prod:
+                prod.stock += detalle.cantidad
+                prod.save()
+
+            # Cambiamos estado
+            detalle.estado = 'Cancelado'
+            detalle.save(update_fields=['estado'])
+
+            return Response({'message': 'Pedido cancelado correctamente y stock devuelto.'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class GestionAnularSalidaAgenciaAPIView(APIView):
     """
-    POST /api/gestion-agencia/logistica/anular-salida/
+    POST /api/agencia/gestion-logistica/anular-salida/
     Anula todas las reservas de un paquete en una fecha específica.
     """
     permission_classes = [IsAuthenticated]

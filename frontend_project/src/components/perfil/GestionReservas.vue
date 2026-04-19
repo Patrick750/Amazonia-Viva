@@ -625,7 +625,7 @@ const labels = computed(() => {
       listTitle: 'Lista de Clientes Registrados',
       qtyLabel: 'unid.',
       qtyTotal: 'Total Productos',
-      apiBase: '/api/gestion-proveedor/logistica/'
+      apiBase: '/api/proveedor/gestion-logistica/'
     }
   }
   return {
@@ -643,7 +643,7 @@ const labels = computed(() => {
     listTitle: 'Lista de Pasajeros Registrados',
     qtyLabel: 'pax',
     qtyTotal: 'Ocupación Confirmada',
-    apiBase: '/api/gestion-agencia/logistica/'
+    apiBase: '/api/agencia/gestion-logistica/'
   }
 })
 

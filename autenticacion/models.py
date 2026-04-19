@@ -272,6 +272,7 @@ class Detalles_Venta(models.Model):
         ('Cancelado', 'Cancelado'),
         ('Reembolsado', 'Reembolsado'),
         ('En Tránsito', 'En Tránsito'),
+        ('Llegó', 'Llegó'),
         ('Entregado', 'Entregado'),
         ('Devuelto', 'Devuelto'),
     ]
