@@ -65,6 +65,7 @@ urlpatterns = [
     path("proveedor/gestion-logistica/anular/", views.GestionAnularReservaProveedorAPIView.as_view(), name='gestion_proveedor_anular'),
     path("proveedor/gestion-logistica/actualizar-estado/", views.GestionActualizarEstadoPedidoAPIView.as_view(), name='gestion_proveedor_actualizar_estado'),
     path("proveedor/gestion-logistica/exportar/", vistas_reportes.ExportarDespachoProveedorAPIView.as_view(), name='exportar_despacho_proveedor'),
+    path("proveedor/gestion-logistica/exportar-global/", vistas_reportes.ExportarVentasGlobalesMensualAPIView.as_view(), name='exportar_ventas_globales_mensual'),
 
     # Endpoints de Experiencias y Feedback
     path("experiencias/dashboard/", ExperienciasDashboardView.as_view(), name='experiencias_dashboard'),

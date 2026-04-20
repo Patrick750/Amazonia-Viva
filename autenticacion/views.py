@@ -1112,19 +1112,34 @@ class GestionLogisticaAgenciaAPIView(APIView):
                     novedades = [{'nombres': res.venta.usuario.first_name, 'apellidos': res.venta.usuario.last_name, 'num_doc': 'N/A'}]
 
                 for i, nov in enumerate(novedades):
-                    comprador_nombre = f"{nov.get('nombres', '')} {nov.get('apellidos', '')}".strip() or res.venta.usuario.username
                     comprador_foto = None
                     if i == 0:
                         v_u = res.venta.usuario
                         if hasattr(v_u, 'turista') and v_u.turista.foto_perfil: comprador_foto = v_u.turista.foto_perfil.url
 
+                    # Determinación de tipo de usuario
+                    user_obj = res.venta.usuario
+                    tipo_u = 'Turista'
+                    id_u = 'N/A'
+                    comprador_nombre = f"{nov.get('nombres', '')} {nov.get('apellidos', '')}".strip() or res.venta.usuario.username
+                    
+                    if i == 0: # Solo para el comprador principal verificamos el tipo profundo
+                        if hasattr(user_obj, 'agencia'):
+                            tipo_u = 'Agencia'
+                            id_u = user_obj.agencia.nit or 'N/A'
+                            comprador_nombre = user_obj.agencia.nombre_agencia
+                        elif hasattr(user_obj, 'turista'):
+                            tipo_u = 'Turista'
+                            id_u = user_obj.turista.numero_identidad
+                        
                     viajero_data = {
                         'id_transaccion': f"{res.venta.id}",
                         'nombre': comprador_nombre,
-                        'identificacion': nov.get('num_doc', 'N/A'),
+                        'identificacion': nov.get('num_doc') if nov.get('num_doc') and nov.get('num_doc') != 'N/A' else id_u,
                         'contacto': res.venta.usuario.email if i == 0 else 'N/A',
                         'es_comprador': (i == 0),
                         'rol': 'Comprador' if i == 0 else 'Pasajero',
+                        'tipo_usuario': tipo_u,
                         'foto': comprador_foto,
                         'cupos': 1,
                         'monto_total': float(precio_item * detalle.cantidad) if (i == 0 and detalle) else 0,
@@ -1275,17 +1290,32 @@ class GestionLogisticaProveedorAPIView(APIView):
                 if fecha_str not in current_ag_p[prod_id]['reservasPorFecha']:
                      current_ag_p[prod_id]['reservasPorFecha'][fecha_str] = {'fecha': fecha_str, 'totalTuristas': 0, 'turistas': []}
                 
+                # Determinación de tipo de usuario y datos reales
+                v_u = vp.venta.usuario
+                tipo_u = 'Turista'
+                id_u = 'N/A'
+                nombre_u = f"{v_u.first_name} {v_u.last_name}".strip() or v_u.username
+                
+                if hasattr(v_u, 'agencia'):
+                    tipo_u = 'Agencia'
+                    id_u = v_u.agencia.nit or 'N/A'
+                    nombre_u = v_u.agencia.nombre_agencia
+                elif hasattr(v_u, 'turista'):
+                    tipo_u = 'Turista'
+                    id_u = v_u.turista.numero_identidad
+                
                 turista_data = {
                     'id_transaccion': f"{vp.venta.id}",
-                    'nombre': f"{vp.venta.usuario.first_name} {vp.venta.usuario.last_name}".strip() or vp.venta.usuario.username,
-                    'identificacion': 'N/A',
-                    'contacto': vp.venta.usuario.email,
+                    'nombre': nombre_u,
+                    'identificacion': id_u,
+                    'contacto': v_u.email,
                     'producto_nombre': prod_obj.nombre,
                     'cupos': vp.cantidad,
                     'monto_total': float(vp.precio_unitario * vp.cantidad),
                     'id_detalle': vp.id,
                     'estado': vp.estado,
                     'es_comprador': True,
+                    'tipo_usuario': tipo_u,
                     'rol': 'Cliente'
                 }
                 current_ag_p[prod_id]['reservasPorFecha'][fecha_str]['turistas'].append(turista_data)

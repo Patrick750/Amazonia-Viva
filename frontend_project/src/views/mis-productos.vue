@@ -21,6 +21,19 @@ const cancelModal = ref({
   productName: null
 })
 
+// Modal de Calificación
+const rateModal = ref({
+  show: false,
+  orderId: null,
+  orderRef: null,
+  productName: null,
+  rating: 0,
+  hover: 0,
+  comment: ''
+})
+const ratingSubmitting = ref(false)
+const ratingStep = ref(1) // 1: stars, 2: success
+
 // Tick every minute to refresh countdowns
 let ticker = null
 onMounted(async () => {
@@ -118,6 +131,48 @@ const confirmarCancelacion = async () => {
   }
 }
 
+const openRateModal = (order) => {
+  rateModal.value = {
+    show: true,
+    orderId: order.id_detalle,
+    orderRef: order.id_transaccion,
+    productName: order.producto_nombre,
+    rating: 0,
+    hover: 0,
+    comment: ''
+  }
+  ratingStep.value = 1
+}
+
+const closeRateModal = () => {
+  rateModal.value.show = false
+}
+
+const submitRating = async () => {
+  if (rateModal.value.rating === 0) {
+    alert('Por favor selecciona una puntuación.')
+    return
+  }
+  
+  ratingSubmitting.value = true
+  try {
+    await axios.post(`/api/experiencias/${rateModal.value.orderId}/feedback/`, {
+      puntuacion: rateModal.value.rating,
+      comentario: rateModal.value.comment
+    })
+    ratingStep.value = 2
+    // Actualizar datos locales opcionalmente o esperar que el usuario cierre
+    setTimeout(() => {
+        fetchOrders()
+    }, 1500)
+  } catch (e) {
+    console.error(e)
+    alert('No se pudo guardar la calificación. Intenta más tarde.')
+  } finally {
+    ratingSubmitting.value = false
+  }
+}
+
 // ── COMPUTED ───────────────────────────────────────────────
 const tabCounts = computed(() => ({
   todos:      orders.value.length,
@@ -181,7 +236,7 @@ const formatCOP = (val) => {
       <!-- ── PAGE HEADER ──────────────────────────────────── -->
       <div class="mp-page-header">
         <div>
-          <h1 class="mp-title">Mis Productos</h1>
+          <h1 class="mp-title">{{ (localStorage.getItem('rol') === 'agencia' || localStorage.getItem('rol') === 'proveedor') ? 'Mis Compras' : 'Mis Productos' }}</h1>
           <p class="mp-subtitle">Seguimiento en tiempo real de tus pedidos</p>
         </div>
         <button class="mp-refresh-btn" @click="fetchOrders" :disabled="loading" title="Actualizar">
@@ -384,6 +439,15 @@ const formatCOP = (val) => {
               </svg>
               <span v-else>Solicitar Devolución</span>
             </button>
+            <button 
+              class="mp-rate-btn"
+              @click="openRateModal(order)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+              <span>Calificar Experiencia</span>
+            </button>
           </div>
 
           <!-- Card Footer -->
@@ -408,6 +472,7 @@ const formatCOP = (val) => {
 
     <!-- ── CUSTOM CANCEL MODAL ──────────────────────────────── -->
     <Teleport to="body">
+      <!-- Modal Cancelación -->
       <transition name="modal">
         <div v-if="cancelModal.show" class="mp-modal-overlay" @click.self="closeCancelModal">
           <div class="mp-modal">
@@ -436,6 +501,118 @@ const formatCOP = (val) => {
               <button class="mp-mt-btn btn-danger" @click="confirmarCancelacion">Sí, cancelar pedido</button>
             </div>
           </div>
+        </div>
+      </transition>
+
+      <!-- Modal Calificación (Estilo Premium Tailwind) -->
+      <transition 
+        enter-active-class="transition ease-out duration-300"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition ease-in duration-200"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div v-if="rateModal.show" class="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+          <div class="absolute inset-0 bg-[#0a1410]/95 backdrop-blur-sm" @click="closeRateModal"></div>
+          
+          <transition 
+            enter-active-class="transition ease-out duration-300 transform"
+            enter-from-class="opacity-0 translate-y-8 scale-95"
+            enter-to-class="opacity-100 translate-y-0 scale-100"
+            leave-active-class="transition ease-in duration-200 transform"
+            leave-from-class="opacity-100 translate-y-0 scale-100"
+            leave-to-class="opacity-0 translate-y-4 scale-95"
+          >
+            <div v-if="rateModal.show" class="relative bg-[#12221b] border border-white/10 rounded-[2.5rem] shadow-2xl w-full max-w-lg p-8 overflow-hidden">
+              <!-- Decoración sutil -->
+              <div class="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
+
+              <!-- Step 1: Calificar -->
+              <div v-if="ratingStep === 1" class="relative">
+                <h3 class="text-2xl font-black mb-1 text-white">¿Qué te pareció el producto?</h3>
+                <p class="text-emerald-400 font-bold text-xs uppercase tracking-widest mb-8">{{ rateModal.productName }}</p>
+
+                <div class="space-y-8">
+                  <!-- Estrellas -->
+                  <div class="flex justify-center gap-3">
+                    <button 
+                      v-for="i in 5" 
+                      :key="i" 
+                      @click="rateModal.rating = i"
+                      @mouseenter="rateModal.hover = i"
+                      @mouseleave="rateModal.hover = 0"
+                      class="transition-transform hover:scale-125 focus:outline-none"
+                    >
+                      <svg 
+                        class="w-10 h-10 transition-colors" 
+                        :class="[
+                          i <= (rateModal.hover || rateModal.rating) ? 'text-yellow-500 fill-current' : 'text-white/10',
+                          i <= rateModal.rating && !rateModal.hover ? 'drop-shadow-[0_0_8px_rgba(234,179,8,0.4)]' : ''
+                        ]" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.54 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.117l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                      </svg>
+                    </button>
+                  </div>
+
+                  <!-- Comentario -->
+                  <div class="space-y-2">
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 block ml-1">Escribe tu opinión</label>
+                    <textarea 
+                      v-model="rateModal.comment" 
+                      placeholder="Tu opinión nos ayuda a mejorar..."
+                      class="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-sm focus:outline-none focus:border-emerald-500/50 transition-all h-32 resize-none placeholder:text-white/20 text-white shadow-inner"
+                    ></textarea>
+                  </div>
+
+                  <!-- Acciones -->
+                  <div class="flex flex-col gap-3 pt-2 relative z-10">
+                    <button 
+                      @click.prevent="submitRating" 
+                      :disabled="ratingSubmitting || rateModal.rating === 0" 
+                      class="group relative w-full bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-400 transition-all shadow-[0_10px_30px_rgba(16,185,129,0.2)] disabled:opacity-40 disabled:cursor-not-allowed overflow-hidden"
+                    >
+                      <span class="relative z-10 flex items-center justify-center gap-2">
+                        <svg v-if="ratingSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        {{ ratingSubmitting ? 'Guardando...' : 'Publicar Calificación' }}
+                      </span>
+                      <div v-if="!ratingSubmitting && rateModal.rating > 0" class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                    </button>
+                    <button 
+                      @click="closeRateModal" 
+                      class="w-full text-white/30 font-bold uppercase text-[10px] tracking-widest hover:text-white transition-colors py-2"
+                    >
+                      Quizás más tarde
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 2: Éxito -->
+              <div v-else class="relative text-center py-8">
+                <div class="mx-auto w-20 h-20 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mb-6">
+                  <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <h3 class="text-2xl font-black mb-2 text-white">¡Gracias por calificar!</h3>
+                <p class="text-white/50 mb-8">Tu comentario ha sido enviado exitosamente.</p>
+                <button 
+                  @click="closeRateModal" 
+                  class="w-full sm:w-auto px-8 bg-emerald-500 text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-emerald-400 transition-all shadow-[0_10px_30px_rgba(16,185,129,0.2)]"
+                >
+                  Continuar
+                </button>
+              </div>
+            </div>
+          </transition>
         </div>
       </transition>
     </Teleport>
@@ -765,21 +942,34 @@ const formatCOP = (val) => {
 }
 .mp-delivered-banner svg { width: 16px; height: 16px; flex-shrink: 0; }
 
-.mp-return-btn {
+.mp-return-btn, .mp-rate-btn {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 9px;
-  background: rgba(248,113,113,0.06);
-  border: 1px solid rgba(248,113,113,0.15);
-  border-radius: 9px;
-  color: #f87171;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 11px 20px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
   font-family: inherit;
+  box-sizing: border-box;
+}
+.mp-rate-btn {
+  background: rgba(0, 214, 143, 0.08);
+  border: 1px solid rgba(0, 214, 143, 0.2);
+  color: #00d68f;
+}
+.mp-rate-btn:hover {
+  background: rgba(0, 214, 143, 0.14);
+  border-color: rgba(0, 214, 143, 0.4);
+}
+.mp-return-btn {
+  background: rgba(248,113,113,0.06);
+  border: 1px solid rgba(248,113,113,0.15);
+  color: #f87171;
 }
 .mp-return-btn:hover:not(:disabled) {
   background: rgba(248,113,113,0.12);
@@ -789,7 +979,7 @@ const formatCOP = (val) => {
   opacity: 0.6;
   cursor: not-allowed;
 }
-.mp-return-btn svg { width: 14px; height: 14px; }
+.mp-return-btn svg, .mp-rate-btn svg { width: 14px; height: 14px; }
 
 /* ── CANCEL BANNER ────────────────────────────────────── */
 .mp-cancel-container {
@@ -889,6 +1079,10 @@ const formatCOP = (val) => {
   margin: 0 auto 16px;
   color: #f87171;
 }
+.mp-modal-icon.icon-star {
+  background: rgba(0, 214, 143, 0.08);
+  color: #00d68f;
+}
 .mp-modal-icon svg { width: 28px; height: 28px; }
 .mp-modal-header h3 {
   font-size: 20px;
@@ -896,33 +1090,66 @@ const formatCOP = (val) => {
   color: #f1faf4;
 }
 
-.mp-modal-body {
-  padding: 0 24px 24px;
+/* Rating specific */
+.mp-stars-selector {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 20px 0;
+}
+.mp-star {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #1d2e25;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.mp-star svg { width: 32px; height: 32px; filter: drop-shadow(0 0 8px rgba(0,0,0,0.3)); }
+.mp-star.is-active { color: #fbbf24; transform: scale(1.1); }
+.mp-star:hover { transform: scale(1.2); }
+
+.mp-comment-section {
+  text-align: left;
+  margin-top: 20px;
+}
+.mp-comment-section label {
+  display: block;
+  font-size: 12px;
+  color: #5a8070;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.mp-textarea {
+  width: 100%;
+  background: #0a120f;
+  border: 1px solid #1d2e25;
+  border-radius: 12px;
+  padding: 12px;
+  color: #dff0e8;
+  font-family: inherit;
+  font-size: 13px;
+  resize: none;
+  transition: border-color 0.2s;
+}
+.mp-textarea:focus { outline: none; border-color: #00d68f; }
+
+.mp-modal-success {
+  padding: 40px 24px;
   text-align: center;
 }
-.mp-modal-body p {
-  font-size: 14px;
-  color: #7a9b87;
-  line-height: 1.6;
-}
-.mp-modal-product {
-  margin: 8px 0 16px;
-  font-weight: 700;
-  color: #dff0e8;
-}
-.mp-modal-info {
-  background: rgba(0, 214, 143, 0.05);
-  border: 1px solid rgba(0, 214, 143, 0.1);
-  padding: 10px 14px;
-  border-radius: 12px;
+.success-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  text-align: left;
-  font-size: 12px;
-  color: #00d68f;
+  justify-content: center;
+  margin: 0 auto 20px;
 }
-.mp-modal-info svg { width: 16px; height: 16px; flex-shrink: 0; }
+.success-icon svg { width: 32px; height: 32px; }
 
 .mp-modal-footer {
   background: #0a120f;
@@ -933,14 +1160,21 @@ const formatCOP = (val) => {
 }
 .mp-mt-btn {
   width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  font-size: 13px;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.2s;
 }
+.btn-primary {
+  background: #00d68f;
+  color: #050e0a;
+  border: none;
+}
+.btn-primary:hover:not(:disabled) { background: #00f0a0; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-danger {
   background: #f87171;
   color: #050e0a;
@@ -1126,7 +1360,23 @@ const formatCOP = (val) => {
   .mp-grid.view-filas .mp-cancel-container,
   .mp-grid.view-filas .mp-delivered-container {
      margin: 0;
-     width: 140px;
+     width: auto;
+     flex: 1;
+     flex-direction: row;
+     gap: 8px;
+     justify-content: center;
+  }
+  .mp-grid.view-filas .mp-delivered-banner,
+  .mp-grid.view-filas .mp-cancel-note {
+    display: none;
+  }
+  .mp-grid.view-filas .mp-return-btn, 
+  .mp-grid.view-filas .mp-rate-btn,
+  .mp-grid.view-filas .mp-cancel-btn {
+    padding: 8px 14px;
+    font-size: 11px;
+    width: auto;
+    white-space: nowrap;
   }
   .mp-grid.view-filas .mp-step-label { display: none; }
   .mp-grid.view-filas .mp-step-line { top: 13px; }

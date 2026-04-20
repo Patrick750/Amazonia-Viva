@@ -154,6 +154,12 @@ const router = createRouter({
       meta: { requiresAuth: true, roles: ['turista'] },
     },
     {
+      path: '/panel/compras',
+      name: 'mis_compras_agencia',
+      component: MisProductosTurista,
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/panel/mis-productos',
       name: 'mis_productos_turista',
       component: MisProductosTurista,

@@ -204,6 +204,15 @@
               </div>
               
               <div class="flex flex-wrap items-center gap-4 w-full lg:w-auto relative z-10">
+                <!-- Selector de Periodo (Mes) -->
+                <div class="flex items-center gap-3 px-5 py-3 bg-white/5 rounded-2xl border border-white/10 shrink-0">
+                  <span class="text-[10px] text-white/20 font-black uppercase tracking-widest">PERIODO:</span>
+                  <select v-model="selectedMonth" class="bg-transparent text-white text-[10px] font-black outline-none cursor-pointer uppercase tracking-widest">
+                    <option value="" class="bg-[#0a1210]">DÍA SELECCIONADO</option>
+                    <option v-for="m in availableMonths" :key="m.value" :value="m.value" class="bg-[#0a1210]">{{ m.label.toUpperCase() }}</option>
+                  </select>
+                </div>
+
                 <div class="flex items-center gap-3 px-5 py-3 bg-white/5 rounded-2xl border border-white/10 shrink-0">
                   <span class="text-[10px] text-white/20 font-black uppercase tracking-widest">FORMATO:</span>
                   <select v-model="exportFormat" class="bg-transparent text-white text-[10px] font-black outline-none cursor-pointer uppercase tracking-widest">
@@ -262,6 +271,9 @@
                        <span class="text-[10px] font-mono font-black text-white/30 bg-white/5 border border-white/10 px-3 py-1 rounded-lg uppercase tracking-widest">{{ turista.identificacion }}</span>
                        <span :class="turista.es_comprador ? 'text-[#00f5d4] border-[#00f5d4]/30 bg-[#00f5d4]/5' : 'text-white/20 border-white/10 bg-white/5'" class="px-3 py-1 text-[9px] font-black uppercase rounded-lg tracking-[0.2em] border">
                         {{ turista.rol }}
+                      </span>
+                      <span v-if="turista.es_comprador" class="px-3 py-1 text-[9px] font-black uppercase rounded-lg tracking-[0.2em] border border-emerald-500/20 text-emerald-400 bg-emerald-500/5">
+                        {{ turista.tipo_usuario || 'Turista' }}
                       </span>
                     </div>
                   </div>
@@ -538,6 +550,7 @@ const loading = ref(false)
 const error = ref(null)
 const searchQuery = ref('')
 const exportFormat = ref('')
+const selectedMonth = ref('')
 
 // --- NAVEGACIÓN CORPORATIVA ---
 const tabs = computed(() => {
@@ -643,8 +656,30 @@ const labels = computed(() => {
     listTitle: 'Lista de Pasajeros Registrados',
     qtyLabel: 'pax',
     qtyTotal: 'Ocupación Confirmada',
-    apiBase: '/api/agencia/gestion-logistica/'
   }
+})
+
+const availableMonths = computed(() => {
+  const allData = [...reservasAgrupadasRaw.value, ...rechazadosAgrupadasRaw.value]
+  const months = new Set()
+  
+  allData.forEach(prod => {
+    prod.reservasPorFecha.forEach(dg => {
+      if (dg.fecha) {
+        const key = dg.fecha.substring(0, 7) // 'YYYY-MM'
+        months.add(key)
+      }
+    })
+  })
+  
+  return Array.from(months)
+    .sort((a,b) => b.localeCompare(a))
+    .map(m => {
+      const [y, mm] = m.split('-')
+      const date = new Date(parseInt(y), parseInt(mm) - 1, 1)
+      const label = date.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+      return { value: m, label: label.charAt(0).toUpperCase() + label.slice(1) }
+    })
 })
 
 const fetchGestionReservas = async () => {
@@ -684,6 +719,7 @@ const ejecutarDescarga = async () => {
     const response = await axios.post(`${labels.value.apiBase}exportar/`, {
       paquete_id: selectedPackage.value.paquete.id,
       fecha: selectedDate.value,
+      mes: selectedMonth.value,
       formato: exportFormat.value
     }, { responseType: 'blob' })
 
@@ -695,7 +731,8 @@ const ejecutarDescarga = async () => {
     // Generar nombre de archivo amigable
     const tourName = selectedPackage.value.paquete.nombre.replace(/\s+/g, '_')
     const ext = exportFormat.value.toLowerCase() === 'xls' ? 'xlsx' : exportFormat.value.toLowerCase()
-    link.download = `${labels.value.manifestTitle.split(' ').join('_')}_${tourName}_${selectedDate.value}.${ext}`
+    const periodo = selectedMonth.value ? `Mes_${selectedMonth.value}` : `Dia_${selectedDate.value}`
+    link.download = `${labels.value.manifestTitle.split(' ').join('_')}_${tourName}_${periodo}.${ext}`
     
     // Forzar descarga
     document.body.appendChild(link)

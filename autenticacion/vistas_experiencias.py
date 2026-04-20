@@ -168,8 +168,11 @@ class DetalleFeedbackView(APIView):
             }
         )
         
-        # Actualizar el rating promedio del paquete
-        self._update_package_rating(detalle.paquete)
+        # Actualizar el rating promedio del paquete o producto
+        if detalle.paquete and detalle.paquete > 0:
+            self._update_package_rating(detalle.paquete)
+        if detalle.producto and detalle.producto > 0:
+            self._update_product_rating(detalle.producto)
         
         return Response({'mensaje': 'Calificación guardada correctamente.'})
 
@@ -177,6 +180,7 @@ class DetalleFeedbackView(APIView):
         # El campo paquete en Detalles_Venta es un Integer
         try:
             from django.db.models import Avg
+            from .models import ExperienciaCalificacion, PaqueteTuristico
             # Buscamos todas las calificaciones para este paquete_id
             avg_rating = ExperienciaCalificacion.objects.filter(
                 detalle_venta__paquete=paquete_id
@@ -184,7 +188,21 @@ class DetalleFeedbackView(APIView):
             
             PaqueteTuristico.objects.filter(id=paquete_id).update(rating=avg_rating)
         except Exception as e:
-            print(f"Error actualizando rating: {e}")
+            print(f"Error actualizando rating de paquete: {e}")
+
+    def _update_product_rating(self, producto_id):
+        try:
+            from django.db.models import Avg
+            from .models import ExperienciaCalificacion, Productos
+            # Buscamos todas las calificaciones para este producto_id
+            avg_rating = ExperienciaCalificacion.objects.filter(
+                detalle_venta__producto=producto_id
+            ).aggregate(Avg('puntuacion'))['puntuacion__avg'] or 0
+            
+            Productos.objects.filter(id=producto_id).update(rating=avg_rating)
+        except Exception as e:
+            print(f"Error actualizando rating de producto: {e}")
+
 
 
 class MisExperienciasTuristaView(APIView):

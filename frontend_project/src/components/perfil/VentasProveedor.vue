@@ -14,6 +14,9 @@ const rawData      = ref({ reservasAgrupadas: [], rechazadosAgrupados: [], cance
 const loading      = ref(true)
 const globalSearch = ref('')
 const searchQuery  = ref('')
+const exporting = ref(false)
+const exportingGlobal = ref(false)
+const exportFormat = ref('XLS')
 const currentTab   = ref('pendientes')
 const currentPage  = ref(1)
 const perPage      = ref(10)
@@ -21,6 +24,9 @@ const sortKey      = ref('fecha_pedido')
 const sortAsc      = ref(false)
 const activeMenu   = ref(null)
 const dropdownPos  = ref({ top: 0, right: 0 })
+
+// Paginación por Mes
+const selectedMonth = ref('') // Formato: 'YYYY-MM'
 
 // Filtros Avanzados
 const showFilters  = ref(false)
@@ -115,6 +121,26 @@ const allOrders = computed(() => {
   return out
 })
 
+const availableMonths = computed(() => {
+  const months = new Set()
+  allOrders.value.forEach(o => {
+    if (o.fecha_pedido) {
+      const date = new Date(o.fecha_pedido)
+      const key = o.fecha_pedido.substring(0, 7) // 'YYYY-MM'
+      months.add(key)
+    }
+  })
+  
+  return Array.from(months)
+    .sort((a,b) => b.localeCompare(a))
+    .map(m => {
+      const [y, mm] = m.split('-')
+      const date = new Date(parseInt(y), parseInt(mm) - 1, 1)
+      const label = date.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+      return { value: m, label: label.charAt(0).toUpperCase() + label.slice(1) }
+    })
+})
+
 const tabCounts = computed(() => {
   const c = {}
   for (const tab of TABS) {
@@ -158,6 +184,12 @@ const filtered = computed(() => {
   if (fMaxQty.value != null) {
     rows = rows.filter(o => (o.cupos || 0) <= fMaxQty.value)
   }
+
+  // 4. Paginación por Mes
+  if (selectedMonth.value) {
+    rows = rows.filter(o => o.fecha_pedido && o.fecha_pedido.startsWith(selectedMonth.value))
+  }
+
   return [...rows].sort((a, b) => {
     const vA = a[sortKey.value]
     const vB = b[sortKey.value]
@@ -199,6 +231,7 @@ const resetFilters = () => {
   fMinQty.value   = null
   fMaxQty.value   = null
   searchQuery.value = ''
+  selectedMonth.value = ''
 }
 
 const hasActiveFilters = computed(() => {
@@ -246,6 +279,76 @@ const anularPedido = async (order) => {
     console.error(e)
     alert('Error al anular el pedido.')
   }
+}
+
+async function ejecutarDescarga() {
+  if (exporting.value) return
+  
+  // En esta vista, intentamos sacar el paquete_id de la primera orden visible
+  const firstOrder = pageRows.value[0]
+  if (!firstOrder) {
+    alert('No hay datos para exportar en esta vista.')
+    return
+  }
+
+  exporting.value = true
+  try {
+    const payload = {
+      paquete_id: firstOrder.paquete.id,
+      fecha: currentTab.value === 'todos' ? null : firstOrder.fecha_pedido,
+      mes: selectedMonth.value,
+      formato: exportFormat.value
+    }
+    
+    const response = await axios.post('/api/proveedor/gestion-logistica/exportar/', payload, { responseType: 'blob' })
+    descargarArchivo(response.data, `Reporte_Despacho_${firstOrder.producto_nombre.replace(/\s+/g,'_')}`)
+  } catch (err) {
+    console.error(err)
+    alert('Error al exportar el reporte.')
+  } finally {
+    exporting.value = false
+  }
+}
+
+async function ejecutarDescargaGlobal() {
+  console.log('Iniciando descarga global...', selectedMonth.value)
+  if (exportingGlobal.value) return
+  if (!selectedMonth.value) {
+    alert('Por favor selecciona un mes del selector (Todos los meses / [Mes]) para generar el reporte consolidado.')
+    return
+  }
+  exportingGlobal.value = true
+  try {
+    const response = await axios.post('/api/proveedor/gestion-logistica/exportar-global/', {
+      mes: selectedMonth.value,
+      formato: exportFormat.value
+    }, { responseType: 'blob' })
+    
+    if (response.status === 200) {
+      descargarArchivo(response.data, `Reporte_Consolidado_Mensual_${selectedMonth.value}`)
+    } else {
+      alert('El servidor respondió con un error al generar el reporte.')
+    }
+  } catch (err) {
+    console.error('Error en descarga global:', err)
+    const msg = err.response?.data?.error || 'Error al conectar con el servidor para exportar el reporte consolidado.'
+    alert(msg)
+  } finally {
+    exportingGlobal.value = false
+  }
+}
+
+function descargarArchivo(blob, filenamePrefix) {
+  const url = window.URL.createObjectURL(new Blob([blob]))
+  const link = document.createElement('a')
+  link.href = url
+  
+  const ext = exportFormat.value.toLowerCase() === 'xls' ? 'xlsx' : exportFormat.value.toLowerCase()
+  link.setAttribute('download', `${filenamePrefix}_${new Date().toISOString().slice(0,10)}.${ext}`)
+  
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -374,14 +477,44 @@ onBeforeUnmount(() => {
                 <h2 class="vp-view-title" id="ventas-title">Gestión de Ventas</h2>
                 <p class="vp-view-subtitle">Monitorea y gestiona el ciclo completo de tus pedidos en tiempo real</p>
               </div>
-              <button class="vp-btn-primary" id="export-btn">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Exportar Reporte
-              </button>
+              <div class="vp-view-header-right flex items-center gap-3">
+                <div class="vp-export-selector flex items-center gap-2 bg-zinc-900/50 border border-border px-3 py-1.5 rounded-xl">
+                  <span class="text-[10px] font-black text-text-2 uppercase tracking-widest">FORMATO:</span>
+                  <select v-model="exportFormat" class="bg-transparent text-text-1 text-[10px] font-bold outline-none cursor-pointer">
+                    <option value="CSV">CSV</option>
+                    <option value="XLS">EXCEL</option>
+                    <option value="PDF">PDF</option>
+                  </select>
+                </div>
+                <button 
+                  class="vp-btn-secondary" 
+                  id="export-global-btn" 
+                  @click="ejecutarDescargaGlobal"
+                  :disabled="!selectedMonth || exportingGlobal"
+                  title="Exportar todas las ventas del mes seleccionado"
+                >
+                  <svg v-if="exportingGlobal" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                  <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M12 12v9m-4-4l4 4 4-4"/>
+                  </svg>
+                  Consolidado Mensual
+                </button>
+                <button 
+                  class="vp-btn-primary" 
+                  id="export-btn" 
+                  @click="ejecutarDescarga"
+                  :disabled="exporting"
+                >
+                  <svg v-if="exporting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                  <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Exportar Reporte
+                </button>
+
+              </div>
             </div>
 
             <!-- ── FILTER BAR ────────────────────────────────────────────── -->
@@ -401,6 +534,16 @@ onBeforeUnmount(() => {
                   {{ tab.label }}
                   <span class="vp-tab-count">{{ tabCounts[tab.id] }}</span>
                 </button>
+              </div>
+
+              <!-- Paginación por Mes -->
+              <div class="vp-month-selector">
+                <select v-model="selectedMonth" class="vp-month-select" @change="currentPage = 1">
+                  <option value="">Todos los meses</option>
+                  <option v-for="m in availableMonths" :key="m.value" :value="m.value">
+                    {{ m.label }}
+                  </option>
+                </select>
               </div>
 
               <!-- Local search -->
@@ -493,12 +636,13 @@ onBeforeUnmount(() => {
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
                       </span>
                     </th>
-                    <th class="vp-th vp-th--sort" @click="toggleSort('cupos')">
+                     <th class="vp-th vp-th--sort" @click="toggleSort('cupos')">
                       <span>Cant.</span>
-                      <span class="vp-sort-icon" :class="{ '--active': sortKey === 'cupos', '--asc': sortAsc && sortKey === 'cupos' }">
+                      <span class="vp-sort-icon" :class="{ '--active': sortKey === 'cupos', '--asc': sortAsc && sortKey === 'nombre' }">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
                       </span>
                     </th>
+                    <th class="vp-th">Tipo</th>
                     <th class="vp-th">Estado</th>
                     <th class="vp-th" style="text-align:center; width:72px;">Acciones</th>
                   </tr>
@@ -568,6 +712,13 @@ onBeforeUnmount(() => {
                     <!-- Col 5: Cantidad -->
                     <td class="vp-td">
                       <span class="vp-cell-qty">×{{ order.cupos ?? 1 }}</span>
+                    </td>
+
+                    <!-- Col: Tipo Usuario -->
+                    <td class="vp-td">
+                      <span class="vp-badge" :class="order.tipo_usuario === 'Agencia' ? 'badge-info' : 'badge-neutral'">
+                        {{ order.tipo_usuario || 'Turista' }}
+                      </span>
                     </td>
 
                     <!-- Col 6: Estado Badge -->
@@ -1051,6 +1202,39 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
   box-shadow: 0 4px 18px var(--accent-glow);
 }
+.vp-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.vp-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface-2);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.vp-btn-secondary:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--border-2);
+  transform: translateY(-1px);
+}
+.vp-btn-secondary:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
 
 /* FILTER BAR */
 .vp-filter-bar {
@@ -1423,6 +1607,41 @@ onBeforeUnmount(() => {
   background-repeat: no-repeat;
   background-position: right 7px center;
 }
+.vp-per-page:hover { border-color: var(--border-2); }
+
+/* Month Selector */
+.vp-month-selector {
+  display: flex;
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 4px;
+  transition: border-color 0.18s;
+  height: 34px;
+}
+.vp-month-selector:focus-within { border-color: var(--accent); }
+.vp-month-select {
+  background: none;
+  border: none;
+  color: var(--text-1);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 28px 4px 10px;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--font);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2300d68f' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  min-width: 150px;
+}
+.vp-month-select option {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
 .vp-page-nav { display: flex; align-items: center; gap: 3px; }
 .vp-page-btn {
   width: 30px;

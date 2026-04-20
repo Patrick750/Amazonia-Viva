@@ -50,10 +50,15 @@ class ProductoSerializer(serializers.ModelSerializer):
         return ''
 
     ventas_totales = serializers.SerializerMethodField()
+    num_calificaciones = serializers.SerializerMethodField()
 
     def get_ventas_totales(self, obj):
         resultado = Detalles_Venta.objects.filter(producto=obj.id).aggregate(total=Sum('cantidad'))
         return resultado['total'] or 0
+
+    def get_num_calificaciones(self, obj):
+        from .models import ExperienciaCalificacion
+        return ExperienciaCalificacion.objects.filter(detalle_venta__producto=obj.id).count()
 
     class Meta:
         model = Productos
@@ -61,7 +66,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             'id', 'nombre', 'sku', 'caracteristicas', 'stock', 'precio', 
             'disponible', 'categorias', 'proveedor', 'tipo_catalogo', 'rating',
             'imagen_producto', 'archivos_subidos', 'imagenes_eliminar',
-            'nombre_categoria', 'marca', 'modelo', 'ventas_totales'
+            'nombre_categoria', 'marca', 'modelo', 'ventas_totales', 'num_calificaciones'
         ]
 
     def create(self, validated_data):

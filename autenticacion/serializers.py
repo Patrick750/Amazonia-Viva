@@ -269,7 +269,8 @@ class SerializerCatalogoTour(serializers.ModelSerializer):
         return max(niveles) if niveles else 0
 
     def get_num_calificaciones(self, obj):
-        return 0  # Placeholder until rating system is implemented
+        from .models import ExperienciaCalificacion
+        return ExperienciaCalificacion.objects.filter(detalle_venta__paquete=obj.id).count()
 
     proveedor_validado = serializers.SerializerMethodField()
     cupos_disponibles = serializers.SerializerMethodField()
@@ -333,7 +334,8 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
         return bool(obj.proveedor.nit or obj.proveedor.rut)
 
     def get_num_calificaciones(self, obj):
-        return 0
+        from .models import ExperienciaCalificacion
+        return ExperienciaCalificacion.objects.filter(detalle_venta__producto=obj.id).count()
 
     def get_descripcion_corta(self, obj):
         # Build a short description from caracteristicas JSON
@@ -344,7 +346,7 @@ class SerializerCatalogoProducto(serializers.ModelSerializer):
         return 'Sin descripción'
 
     def get_rating(self, obj):
-        return 0
+        return obj.rating
 
     def get_marca(self, obj):
         if isinstance(obj.caracteristicas, list):
@@ -383,10 +385,11 @@ class SerializerDetalleProducto(serializers.ModelSerializer):
         return resultado['total'] or 0
 
     def get_num_calificaciones(self, obj):
-        return 0
+        from .models import ExperienciaCalificacion
+        return ExperienciaCalificacion.objects.filter(detalle_venta__producto=obj.id).count()
 
     def get_rating(self, obj):
-        return 0
+        return obj.rating
 
     class Meta:
         model = Productos
