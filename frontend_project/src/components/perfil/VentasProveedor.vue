@@ -24,6 +24,7 @@ const sortKey      = ref('fecha_pedido')
 const sortAsc      = ref(false)
 const activeMenu   = ref(null)
 const dropdownPos  = ref({ top: 0, right: 0 })
+const isSidebarOpen = ref(false)
 
 // Paginación por Mes
 const selectedMonth = ref('') // Formato: 'YYYY-MM'
@@ -255,6 +256,10 @@ const toggleMenu = (id, event) => {
 }
 const closeMenu = () => { activeMenu.value = null }
 
+const toggleSidebar = () => {
+  isSidebarOpen.value = !isSidebarOpen.value
+}
+
 const actualizarEstado = async (order, nuevoEstado) => {
   closeMenu()
   try {
@@ -374,10 +379,18 @@ onBeforeUnmount(() => {
 <template>
   <div class="vp-shell">
 
+    <!-- MOBILE SIDEBAR OVERLAY -->
+    <div 
+      v-if="isSidebarOpen" 
+      class="vp-sidebar-overlay" 
+      @click="isSidebarOpen = false"
+    ></div>
+
     <!-- ═══════════════════════════════════════════════════════
          SIDEBAR
     ════════════════════════════════════════════════════════ -->
-    <aside class="vp-sidebar">
+    <aside class="vp-sidebar" :class="{ 'is-mobile-open': isSidebarOpen }">
+
       <!-- Logo -->
       <div class="vp-logo">
         <div class="vp-logo-icon">
@@ -426,7 +439,16 @@ onBeforeUnmount(() => {
 
       <!-- TOP BAR -->
       <header class="vp-topbar">
+        <button class="vp-mobile-menu-btn" @click="toggleSidebar" aria-label="Abrir menú">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+
         <nav class="vp-breadcrumbs" aria-label="Ubicación">
+
           <router-link to="/panel/dashboard" class="vp-bc-link">Panel</router-link>
           <span class="vp-bc-sep">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
@@ -520,7 +542,8 @@ onBeforeUnmount(() => {
             <!-- ── FILTER BAR ────────────────────────────────────────────── -->
             <div class="vp-filter-bar">
               <!-- Tabs -->
-              <div class="vp-tabs" role="tablist" aria-label="Estados de pedido">
+              <div class="vp-tabs-container">
+                <div class="vp-tabs" role="tablist" aria-label="Estados de pedido">
                 <button
                   v-for="tab in TABS"
                   :key="tab.id"
@@ -535,6 +558,7 @@ onBeforeUnmount(() => {
                   <span class="vp-tab-count">{{ tabCounts[tab.id] }}</span>
                 </button>
               </div>
+            </div>
 
               <!-- Paginación por Mes -->
               <div class="vp-month-selector">
@@ -617,8 +641,9 @@ onBeforeUnmount(() => {
               </div>
             </transition>
 
-            <!-- ── DATA TABLE ────────────────────────────────────────────── -->
+            <!-- ── DATA DISPLAY (Table or Cards) ────────────────────────── -->
             <div class="vp-table-wrap" role="region" aria-labelledby="ventas-title">
+              <!-- DESKTOP TABLE -->
               <table class="vp-table">
                 <thead>
                   <tr>
@@ -642,16 +667,21 @@ onBeforeUnmount(() => {
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
                       </span>
                     </th>
+                    <th class="vp-th vp-th--sort" @click="toggleSort('monto_total')">
+                      <span>Monto</span>
+                      <span class="vp-sort-icon" :class="{ '--active': sortKey === 'monto_total', '--asc': sortAsc && sortKey === 'monto_total' }">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>
+                      </span>
+                    </th>
                     <th class="vp-th">Tipo</th>
                     <th class="vp-th">Estado</th>
                     <th class="vp-th" style="text-align:center; width:72px;">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-
                   <!-- Empty State -->
                   <tr v-if="pageRows.length === 0" class="vp-empty-row">
-                    <td colspan="7">
+                    <td colspan="9">
                       <div class="vp-empty-state">
                         <div class="vp-empty-icon-wrap">
                           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -660,31 +690,16 @@ onBeforeUnmount(() => {
                           </svg>
                         </div>
                         <p class="vp-empty-title">Sin registros</p>
-                        <p class="vp-empty-text">
-                          No hay pedidos{{ searchQuery ? ` con "${searchQuery}"` : '' }} en este estado.
-                        </p>
+                        <p class="vp-empty-text">No hay pedidos registrados.</p>
                       </div>
                     </td>
                   </tr>
-
-                  <!-- Data Rows -->
-                  <tr
-                    v-for="order in pageRows"
-                    :key="order.id_detalle"
-                    class="vp-row"
-                  >
-                    <!-- Col 1: Producto -->
+                  <tr v-for="order in pageRows" :key="order.id_detalle" class="vp-row">
                     <td class="vp-td">
                       <div class="vp-cell-product">
                         <div class="vp-thumb">
-                          <img
-                            v-if="order.paquete?.portada"
-                            :src="order.paquete.portada"
-                            :alt="order.producto_nombre"
-                          />
-                          <span v-else class="vp-thumb-fallback">
-                            {{ (order.producto_nombre || 'P').charAt(0) }}
-                          </span>
+                          <img v-if="order.paquete?.portada" :src="order.paquete.portada" :alt="order.producto_nombre" />
+                          <span v-else class="vp-thumb-fallback">{{ (order.producto_nombre || 'P').charAt(0) }}</span>
                         </div>
                         <div class="vp-product-text">
                           <span class="vp-product-name">{{ order.producto_nombre || 'Sin nombre' }}</span>
@@ -692,107 +707,135 @@ onBeforeUnmount(() => {
                         </div>
                       </div>
                     </td>
-
-                    <!-- Col 2: Cliente -->
                     <td class="vp-td">
                       <span class="vp-cell-primary">{{ order.nombre || '—' }}</span>
                       <span class="vp-cell-secondary">{{ order.identificacion || '—' }}</span>
                     </td>
-
-                    <!-- Col 3: Referencia -->
+                    <td class="vp-td"><span class="vp-cell-mono text-[11px] font-bold">TRX-{{ order.id_transaccion }}</span></td>
                     <td class="vp-td">
-                      <span class="vp-cell-mono">TRX-{{ order.id_transaccion }}</span>
+                      <span class="vp-cell-primary text-[12px]">{{ fDate(order.fecha_pedido) }}</span>
+                      <span class="vp-cell-secondary text-[10px]">REF: #{{ order.id_detalle }}</span>
+                    </td>
+                    <td class="vp-td">
+                      <div class="flex flex-col">
+                        <span class="vp-cell-qty font-black text-accent-depth text-[13px]">×{{ order.cupos ?? 1 }}</span>
+                        <span class="text-[10px] text-text-3 font-bold">UNIDADES</span>
+                      </div>
+                    </td>
+                    <td class="vp-td">
+                      <div class="flex flex-col">
+                        <span class="vp-cell-price font-black text-text-1 text-[13px]">${{ (order.monto_total || 0).toLocaleString() }}</span>
+                        <span class="text-[9px] text-accent font-black tracking-tighter uppercase">Cobrado</span>
+                      </div>
                     </td>
 
-                    <!-- Col 4: Fecha -->
-                    <td class="vp-td">
-                      <span class="vp-cell-secondary">{{ fDate(order.fecha_pedido) }}</span>
-                    </td>
-
-                    <!-- Col 5: Cantidad -->
-                    <td class="vp-td">
-                      <span class="vp-cell-qty">×{{ order.cupos ?? 1 }}</span>
-                    </td>
-
-                    <!-- Col: Tipo Usuario -->
                     <td class="vp-td">
                       <span class="vp-badge" :class="order.tipo_usuario === 'Agencia' ? 'badge-info' : 'badge-neutral'">
                         {{ order.tipo_usuario || 'Turista' }}
                       </span>
                     </td>
-
-                    <!-- Col 6: Estado Badge -->
                     <td class="vp-td">
                       <span class="vp-badge" :class="getBadge(order.estado).cls">
                         <span class="vp-badge-dot" :style="{ background: getBadge(order.estado).dot }"></span>
                         {{ getBadge(order.estado).text }}
                       </span>
                     </td>
-
-                    <!-- Col 7: Acciones -->
                     <td class="vp-td" style="text-align:center;">
                       <div class="row-menu-wrapper">
-                        <button
-                          class="vp-more-btn"
-                          :id="`row-menu-btn-${order.id_detalle}`"
-                          @click.stop="toggleMenu(order.id_detalle, $event)"
-                          :aria-expanded="activeMenu === order.id_detalle"
-                          title="Acciones"
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>
-                          </svg>
+                        <button class="vp-more-btn" @click.stop="toggleMenu(order.id_detalle, $event)">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
                         </button>
                       </div>
-
-                      <!-- Dropdown via Teleport para escapar overflow -->
-                      <Teleport to="body">
-                        <transition name="menu-fade">
-                          <div
-                            v-if="activeMenu === order.id_detalle"
-                            class="vp-dropdown-fixed"
-                            :style="{ top: dropdownPos.top + 'px', right: dropdownPos.right + 'px' }"
-                            role="menu"
-                            @click.stop
-                          >
-                            <template v-if="getNext(order.estado)">
-                              <button
-                                class="vp-dd-item vp-dd-item--accent"
-                                @click="actualizarEstado(order, getNext(order.estado))"
-                                role="menuitem"
-                              >
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                                Avanzar a "{{ getNext(order.estado) }}"
-                              </button>
-                            </template>
-
-                            <!-- Opción de Anular (Solo en Empaque) -->
-                            <template v-if="order.estado === 'Pendiente de Empaque'">
-                                <button
-                                    class="vp-dd-item vp-dd-item--danger"
-                                    @click="anularPedido(order)"
-                                    role="menuitem"
-                                >
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6m0-6 6 6"/></svg>
-                                    Anular Pedido
-                                </button>
-                            </template>
-
-                            <div v-if="getNext(order.estado) || order.estado === 'Pendiente de Empaque'" class="vp-dd-divider"></div>
-                            <button class="vp-dd-item" @click="closeMenu" role="menuitem">
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                              Ver detalles del pedido
-                            </button>
-                          </div>
-                        </transition>
-                      </Teleport>
                     </td>
                   </tr>
-
                 </tbody>
               </table>
             </div>
 
+            <!-- MOBILE CARDS -->
+            <div class="vp-mobile-cards">
+              <div v-for="order in pageRows" :key="'card-'+order.id_detalle" class="vp-order-card">
+                  <div class="vp-card-header">
+                    <div class="vp-card-product">
+                      <div class="vp-card-thumb">
+                        <img v-if="order.paquete?.portada" :src="order.paquete.portada" />
+                        <span v-else>{{ (order.producto_nombre || 'P').charAt(0) }}</span>
+                      </div>
+                      <div class="vp-card-meta">
+                        <h4 class="vp-card-title">{{ order.producto_nombre }}</h4>
+                        <p class="vp-card-ref">TRX-{{ order.id_transaccion }} • {{ fDate(order.fecha_pedido) }}</p>
+                      </div>
+                    </div>
+                    <button class="vp-card-menu-btn" @click.stop="toggleMenu(order.id_detalle, $event)">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                    </button>
+                  </div>
+                  <div class="vp-card-body">
+                    <div class="vp-card-field">
+                      <span class="vp-card-label">Cliente:</span>
+                      <span class="vp-card-value">{{ order.nombre }}</span>
+                    </div>
+                    <div class="vp-card-field">
+                      <span class="vp-card-label">Ref. Interna:</span>
+                      <span class="vp-card-value font-mono text-[11px]">#{{ order.id_detalle }}</span>
+                    </div>
+                    <div class="vp-card-row">
+                      <div class="vp-card-field">
+                        <span class="vp-card-label">Cant:</span>
+                        <span class="vp-card-value font-black text-accent">×{{ order.cupos ?? 1 }}</span>
+                      </div>
+                      <div class="vp-card-field">
+                        <span class="vp-card-label">Total:</span>
+                        <span class="vp-card-value is-price text-text-1 font-black">${{ (order.monto_total || 0).toLocaleString() }}</span>
+                      </div>
+                    </div>
+                    <div class="vp-card-field">
+                      <span class="vp-card-label">Tipo:</span>
+                      <span class="vp-badge" :class="order.tipo_usuario === 'Agencia' ? 'badge-info' : 'badge-neutral'">{{ order.tipo_usuario || 'Turista' }}</span>
+                    </div>
+                  </div>
+                  <div class="vp-card-footer">
+                    <span class="vp-badge" :class="getBadge(order.estado).cls">
+                      <span class="vp-badge-dot" :style="{ background: getBadge(order.estado).dot }"></span>
+                      {{ getBadge(order.estado).text }}
+                    </span>
+                    <button v-if="getNext(order.estado)" class="vp-card-action-btn" @click="actualizarEstado(order, getNext(order.estado))">
+                      Avanzar
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Empty Card -->
+                <div v-if="pageRows.length === 0" class="vp-empty-state">
+                  <p class="vp-empty-title">Sin registros</p>
+                  <p class="vp-empty-text">No hay pedidos registrados.</p>
+                </div>
+              </div>
+
+              <!-- Context Menus (Fixed to body via Teleport) -->
+              <Teleport v-for="order in pageRows" :key="'menu-'+order.id_detalle" to="body">
+                <transition name="menu-fade">
+                  <div
+                    v-if="activeMenu === order.id_detalle"
+                    class="vp-dropdown-fixed"
+                    :style="{ top: dropdownPos.top + 'px', right: dropdownPos.right + 'px' }"
+                    @click.stop
+                  >
+                    <p class="vp-dd-header">Gestión de Pedido</p>
+                    <button v-if="getNext(order.estado)" class="vp-dd-item vp-dd-item--accent" @click="actualizarEstado(order, getNext(order.estado))">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                      Avanzar a "{{ getNext(order.estado) }}"
+                    </button>
+                    <button v-if="order.estado === 'Pendiente de Empaque'" class="vp-dd-item vp-dd-item--danger" @click="anularPedido(order)">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6m0-6 6 6"/></svg>
+                      Anular Pedido
+                    </button>
+                    <div class="vp-dd-divider"></div>
+                    <button class="vp-dd-item" @click="closeMenu">Cerrar</button>
+                  </div>
+                </transition>
+              </Teleport>
+            
             <!-- ── PAGINATION ──────────────────────────────────────────── -->
             <div class="vp-pagination">
               <p class="vp-page-info">
@@ -1254,6 +1297,7 @@ onBeforeUnmount(() => {
   align-items: stretch;
   overflow-x: auto;
   scrollbar-width: none;
+  flex-wrap: nowrap;
 }
 .vp-tabs::-webkit-scrollbar { display: none; }
 
@@ -1275,10 +1319,9 @@ onBeforeUnmount(() => {
   position: relative;
   top: 1px;
 }
-.vp-tab:hover { color: var(--text-1); }
 .vp-tab.is-active {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
   border-bottom-color: var(--accent);
 }
 .vp-tab-count {
@@ -1808,15 +1851,187 @@ onBeforeUnmount(() => {
 
 /* ═══ RESPONSIVE ══════════════════════════════════════════ */
 @media (max-width: 860px) {
-  .vp-sidebar { display: none; }
-  .vp-topbar-search { max-width: 230px; }
-}
-@media (max-width: 620px) {
-  .vp-canvas { padding: 12px; }
-  .vp-view-header { flex-direction: column; align-items: flex-start; }
-  .vp-filter-bar { flex-direction: column; align-items: flex-start; padding: 12px 14px; }
-  .vp-search-box { width: 100%; }
-  .vp-pagination { flex-direction: column; align-items: flex-start; }
+  .vp-sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    bottom: 0;
+    z-index: 2000;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+  }
+  .vp-sidebar.is-mobile-open {
+    left: 0;
+  }
+  .vp-sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1999;
+  }
   .vp-topbar-search { display: none; }
+  .vp-mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-1);
+    margin-right: 12px;
+    cursor: pointer;
+  }
+}
+
+@media (min-width: 861px) {
+  .vp-sidebar-overlay, .vp-mobile-menu-btn { display: none; }
+}
+
+@media (max-width: 768px) {
+  .vp-table-wrap { display: none; }
+  .vp-mobile-cards { display: block; }
+  
+  /* Cards Styles */
+  .vp-order-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    padding: 14px;
+    position: relative;
+  }
+  .vp-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+  .vp-card-product { display: flex; gap: 12px; align-items: center; }
+  .vp-card-thumb {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 16px;
+    border: 1px solid var(--border);
+  }
+  .vp-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .vp-card-title { font-size: 14px; font-weight: 700; color: var(--text-1); margin: 0; }
+  .vp-card-ref { font-size: 11px; color: var(--text-3); margin: 2px 0 0; }
+  .vp-card-menu-btn { background: none; border: none; color: var(--text-2); cursor: pointer; padding: 4px; }
+  
+  .vp-card-body { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .vp-card-field { display: flex; justify-content: space-between; align-items: center; }
+  .vp-card-row { display: flex; gap: 20px; }
+  .vp-card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); font-weight: 700; }
+  .vp-card-value { font-size: 13px; color: var(--text-2); font-weight: 600; }
+
+  .vp-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .vp-card-action-btn {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+}
+
+@media (min-width: 769px) {
+  .vp-mobile-cards { display: none; }
+}
+
+@media (max-width: 640px) {
+  .vp-canvas { padding: 12px; }
+  .vp-view-header { flex-direction: column; align-items: stretch; gap: 16px; }
+  .vp-view-header-right { flex-direction: column; align-items: stretch; }
+  .vp-export-selector { width: 100%; justify-content: space-between; }
+  .vp-filter-bar { flex-direction: column; align-items: stretch; padding: 12px 14px; }
+  
+  .vp-tabs-container {
+    overflow-x: auto;
+    max-width: 100vw;
+    margin: 0 -12px;
+    padding: 10px 12px;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+  }
+  .vp-tabs-container::-webkit-scrollbar { display: none; }
+  .vp-tabs { 
+    width: max-content;
+    flex-wrap: nowrap;
+    display: flex;
+    gap: 8px; 
+  }
+  .vp-tab {
+    padding: 8px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border) !important;
+    border-radius: 20px;
+    font-size: 13px;
+    top: 0;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+  }
+  .vp-tab.is-active {
+    background: var(--accent-dim);
+    border-color: var(--accent) !important;
+    color: var(--accent);
+    box-shadow: 0 4px 12px var(--accent-glow);
+  }
+  .vp-tab-count {
+    background: var(--surface-3);
+    margin-left: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 10px;
+  }
+  .vp-tab.is-active .vp-tab-count {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  
+  .vp-month-selector { width: 100%; }
+  .vp-search-box { width: 100%; }
+  .vp-filters-toggle { 
+    width: 100%; 
+    justify-content: center;
+    height: 40px;
+  }
+  
+  .vp-af-grid { grid-template-columns: 1fr; }
+  .vp-af-actions { flex-direction: column; align-items: stretch; }
+  
+  .vp-pagination { flex-direction: column; align-items: center; text-align: center; gap: 16px; }
+  .vp-page-controls { flex-direction: column; width: 100%; }
+  .vp-page-nav { width: 100%; justify-content: space-between; }
 }
 </style>
