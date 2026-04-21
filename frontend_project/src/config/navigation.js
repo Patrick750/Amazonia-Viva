@@ -16,6 +16,8 @@ export const navegacion = {
   proveedor: [
     { label: 'Inicio', path: '/' },
     { label: 'Catálogo', path: '/catalogo/tours' },
+    { label: 'Gestión de Ventas', path: '/panel/gestion-ventas' },
+    { label: 'Mis Productos', path: '/panel/productos' },
     { label: 'Dashboard', path: '/panel/dashboard' }
   ],
   invitado: [

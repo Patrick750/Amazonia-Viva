@@ -19,6 +19,7 @@ import ExperienciasDashboard from '@/views/experiencias-dashboard.vue'
 import FeedbackExperiencia from '@/views/feedback-experiencia.vue'
 import MisExperiencias from '@/views/MisExperiencias.vue'
 import MisProductosTurista from '@/views/mis-productos.vue'
+import VentasProveedor from '@/components/perfil/VentasProveedor.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -57,6 +58,7 @@ const router = createRouter({
       path:'/panel/productos',
       name:'productos',
       component: productos,
+      meta: { requiresAuth: true, roles: ['proveedor'] },
     },
     {
       path: '/catalogo',
@@ -164,6 +166,12 @@ const router = createRouter({
       name: 'mis_productos_turista',
       component: MisProductosTurista,
       meta: { requiresAuth: true },
+    },
+    {
+      path: '/panel/gestion-ventas',
+      name: 'gestion_ventas',
+      component: VentasProveedor,
+      meta: { requiresAuth: true, roles: ['proveedor'] },
     },
   ],
   scrollBehavior(to, from, savedPosition) {

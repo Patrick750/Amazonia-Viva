@@ -223,6 +223,8 @@ const formatHours = (h) => {
 
 const badge = (estado) => BADGE[estado] || { cls: 'b-neutral', text: estado }
 
+const userRole = localStorage.getItem('rol')
+
 const formatCOP = (val) => {
   const n = parseFloat(val)
   return isNaN(n) ? '—' : `$${n.toLocaleString('es-CO', { minimumFractionDigits: 0 })}`
@@ -236,7 +238,7 @@ const formatCOP = (val) => {
       <!-- ── PAGE HEADER ──────────────────────────────────── -->
       <div class="mp-page-header">
         <div>
-          <h1 class="mp-title">{{ (localStorage.getItem('rol') === 'agencia' || localStorage.getItem('rol') === 'proveedor') ? 'Mis Compras' : 'Mis Productos' }}</h1>
+          <h1 class="mp-title">{{ (userRole === 'agencia' || userRole === 'proveedor') ? 'Mis Compras' : 'Mis Productos' }}</h1>
           <p class="mp-subtitle">Seguimiento en tiempo real de tus pedidos</p>
         </div>
         <button class="mp-refresh-btn" @click="fetchOrders" :disabled="loading" title="Actualizar">
