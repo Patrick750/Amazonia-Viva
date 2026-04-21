@@ -26,6 +26,15 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 4.2.0 — Gestión Integral de Proveedores y Automatización de Demo
+> Archivos: `VentasProveedor.vue`, `mis-productos.vue`, `router/index.js`, `navigation.js`, `autenticacion/management/commands/*`, `setup_dev.bat`, `build.sh`
+
+- **[Feature] Panel de Gestión de Ventas para Proveedores**: Implementación de la nueva vista con diseño "mobile-first" responsivo, pestañas de filtrado de estado táctiles (pills) y tarjetas de pedidos adaptables para la logística de proveedores.
+- **[Fix] Integración de 'Mis Productos' de Proveedor**: Activación del menú de gestión de inventario (`/panel/productos`) con rutas protegidas, diferenciándolo del carrito de turistas. Resolución de caídas por `localStorage` en templates.
+- **[Automation] Data Seeding Profesional**: Transformación de scripts sueltos en comandos oficiales de Django (`seed_users`, `seed_products`, `enrich_data`). Incorporación del comando unificado `setup_demo` para preparar bases de datos en blanco estructuradamente.
+- **[Tooling] Instalación '1-Click'**: Creación del script `setup_dev.bat` para entornos Windows y actualización de `build.sh` para automatizar totalmente la reconstrucción e hidratación del modelo de datos de prueba.
+
+
 ### 4.1.0 — Gestión de Experiencias, Blindaje de Pagos y Feedback (SCRUM-63)
 > Archivos: `vistas_experiencias.py`, `experiencias-dashboard.vue`, `pago.vue`, `useCatalogo.js`
 
