@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from '@/api/axios';
+import VueApexCharts from "vue3-apexcharts";
 
 // 1. OBTENCIÓN DEL ROL
 // Obtiene el rol exacto guardado al iniciar sesión
@@ -181,6 +182,7 @@ const roleConfigs = {
 };
 
 const kpisData = ref([]);
+const chartData = ref({ labels: [], series: [] });
 const isLoading = ref(true);
 
 const fetchKPIs = async () => {
@@ -188,6 +190,9 @@ const fetchKPIs = async () => {
   try {
     const { data } = await axios.get('api/dashboard/stats/');
     kpisData.value = data.kpis;
+    if (data.chart_data) {
+      chartData.value = data.chart_data;
+    }
   } catch (error) {
     console.error('Error fetching dashboard KPIs:', error);
   } finally {
@@ -221,6 +226,64 @@ const currentConfig = computed(() => {
   
   return config;
 });
+
+const chartOptions = computed(() => ({
+  chart: {
+    type: 'area',
+    toolbar: { show: false },
+    sparkline: { enabled: false },
+    fontFamily: 'Inter, sans-serif'
+  },
+  dataLabels: { enabled: false },
+  stroke: { curve: 'smooth', width: 2 },
+  fill: {
+    type: 'gradient',
+    gradient: {
+      shadeIntensity: 1,
+      opacityFrom: 0.45,
+      opacityTo: 0.05,
+      stops: [20, 100]
+    }
+  },
+  colors: ['#059669'],
+  xaxis: {
+    categories: chartData.value.labels,
+    axisBorder: { show: false },
+    axisTicks: { show: false },
+    labels: { style: { colors: '#64748b', fontSize: '12px' } }
+  },
+  yaxis: {
+    labels: {
+      style: { colors: '#64748b', fontSize: '12px' },
+      formatter: (val) => `$${val.toLocaleString()}`
+    }
+  },
+  grid: { 
+    show: true,
+    borderColor: 'rgba(5, 150, 105, 0.1)', 
+    strokeDashArray: 4,
+    xaxis: {
+      lines: {
+        show: true
+      }
+    },
+    yaxis: {
+      lines: {
+        show: true
+      }
+    },
+    padding: {
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 10
+    }
+  },
+  tooltip: {
+    theme: 'light',
+    y: { formatter: (val) => `$${val.toLocaleString()}` }
+  }
+}));
 
 </script>
 
@@ -295,8 +358,20 @@ const currentConfig = computed(() => {
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in-up" style="animation-delay: 0.8s;">
         <div class="lg:col-span-2 bg-white/65 backdrop-blur-xl border border-white/80 rounded-2xl p-6 shadow-sm">
           <h2 class="text-lg font-semibold text-emerald-900 mb-4 pb-4 border-b border-white/80 relative z-10">Rendimiento Mensual</h2>
-          <div class="relative z-10 h-[300px] flex items-center justify-center text-slate-500 bg-white/40 rounded-xl border border-dashed border-white/80">
-            Espacio reservado para gráfico
+          <div class="relative z-10 h-[300px]">
+             <VueApexCharts
+              v-if="!isLoading && chartData.labels.length > 0"
+              width="100%"
+              height="100%"
+              :options="chartOptions"
+              :series="chartData.series"
+            />
+            <div v-else-if="isLoading" class="w-full h-full flex items-center justify-center text-slate-400">
+              Cargando gráfico...
+            </div>
+            <div v-else class="w-full h-full flex items-center justify-center text-slate-400 bg-white/40 rounded-xl border border-dashed border-white/80">
+              No hay datos disponibles para el gráfico
+            </div>
           </div>
         </div>
 

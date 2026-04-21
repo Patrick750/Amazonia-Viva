@@ -13,11 +13,13 @@ import json
 import os
 from django.conf import settings
 from django.http import JsonResponse
-from django.db.models import Count, Q, Sum, Avg
+from django.db.models import Count, Q, Sum, Avg, F
+from django.db.models.functions import TruncDate
+from django.utils import timezone
+from datetime import date, timedelta
 from decimal import Decimal
-from django.db import transaction
+from django.db import transaction, models
 from django.core.mail import send_mail
-from datetime import date
 from .serializers import calcular_cupos_disponibles
 
 # Create your views here.
@@ -519,6 +521,30 @@ class DashboardKPIsView(APIView):
         # Tendencias (Simuladas por ahora, o podrías comparar con el mes anterior si tuvieras datos temporales)
         # Para este ejemplo, usaremos datos reales para el valor y una tendencia neutral/positiva genérica
         
+        # 5. Datos para el gráfico (Ventas de los últimos 15 días)
+        fifteen_days_ago = (timezone.now() - timedelta(days=15)).date()
+        ventas_historico = Detalles_Venta.objects.filter(
+            paquete__in=paquetes_ids,
+            venta__fecha__date__gte=fifteen_days_ago
+        ).exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
+            dia=TruncDate('venta__fecha')
+        ).values('dia').annotate(
+            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
+        ).order_by('dia')
+
+        # Formatear datos para el gráfico
+        labels = []
+        series = []
+        
+        # Llenar huecos con ceros para una visualización continua
+        current_day = fifteen_days_ago
+        stats_dict = { v['dia']: float(v['total']) for v in ventas_historico }
+        
+        while current_day <= timezone.now().date():
+            labels.append(current_day.strftime('%d %b'))
+            series.append(stats_dict.get(current_day, 0.0))
+            current_day += timedelta(days=1)
+
         return Response({
             'kpis': [
                 {
@@ -545,7 +571,16 @@ class DashboardKPIsView(APIView):
                     'trend': "Requieren atención logística", 
                     'trendType': "down" if pendientes > 0 else "neutral"
                 }
-            ]
+            ],
+            'chart_data': {
+                'labels': labels,
+                'series': [
+                    {
+                        'name': 'Ingresos por Venta',
+                        'data': series
+                    }
+                ]
+            }
         })
 
     def _get_proveedor_kpis(self, user):
@@ -579,6 +614,30 @@ class DashboardKPIsView(APIView):
         # 6. Total Clientes
         clientes = Venta.objects.filter(detalles_venta__producto__in=productos_ids).distinct().count()
         
+        # 7. Datos para el gráfico (Ventas de los últimos 15 días)
+        fifteen_days_ago = (timezone.now() - timedelta(days=15)).date()
+        ventas_historico = Detalles_Venta.objects.filter(
+            producto__in=productos_ids,
+            venta__fecha__date__gte=fifteen_days_ago
+        ).exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
+            dia=TruncDate('venta__fecha')
+        ).values('dia').annotate(
+            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
+        ).order_by('dia')
+
+        # Formatear datos para el gráfico
+        labels = []
+        series = []
+        
+        # Llenar huecos con ceros
+        current_day = fifteen_days_ago
+        stats_dict = { v['dia']: float(v['total']) for v in ventas_historico }
+        
+        while current_day <= timezone.now().date():
+            labels.append(current_day.strftime('%d %b'))
+            series.append(stats_dict.get(current_day, 0.0))
+            current_day += timedelta(days=1)
+
         return Response({
             'kpis': [
                 {
@@ -617,7 +676,16 @@ class DashboardKPIsView(APIView):
                     'trend': "Clientes únicos atendidos", 
                     'trendType': "neutral"
                 }
-            ]
+            ],
+            'chart_data': {
+                'labels': labels,
+                'series': [
+                    {
+                        'name': 'Ingresos por Venta',
+                        'data': series
+                    }
+                ]
+            }
         })
 
 
