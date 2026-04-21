@@ -7,7 +7,7 @@ from .views import (
     CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
     DetalleProductoPublico, UserStatsView, PerfilView, PerfilFotoView,
     VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView,
-    CuposDisponiblesView, MisReservasView, CancelarReservaView
+    CuposDisponiblesView, MisReservasView, CancelarReservaView, DashboardKPIsView
 )
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView
 from .vistas_experiencias import (
@@ -42,6 +42,7 @@ urlpatterns = [
     path("catalogo/tours/<int:pk>/", DetalleTourPublico.as_view(), name="detalle_tour_publico"),
     path("catalogo/productos/<int:pk>/", DetalleProductoPublico.as_view(), name="detalle_producto_publico"),
     path("user/stats/", UserStatsView.as_view(), name="user_stats"),
+    path("dashboard/stats/", DashboardKPIsView.as_view(), name="dashboard_stats"),
     path("perfil/", PerfilView.as_view(), name="perfil_usuario"),
     path("perfil/foto/", PerfilFotoView.as_view(), name="perfil_foto"),
     path("perfil/publico/<int:id>/", PerfilPublicoView.as_view(), name="perfil_publico_api"),

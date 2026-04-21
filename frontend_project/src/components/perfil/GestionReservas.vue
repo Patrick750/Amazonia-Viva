@@ -656,6 +656,7 @@ const labels = computed(() => {
     listTitle: 'Lista de Pasajeros Registrados',
     qtyLabel: 'pax',
     qtyTotal: 'Ocupación Confirmada',
+    apiBase: '/api/agencia/gestion-logistica/'
   }
 })
 

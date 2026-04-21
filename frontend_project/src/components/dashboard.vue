@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import axios from '@/api/axios';
 
 // 1. OBTENCIÓN DEL ROL
 // Obtiene el rol exacto guardado al iniciar sesión
@@ -179,8 +180,47 @@ const roleConfigs = {
   }
 };
 
+const kpisData = ref([]);
+const isLoading = ref(true);
+
+const fetchKPIs = async () => {
+  isLoading.value = true;
+  try {
+    const { data } = await axios.get('api/dashboard/stats/');
+    kpisData.value = data.kpis;
+  } catch (error) {
+    console.error('Error fetching dashboard KPIs:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchKPIs();
+});
+
 // Si el rol en localStorage no existe en el objeto, usa 'proveedor' de respaldo
-const currentConfig = computed(() => roleConfigs[userRole.value] || roleConfigs['proveedor']);
+const currentConfig = computed(() => {
+  const config = JSON.parse(JSON.stringify(roleConfigs[userRole.value] || roleConfigs['proveedor']));
+  
+  if (kpisData.value.length > 0) {
+    // Mapear los datos reales a los KPIs existentes para preservar iconos y links
+    config.kpis = config.kpis.map(kpi => {
+      const realKpi = kpisData.value.find(rk => rk.title === kpi.title);
+      if (realKpi) {
+        return {
+          ...kpi,
+          value: realKpi.value,
+          trend: realKpi.trend,
+          trendType: realKpi.trendType
+        };
+      }
+      return kpi;
+    });
+  }
+  
+  return config;
+});
 
 </script>
 

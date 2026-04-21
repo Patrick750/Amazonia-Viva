@@ -13,6 +13,8 @@ import json
 import os
 from django.conf import settings
 from django.http import JsonResponse
+from django.db.models import Count, Q, Sum, Avg
+from decimal import Decimal
 from django.db import transaction
 from django.core.mail import send_mail
 from datetime import date
@@ -474,6 +476,148 @@ class UserStatsView(APIView):
         return Response({
             'favorites_count': fav_count,
             'cart_count': paquetes_unicos + productos_unicos
+        })
+
+class DashboardKPIsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        if hasattr(user, 'agencia'):
+            return self._get_agencia_kpis(user)
+        elif hasattr(user, 'proveedor'):
+            return self._get_proveedor_kpis(user)
+        else:
+            return Response({'error': 'Rol no soportado para este dashboard.'}, status=status.HTTP_403_FORBIDDEN)
+
+    def _get_agencia_kpis(self, user):
+        from .models import PaqueteTuristico, Detalles_Venta, ExperienciaCalificacion
+        
+        paquetes_ids = PaqueteTuristico.objects.filter(agencia_id=user.id).values_list('id', flat=True)
+        detalles = Detalles_Venta.objects.filter(paquete__in=paquetes_ids)
+        
+        # 1. Ingresos Totales
+        # Solo consideramos ventas que no estén canceladas o rechazadas
+        ingresos_total = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
+        )['total'] or Decimal('0.00')
+        
+        # 2. Tours Vendidos (Cantidad total de personas)
+        tours_vendidos = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+            total=Sum('cantidad')
+        )['total'] or 0
+        
+        # 3. Satisfacción Promedio
+        satisfaccion = ExperienciaCalificacion.objects.filter(
+            detalle_venta__paquete__in=paquetes_ids
+        ).aggregate(avg=Avg('puntuacion'))['avg'] or 0
+        
+        # 4. Reservas Pendientes (Confirmado)
+        pendientes = detalles.filter(estado='Confirmado').count()
+        
+        # Tendencias (Simuladas por ahora, o podrías comparar con el mes anterior si tuvieras datos temporales)
+        # Para este ejemplo, usaremos datos reales para el valor y una tendencia neutral/positiva genérica
+        
+        return Response({
+            'kpis': [
+                {
+                    'title': "Ingresos Totales", 
+                    'value': f"${ingresos_total:,.0f}".replace(',', '.'),
+                    'trend': "Basado en ventas confirmadas", 
+                    'trendType': "up"
+                },
+                {
+                    'title': "Tours Vendidos", 
+                    'value': f"{tours_vendidos}",
+                    'trend': "Total pasajeros transportados", 
+                    'trendType': "up"
+                },
+                {
+                    'title': "Satisfacción Promedio", 
+                    'value': f"{satisfaccion:.1f} ★",
+                    'trend': f"Basado en {ExperienciaCalificacion.objects.filter(detalle_venta__paquete__in=paquetes_ids).count()} reseñas", 
+                    'trendType': "neutral"
+                },
+                {
+                    'title': "Reservas Pendientes", 
+                    'value': f"{pendientes}",
+                    'trend': "Requieren atención logística", 
+                    'trendType': "down" if pendientes > 0 else "neutral"
+                }
+            ]
+        })
+
+    def _get_proveedor_kpis(self, user):
+        from .models import Productos, Detalles_Venta, ExperienciaCalificacion, Venta
+        
+        productos_qs = Productos.objects.filter(proveedor_id=user.id)
+        productos_ids = productos_qs.values_list('id', flat=True)
+        detalles = Detalles_Venta.objects.filter(producto__in=productos_ids)
+        
+        # 1. Total Productos Vendidos
+        vendidos_cont = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+            total=Sum('cantidad')
+        )['total'] or 0
+        
+        # 2. Ingresos Totales
+        ingresos_total = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
+        )['total'] or Decimal('0.00')
+        
+        # 3. Productos Activos
+        activos = productos_qs.filter(disponible=True).count()
+        
+        # 4. Pedidos Pendientes
+        pendientes = detalles.filter(estado='Pendiente de Empaque').count()
+        
+        # 5. Calificación Promedio
+        satisfaccion = ExperienciaCalificacion.objects.filter(
+            detalle_venta__producto__in=productos_ids
+        ).aggregate(avg=Avg('puntuacion'))['avg'] or 0
+        
+        # 6. Total Clientes
+        clientes = Venta.objects.filter(detalles_venta__producto__in=productos_ids).distinct().count()
+        
+        return Response({
+            'kpis': [
+                {
+                    'title': "Total Productos Vendidos", 
+                    'value': f"{vendidos_cont}",
+                    'trend': "Unidades despachadas", 
+                    'trendType': "neutral"
+                },
+                {
+                    'title': "Ingresos Totales", 
+                    'value': f"${ingresos_total:,.0f}".replace(',', '.'),
+                    'trend': "Ventas globales netas", 
+                    'trendType': "neutral"
+                },
+                {
+                    'title': "Productos Activos", 
+                    'value': f"{activos}",
+                    'trend': "En el catálogo actual", 
+                    'trendType': "neutral"
+                },
+                {
+                    'title': "Pedidos Pendientes", 
+                    'value': f"{pendientes}",
+                    'trend': "Por procesar y enviar", 
+                    'trendType': "neutral"
+                },
+                {
+                    'title': "Calificación Promedio", 
+                    'value': f"{satisfaccion:.1f} ★",
+                    'trend': "Basado en todas las reseñas", 
+                    'trendType': "neutral"
+                },
+                {
+                    'title': "Total Clientes", 
+                    'value': f"{clientes}",
+                    'trend': "Clientes únicos atendidos", 
+                    'trendType': "neutral"
+                }
+            ]
         })
 
 
