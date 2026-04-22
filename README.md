@@ -26,6 +26,13 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
 
+### 4.3.0 — Paginación de Catálogo y Dashboard de Agencias (SCRUM-65)
+> Archivos: `catalogo.vue`, `dashboard.vue`, `GestionReservas.vue`, `views.py`, `urls.py`, `seed_paquetes.py`, `seed_ventas.py`
+
+- **[Feature] Paginación en Catálogo**: Implementación de paginación (20 ítems por página) en las vistas de tours y productos. Incluye lógica de reseteo automático al filtrar y desplazamiento suave (smooth scroll) al cambiar de página para mejorar la UX.
+- **[Feature] Dashboard de Estadísticas para Agencias**: Nueva interfaz para agencias que permite visualizar KPIs, gestión de reservas agrupadas y seguimiento de ventas en tiempo real.
+- **[Fix] Estabilización de Reservas y Hydration**: Corrección de bugs críticos en la lógica de visualización de reservas y optimización de los comandos de seeding (`seed_paquetes`, `seed_ventas`) para asegurar la consistencia del entorno de desarrollo.
+
 ### 4.2.0 — Gestión Integral de Proveedores y Automatización de Demo
 > Archivos: `VentasProveedor.vue`, `mis-productos.vue`, `router/index.js`, `navigation.js`, `autenticacion/management/commands/*`, `setup_dev.bat`, `build.sh`
 
