@@ -22,6 +22,31 @@ const {
 const ultimoScrollY = ref(0);
 const headerOculto = ref(false);
 
+// --- PAGINACIÓN ---
+const paginaActual = ref(1);
+const ITEMS_POR_PAGINA = 20;
+
+const toursMostrados = computed(() => {
+  const inicio = (paginaActual.value - 1) * ITEMS_POR_PAGINA;
+  return toursFiltrados.value.slice(inicio, inicio + ITEMS_POR_PAGINA);
+});
+
+const productosMostrados = computed(() => {
+  const inicio = (paginaActual.value - 1) * ITEMS_POR_PAGINA;
+  return productosFiltrados.value.slice(inicio, inicio + ITEMS_POR_PAGINA);
+});
+
+const totalPaginas = computed(() => {
+  const total = tabActivo.value === 'tours' ? toursFiltrados.value.length : productosFiltrados.value.length;
+  return Math.ceil(total / ITEMS_POR_PAGINA);
+});
+
+const cambiarPagina = (p) => {
+  if (p < 1 || p > totalPaginas.value) return;
+  paginaActual.value = p;
+  window.scrollTo({ top: 400, behavior: 'smooth' });
+};
+
 const handleScroll = () => {
   const actual = window.scrollY;
   if (actual > ultimoScrollY.value && actual > 200) {
@@ -170,6 +195,9 @@ const itemsActuales = computed(() => tabActivo.value === 'tours' ? toursFiltrado
 const cargando      = computed(() => tabActivo.value === 'tours' ? cargandoTours.value : cargandoProductos.value);
 const categoriasActuales = computed(() => tabActivo.value === 'tours' ? categoriasToursRel.value : categoriasProductosRel.value);
 
+const productosTuristasMostrados = computed(() => productosMostrados.value.filter(p => p.tipo_catalogo === 'turistas'));
+const productosAgenciasMostrados = computed(() => productosMostrados.value.filter(p => p.tipo_catalogo === 'agencias'));
+
 const hayFiltrosActivos = computed(() =>
   busqueda.value || categoriaActiva.value || filtroCategoria.value ||
   grupoSeleccionado.value || filtroUbicacion.value || filtroDuracion.value || 
@@ -177,6 +205,7 @@ const hayFiltrosActivos = computed(() =>
 );
 
 watch([tabActivo, busqueda, orden, filtroUbicacion, filtroDuracion, filtroCategoria, grupoSeleccionado, categoriaActiva, filtroRating, filtroTipo], () => {
+  paginaActual.value = 1; // Resetear página al filtrar
   const query = {
     q: busqueda.value || undefined,
     orden: orden.value || undefined,
@@ -529,17 +558,17 @@ const limpiarTodosLosFiltros = () => {
 
       <!-- TOURS GRID -->
       <div v-else-if="tabActivo === 'tours'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <TarjetaTour v-for="tour in toursFiltrados" :key="'t-' + tour.id" :tour="tour" :rol="rol" />
+        <TarjetaTour v-for="tour in toursMostrados" :key="'t-' + tour.id" :tour="tour" :rol="rol" />
       </div>
 
       <!-- PRODUCTOS GRID (usuario con rol) -->
       <div v-else-if="tabActivo === 'productos' && rol" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <TarjetaProducto v-for="prod in productosFiltrados" :key="'p-' + prod.id" :producto="prod" :rol="rol" />
+        <TarjetaProducto v-for="prod in productosMostrados" :key="'p-' + prod.id" :producto="prod" :rol="rol" />
       </div>
 
       <!-- PRODUCTOS GRID (sin rol — secciones divididas) -->
       <div v-else-if="tabActivo === 'productos' && !rol" class="space-y-16">
-        <div v-if="productosTuristas.length > 0">
+        <div v-if="productosTuristasMostrados.length > 0">
           <div class="flex items-center gap-4 mb-8">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -552,11 +581,11 @@ const limpiarTodosLosFiltros = () => {
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <TarjetaProducto v-for="prod in productosTuristas" :key="'pt-' + prod.id" :producto="prod" :rol="rol" />
+            <TarjetaProducto v-for="prod in productosTuristasMostrados" :key="'pt-' + prod.id" :producto="prod" :rol="rol" />
           </div>
         </div>
 
-        <div v-if="productosAgencias.length > 0">
+        <div v-if="productosAgenciasMostrados.length > 0">
           <div class="flex items-center gap-4 mb-8">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-teal-500/25">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -569,9 +598,45 @@ const limpiarTodosLosFiltros = () => {
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <TarjetaProducto v-for="prod in productosAgencias" :key="'pa-' + prod.id" :producto="prod" :rol="rol" />
+            <TarjetaProducto v-for="prod in productosAgenciasMostrados" :key="'pa-' + prod.id" :producto="prod" :rol="rol" />
           </div>
         </div>
+      </div>
+
+      <!-- PAGINACIÓN UI -->
+      <div v-if="totalPaginas > 1" class="mt-16 flex justify-center items-center gap-2">
+        <button
+          @click="cambiarPagina(paginaActual - 1)"
+          :disabled="paginaActual === 1"
+          class="p-2.5 rounded-xl border border-white/10 text-white/50 hover:bg-white/5 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+
+        <div class="flex items-center gap-1.5 px-2">
+          <button
+            v-for="p in totalPaginas" :key="p"
+            @click="cambiarPagina(p)"
+            :class="['w-10 h-10 rounded-xl text-sm font-bold transition-all duration-300',
+              paginaActual === p
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 scale-110'
+                : 'bg-white/5 text-white/40 border border-white/5 hover:border-emerald-500/30 hover:text-white']"
+          >
+            {{ p }}
+          </button>
+        </div>
+
+        <button
+          @click="cambiarPagina(paginaActual + 1)"
+          :disabled="paginaActual === totalPaginas"
+          class="p-2.5 rounded-xl border border-white/10 text-white/50 hover:bg-white/5 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-all"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
       </div>
 
     </main>
