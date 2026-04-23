@@ -398,6 +398,17 @@ const chartOptions = computed(() => ({
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               Mis Experiencias
             </router-link>
+            <!-- ── Liquidación / Billetera Virtual ── -->
+            <router-link
+              v-if="userRole === 'agencia' || userRole === 'proveedor'"
+              to="/panel/liquidacion"
+              class="flex items-center gap-3 p-4 bg-emerald-50/70 border border-emerald-200/60 rounded-xl font-semibold text-emerald-800 text-sm transition-all duration-200 hover:bg-emerald-100 hover:border-emerald-500 hover:text-emerald-700 hover:translate-x-1 shadow-sm"
+            >
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3z"/>
+              </svg>
+              Liquidación
+            </router-link>
           </div>
         </div>
       </section>

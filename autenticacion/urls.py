@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, vistas_reportes
+from . import views, vistas_reportes, vistas_liquidacion
 from .views import (
     RegistroAgencia, RegistroProveedor, VerificarEmail, RegistroTurista, 
     Login, Logout, Actividades, NewPack, UpdatePack, PaquetesTuristicos, 
@@ -73,4 +73,10 @@ urlpatterns = [
     path("experiencias/<int:pk>/evidencia/", SubirEvidenciaView.as_view(), name='subir_evidencia'),
     path("experiencias/<int:pk>/feedback/", DetalleFeedbackView.as_view(), name='detalle_feedback'),
     path("experiencias/<int:pk>/zip/", DescargarEvidenciasZipView.as_view(), name='descargar_evidencias_zip'),
+
+    # ── Módulo Liquidación / Billetera Virtual ────────────────────────────────
+    path("liquidacion/saldos/", vistas_liquidacion.LiquidacionSaldosView.as_view(), name='liquidacion_saldos'),
+    path("liquidacion/solicitar-retiro/", vistas_liquidacion.SolicitarRetiroView.as_view(), name='liquidacion_retiro'),
+    path("liquidacion/movimientos/", vistas_liquidacion.MovimientosView.as_view(), name='liquidacion_movimientos'),
+    path("liquidacion/exportar/", vistas_liquidacion.ExportarMovimientosView.as_view(), name='liquidacion_exportar'),
 ]

@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @layer base {
   body {
@@ -19,10 +19,15 @@
     text-shadow: 0 0 10px rgba(0, 245, 212, 0.4);
   }
   .glass-pill {
-    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-full;
+    background-color: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
   }
   .glass-card {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+    background-color: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
   .emerald-glow-active {
     box-shadow: 0 0 20px rgba(0, 245, 212, 0.3), inset 0 0 10px rgba(0, 245, 212, 0.2);

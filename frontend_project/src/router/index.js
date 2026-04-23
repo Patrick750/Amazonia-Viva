@@ -20,6 +20,7 @@ import FeedbackExperiencia from '@/views/feedback-experiencia.vue'
 import MisExperiencias from '@/views/MisExperiencias.vue'
 import MisProductosTurista from '@/views/mis-productos.vue'
 import VentasProveedor from '@/components/perfil/VentasProveedor.vue'
+import Liquidacion from '@/views/liquidacion.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -172,6 +173,12 @@ const router = createRouter({
       name: 'gestion_ventas',
       component: VentasProveedor,
       meta: { requiresAuth: true, roles: ['proveedor'] },
+    },
+    {
+      path: '/panel/liquidacion',
+      name: 'liquidacion',
+      component: Liquidacion,
+      meta: { requiresAuth: true, roles: ['agencia', 'proveedor'] },
     },
   ],
   scrollBehavior(to, from, savedPosition) {
