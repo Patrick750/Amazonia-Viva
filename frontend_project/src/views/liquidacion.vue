@@ -132,10 +132,10 @@ async function confirmarRetiro() {
 }
 
 // ── Exportar ──────────────────────────────────────────────────────────────────
-async function exportarCSV() {
+async function exportarReporte(formato = 'csv') {
   exportando.value = true;
   try {
-    const params = { tipo: filtroTipo.value };
+    const params = { tipo: filtroTipo.value, formato };
     if (filtroDesde.value) params.fecha_desde = filtroDesde.value;
     if (filtroHasta.value) params.fecha_hasta = filtroHasta.value;
 
@@ -144,13 +144,18 @@ async function exportarCSV() {
       responseType: 'blob',
     });
 
-    const url = URL.createObjectURL(
-      new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
-    );
+    const mimes = {
+      csv: 'text/csv;charset=utf-8;',
+      excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      pdf: 'application/pdf',
+    };
+
+    const blobType = formato === 'xls' || formato === 'excel' ? mimes.excel : (formato === 'pdf' ? mimes.pdf : mimes.csv);
+    const url = URL.createObjectURL(new Blob([response.data], { type: blobType }));
     const a = document.createElement('a');
-    const fecha = new Date().toISOString().slice(0, 10);
+    const ext = (formato === 'xls' || formato === 'excel') ? 'xlsx' : (formato === 'pdf' ? 'pdf' : 'csv');
     a.href = url;
-    a.download = `movimientos_amazonia_${fecha}.csv`;
+    a.download = `movimientos_amazonia_${new Date().toISOString().slice(0, 10)}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
   } catch (e) {
@@ -211,7 +216,7 @@ const metodoIconos = {
                 class="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-sm transition-all shadow-xl shadow-emerald-500/25 hover:scale-105 flex-shrink-0"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l-7-7 7-7M5 12h14"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 Solicitar Retiro
               </button>
@@ -379,17 +384,43 @@ const metodoIconos = {
             <input type="date" v-model="filtroHasta" @change="aplicarFiltros"
               class="bg-white/6 border border-white/10 text-white/70 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-400/50 transition-colors" />
 
-            <!-- Exportar CSV -->
-            <button
-              @click="exportarCSV"
-              :disabled="exportando"
-              class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/8 border border-white/12 text-white/70 hover:bg-white/12 hover:text-white text-xs font-bold transition-all disabled:opacity-50"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-              </svg>
-              {{ exportando ? 'Exportando…' : 'Exportar CSV' }}
-            </button>
+            <!-- Exportar Reporte -->
+            <div class="relative group/export">
+              <button
+                :disabled="exportando"
+                class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/8 border border-white/12 text-white/70 hover:bg-white/12 hover:text-white text-xs font-bold transition-all disabled:opacity-50"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                {{ exportando ? 'Exportando…' : 'Exportar como' }}
+              </button>
+              
+              <!-- Dropdown Formatos -->
+              <div class="absolute right-0 top-full mt-2 w-48 bg-[#0d2114] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/export:opacity-100 group-hover/export:visible transition-all z-20 overflow-hidden">
+                <button @click="exportarReporte('csv')" class="w-full text-left px-4 py-3 text-xs hover:bg-white/5 flex items-center gap-3 border-b border-white/5">
+                  <span class="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-[10px] font-black text-white/30">CSV</span>
+                  <div>
+                    <p class="text-white font-bold">CSV</p>
+                    <p class="text-white/35 text-[9px]">Valores separados por coma</p>
+                  </div>
+                </button>
+                <button @click="exportarReporte('excel')" class="w-full text-left px-4 py-3 text-xs hover:bg-white/5 flex items-center gap-3 border-b border-white/5">
+                  <span class="w-8 h-8 rounded bg-emerald-500/10 flex items-center justify-center text-[10px] font-black text-emerald-400">XLS</span>
+                  <div>
+                    <p class="text-white font-bold font-white">Excel</p>
+                    <p class="text-white/35 text-[9px]">Hoja de cálculo profesional</p>
+                  </div>
+                </button>
+                <button @click="exportarReporte('pdf')" class="w-full text-left px-4 py-3 text-xs hover:bg-white/5 flex items-center gap-3">
+                  <span class="w-8 h-8 rounded bg-red-500/10 flex items-center justify-center text-[10px] font-black text-red-400">PDF</span>
+                  <div>
+                    <p class="text-white font-bold">PDF</p>
+                    <p class="text-white/35 text-[9px]">Documento financiero</p>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

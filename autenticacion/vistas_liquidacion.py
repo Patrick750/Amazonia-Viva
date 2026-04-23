@@ -20,6 +20,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+import openpyxl
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
 from .models import Venta, Detalles_Venta, Agencia, Proveedor, Productos, PaqueteTuristico
 
@@ -31,14 +39,12 @@ def _get_user_item_info(user):
     """Devuelve la empresa, rol e IDs de sus productos/paquetes."""
     try:
         agencia = Agencia.objects.get(pk=user.pk)
-        from .models import PaqueteTuristico
         ids = list(PaqueteTuristico.objects.filter(agencia=agencia).values_list('id', flat=True))
         return agencia, "agencia", ids
     except Agencia.DoesNotExist:
         pass
     try:
         proveedor = Proveedor.objects.get(pk=user.pk)
-        from .models import Productos
         ids = list(Productos.objects.filter(proveedor=proveedor).values_list('id', flat=True))
         return proveedor, "proveedor", ids
     except Proveedor.DoesNotExist:
@@ -362,7 +368,12 @@ class ExportarMovimientosView(APIView):
         )
 
         empresa, rol, _ = _get_user_item_info(request.user)
-        nombre_empresa = getattr(empresa, 'nombre_agencia', getattr(empresa, 'nombre_proveedor', 'Empresa'))
+        nombre_empresa = "Empresa"
+        if empresa:
+            if rol == "agencia":
+                nombre_empresa = getattr(empresa, 'nombre_agencia', 'Agencia Sin Nombre')
+            else:
+                nombre_empresa = getattr(empresa, 'nombre_proveedor', 'Proveedor Sin Nombre')
 
         if formato == "xls" or formato == "excel":
             return self._exportar_xls(data, nombre_empresa)
@@ -399,9 +410,6 @@ class ExportarMovimientosView(APIView):
         return response
 
     def _exportar_xls(self, data, nombre_empresa):
-        from openpyxl import Workbook
-        from openpyxl.styles import Font, Alignment, PatternFill
-        
         wb = Workbook()
         ws = wb.active
         ws.title = "Movimientos Financieros"
@@ -441,8 +449,8 @@ class ExportarMovimientosView(APIView):
         ws.cell(row=totals_row, column=8, value=sum(m['monto_neto'] for m in data["movimientos"])).font = Font(bold=True)
 
         # Ajuste de columnas
-        for col in ws.columns:
-            ws.column_dimensions[col[0].column_letter].width = 18
+        for i in range(1, 9):
+            ws.column_dimensions[get_column_letter(i)].width = 18
 
         output = io.BytesIO()
         wb.save(output)
@@ -454,11 +462,6 @@ class ExportarMovimientosView(APIView):
         return response
 
     def _exportar_pdf(self, data, nombre_empresa):
-        from reportlab.lib.pagesizes import letter, landscape
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet
-        from reportlab.lib import colors
-
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
         styles = getSampleStyleSheet()
