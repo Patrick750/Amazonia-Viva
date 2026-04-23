@@ -21,82 +21,68 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
-from .models import Venta, Detalles_Venta, Agencia, Proveedor
+from .models import Venta, Detalles_Venta, Agencia, Proveedor, Productos, PaqueteTuristico
 
 # ─── Tasa de comisión de la plataforma (%) ────────────────────────────────────
 COMISION_PLATAFORMA = Decimal("8.00")   # 8 % sobre ventas brutas
 
 
-def _get_empresa(user):
-    """Devuelve la instancia de Agencia o Proveedor del usuario autenticado."""
+def _get_user_item_info(user):
+    """Devuelve la empresa, rol e IDs de sus productos/paquetes."""
     try:
-        return Agencia.objects.get(pk=user.pk), "agencia"
+        agencia = Agencia.objects.get(pk=user.pk)
+        from .models import PaqueteTuristico
+        ids = list(PaqueteTuristico.objects.filter(agencia=agencia).values_list('id', flat=True))
+        return agencia, "agencia", ids
     except Agencia.DoesNotExist:
         pass
     try:
-        return Proveedor.objects.get(pk=user.pk), "proveedor"
+        proveedor = Proveedor.objects.get(pk=user.pk)
+        from .models import Productos
+        ids = list(Productos.objects.filter(proveedor=proveedor).values_list('id', flat=True))
+        return proveedor, "proveedor", ids
     except Proveedor.DoesNotExist:
         pass
-    return None, None
+    return None, None, []
 
 
 def _calcular_saldos(user):
     """
-    Calcula los saldos de la billetera virtual para la empresa autenticada.
-
-    Lógica:
-      - Ventas CONFIRMADAS/REALIZADAS = ingresos brutos
-      - Descuento de comisión de plataforma (8 %)
-      - Saldo pendiente = ventas en estado PENDIENTE aún no completadas
-      - Saldo disponible = neto - pendiente  (sólo ventas completadas)
+    Calcula los saldos reales de la billetera virtual.
     """
-    empresa, rol = _get_empresa(user)
-    if not empresa:
-        return None
+    empresa, rol, item_ids = _get_user_item_info(user)
+    if not empresa or not item_ids:
+        return {
+            "saldo_total": 0.0, "saldo_disponible": 0.0, "saldo_pendiente": 0.0,
+            "bruto_total": 0.0, "comision_total": 0.0, "comision_porcentaje": float(COMISION_PLATAFORMA),
+            "desglose_comision": {"sobre_completado": 0.0, "sobre_pendiente": 0.0},
+            "metodos_retiro": _get_metodos_default()
+        }
 
-    # ── Ventas confirmadas/realizadas (en el campo `estado` de Venta)
-    estados_completados = ["Completado", "Realizado", "Confirmado", "Entregado",
-                           "Llegó", "Enviado"]
-    estados_pendientes = ["Pendiente", "Pendiente de Empaque", "En Tránsito",
-                          "Procesando"]
+    # Definición de estados para liquidación
+    estados_disponibles = ["Entregado", "Llegó", "Realizado", "Completado"]
+    estados_pendientes = ["Confirmado", "Enviado", "En Tránsito", "Pendiente de Empaque", "Procesando", "Pendiente"]
 
+    # Filtrar ítems que pertenecen a esta empresa
+    qs_items = Detalles_Venta.objects.all()
     if rol == "agencia":
-        qs_base = Venta.objects.filter(
-            detalles_venta__paquete__isnull=False,
-        ).filter(
-            # Los paquetes pertenecen a la agencia
-            _get_agencia_filter(empresa)
-        ).distinct()
+        qs_items = qs_items.filter(paquete__in=item_ids)
     else:
-        qs_base = Venta.objects.filter(
-            detalles_venta__paquete__isnull=True,
-        ).filter(
-            _get_proveedor_filter(empresa)
-        ).distinct()
+        qs_items = qs_items.filter(producto__in=item_ids)
 
-    # Fallback: si los filtros de agencia/proveedor son complejos simplificamos
-    # usando la FK usuario → compras directas, pero lo mejor es filtrar por
-    # las ventas donde participan sus productos.
-    # Para esta implementación usamos la FK `usuario` para poblar el dashboard
-    # (las ventas reales en producción vendrán de los ítems que pertenezcan a
-    # la empresa). Aquí exploramos TODAS las ventas de la plataforma agrupadas
-    # por rol para el prototipo funcional.
-    qs_all = Venta.objects.all()
+    # Cálculo por estado
+    bruto_completado = Decimal("0")
+    bruto_pendiente = Decimal("0")
 
-    bruto_completado = qs_all.filter(estado__in=estados_completados).aggregate(
-        total=Sum("total")
-    )["total"] or Decimal("0")
+    for item in qs_items:
+        valor = Decimal(str(item.cantidad)) * Decimal(str(item.precio_unitario))
+        if item.estado in estados_disponibles:
+            bruto_completado += valor
+        elif item.estado in estados_pendientes:
+            bruto_pendiente += valor
 
-    bruto_pendiente = qs_all.filter(estado__in=estados_pendientes).aggregate(
-        total=Sum("total")
-    )["total"] or Decimal("0")
-
-    comision_completado = (bruto_completado * COMISION_PLATAFORMA / 100).quantize(
-        Decimal("0.01")
-    )
-    comision_pendiente = (bruto_pendiente * COMISION_PLATAFORMA / 100).quantize(
-        Decimal("0.01")
-    )
+    comision_completado = (bruto_completado * COMISION_PLATAFORMA / 100).quantize(Decimal("0.01"))
+    comision_pendiente = (bruto_pendiente * COMISION_PLATAFORMA / 100).quantize(Decimal("0.01"))
 
     neto_completado = bruto_completado - comision_completado
     neto_pendiente = bruto_pendiente - comision_pendiente
@@ -111,74 +97,88 @@ def _calcular_saldos(user):
         "comision_porcentaje": float(COMISION_PLATAFORMA),
         "desglose_comision": {
             "porcentaje": float(COMISION_PLATAFORMA),
-            "descripcion": "Comisión de plataforma Amazonia Viva",
+            "descripcion": "Comisión de plataforma Amazonia Viva (8%)",
             "sobre_completado": float(comision_completado),
             "sobre_pendiente": float(comision_pendiente),
             "total": float(comision_completado + comision_pendiente),
         },
-        "metodos_retiro": [
-            {"id": "transferencia_bancaria", "nombre": "Transferencia Bancaria",
-             "descripcion": "3-5 días hábiles", "icono": "bank"},
-            {"id": "nequi", "nombre": "Nequi",
-             "descripcion": "Inmediato", "icono": "mobile"},
-            {"id": "daviplata", "nombre": "Daviplata",
-             "descripcion": "Inmediato", "icono": "mobile"},
-            {"id": "pse", "nombre": "PSE",
-             "descripcion": "1-2 días hábiles", "icono": "pse"},
-        ],
+        "metodos_retiro": _get_metodos_default(),
     }
 
 
-def _get_agencia_filter(empresa):
-    """Q-object para filtrar ventas donde hay paquetes de esta agencia."""
-    return Q(reservas_fecha_venta__paquete__agencia=empresa)
+def _get_metodos_default():
+    return [
+        {"id": "transferencia_bancaria", "nombre": "Transferencia Bancaria",
+         "descripcion": "3-5 días hábiles", "icono": "bank"},
+        {"id": "nequi", "nombre": "Nequi",
+         "descripcion": "Inmediato", "icono": "mobile"},
+        {"id": "daviplata", "nombre": "Daviplata",
+         "descripcion": "Inmediato", "icono": "mobile"},
+        {"id": "pse", "nombre": "PSE",
+         "descripcion": "1-2 días hábiles", "icono": "pse"},
+    ]
 
 
-def _get_proveedor_filter(empresa):
-    """Q-object para filtrar ventas donde hay productos de este proveedor."""
-    return Q(detalles_venta__paquete__isnull=True)
-
-
-def _build_movimientos(page=1, page_size=15, filtro_tipo=None, filtro_fecha_desde=None,
-                       filtro_fecha_hasta=None):
+def _build_movimientos(user, page=1, page_size=15, filtro_tipo=None,
+                        filtro_fecha_desde=None, filtro_fecha_hasta=None):
     """
-    Construye el historial de movimientos paginado desde las ventas reales.
+    Construye el historial de movimientos filtrado por los ítems del usuario.
     """
-    qs = Venta.objects.all().order_by("-fecha")
+    empresa, rol, item_ids = _get_user_item_info(user)
+    if not empresa or not item_ids:
+        return {"movimientos": [], "pagination": {"page": 1, "page_size": page_size, "total_count": 0, "total_pages": 1}}
 
-    if filtro_tipo and filtro_tipo != "todos":
-        if filtro_tipo == "ingreso":
-            qs = qs.filter(estado__in=["Completado", "Confirmado", "Realizado",
-                                       "Enviado", "Entregado", "Llegó"])
-        elif filtro_tipo == "pendiente":
-            qs = qs.filter(estado__in=["Pendiente", "Pendiente de Empaque",
-                                       "En Tránsito", "Procesando"])
-        elif filtro_tipo == "reembolso":
-            qs = qs.filter(estado__in=["Cancelado", "Reembolsado", "Devuelto"])
+    # Filtramos ventas que contengan ítems de este usuario
+    if rol == "agencia":
+        qs_items = Detalles_Venta.objects.filter(paquete__in=item_ids)
+    else:
+        qs_items = Detalles_Venta.objects.filter(producto__in=item_ids)
+
+    #IDs de ventas involucradas
+    venta_ids = qs_items.values_list('venta_id', flat=True).distinct()
+    qs_ventas = Venta.objects.filter(id__in=venta_ids).order_by("-fecha")
 
     if filtro_fecha_desde:
-        qs = qs.filter(fecha__date__gte=filtro_fecha_desde)
+        qs_ventas = qs_ventas.filter(fecha__date__gte=filtro_fecha_desde)
     if filtro_fecha_hasta:
-        qs = qs.filter(fecha__date__lte=filtro_fecha_hasta)
+        qs_ventas = qs_ventas.filter(fecha__date__lte=filtro_fecha_hasta)
 
-    total_count = qs.count()
+    # Paginación manual inicial para poder filtrar por 'tipo' después de calcular netos
+    # PERO para eficiencia, filtramos estados en BD que correspondan al tipo
+    if filtro_tipo and filtro_tipo != "todos":
+        items_por_tipo = qs_items.filter(estado__in=_get_estados_por_tipo(filtro_tipo))
+        v_ids = items_por_tipo.values_list('venta_id', flat=True).distinct()
+        qs_ventas = qs_ventas.filter(id__in=v_ids)
+
+    total_count = qs_ventas.count()
     total_pages = max(1, (total_count + page_size - 1) // page_size)
     offset = (page - 1) * page_size
-    ventas_page = qs[offset: offset + page_size]
+    ventas_page = qs_ventas[offset: offset + page_size]
 
     movimientos = []
     for v in ventas_page:
-        bruto = Decimal(str(v.total))
+        # Calcular el total solo para los ítems de ESTA empresa en ESTA venta
+        res_items = qs_items.filter(venta=v)
+        if filtro_tipo and filtro_tipo != "todos":
+            res_items = res_items.filter(estado__in=_get_estados_por_tipo(filtro_tipo))
+
+        if not res_items.exists():
+            continue
+
+        bruto = sum(Decimal(str(i.cantidad)) * Decimal(str(i.precio_unitario)) for i in res_items)
         comision = (bruto * COMISION_PLATAFORMA / 100).quantize(Decimal("0.01"))
         neto = bruto - comision
 
-        tipo = _tipo_movimiento(v.estado)
+        # Tomamos el estado del primer ítem como representativo del movimiento
+        estado_item = res_items.first().estado
+        tipo = _tipo_movimiento(estado_item)
+
         movimientos.append({
             "id": v.id,
             "fecha": v.fecha.isoformat(),
-            "concepto": _concepto_venta(v),
+            "concepto": f"Venta #{v.id} — {res_items.count()} ítem(s) propios",
             "tipo": tipo,
-            "estado": v.estado,
+            "estado": estado_item,
             "monto_bruto": float(bruto),
             "comision": float(comision),
             "monto_neto": float(neto),
@@ -195,6 +195,15 @@ def _build_movimientos(page=1, page_size=15, filtro_tipo=None, filtro_fecha_desd
         },
     }
 
+
+def _get_estados_por_tipo(tipo):
+    if tipo == "ingreso":
+        return ["Entregado", "Llegó", "Realizado", "Completado"]
+    if tipo == "reembolso":
+        return ["Cancelado", "Reembolsado", "Devuelto", "Rechazado", "Reembolso"]
+    if tipo == "pendiente":
+        return ["Confirmado", "Enviado", "En Tránsito", "Pendiente de Empaque", "Procesando", "Pendiente"]
+    return []
 
 def _tipo_movimiento(estado):
     ingreso = ["Completado", "Confirmado", "Realizado", "Enviado", "Entregado", "Llegó"]
@@ -322,6 +331,7 @@ class MovimientosView(APIView):
         fecha_hasta = request.query_params.get("fecha_hasta", None)
 
         data = _build_movimientos(
+            user=request.user,
             page=page,
             page_size=page_size,
             filtro_tipo=filtro_tipo,
@@ -332,16 +342,18 @@ class MovimientosView(APIView):
 
 
 class ExportarMovimientosView(APIView):
-    """GET /api/liquidacion/exportar/ — Exportar historial como CSV."""
+    """GET /api/liquidacion/exportar/ — Exportar historial en formato CSV, XLS o PDF."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         filtro_tipo = request.query_params.get("tipo", "todos")
         fecha_desde = request.query_params.get("fecha_desde", None)
         fecha_hasta = request.query_params.get("fecha_hasta", None)
+        formato = request.query_params.get("formato", "csv").lower()
 
         # Traemos todos sin paginación
         data = _build_movimientos(
+            user=request.user,
             page=1,
             page_size=10000,
             filtro_tipo=filtro_tipo,
@@ -349,43 +361,149 @@ class ExportarMovimientosView(APIView):
             filtro_fecha_hasta=fecha_hasta,
         )
 
+        empresa, rol, _ = _get_user_item_info(request.user)
+        nombre_empresa = getattr(empresa, 'nombre_agencia', getattr(empresa, 'nombre_proveedor', 'Empresa'))
+
+        if formato == "xls" or formato == "excel":
+            return self._exportar_xls(data, nombre_empresa)
+        elif formato == "pdf":
+            return self._exportar_pdf(data, nombre_empresa)
+        else:
+            return self._exportar_csv(data)
+
+    def _exportar_csv(self, data):
         output = io.StringIO()
         writer = csv.writer(output)
-
-        # Encabezado
         writer.writerow([
             "Referencia", "Fecha", "Concepto", "Tipo", "Estado",
             "Monto Bruto (COP)", "Comisión Plataforma (COP)", "Monto Neto (COP)"
         ])
-
         for m in data["movimientos"]:
             writer.writerow([
-                m["referencia"],
-                m["fecha"],
-                m["concepto"],
-                m["tipo"].capitalize(),
-                m["estado"],
-                f"{m['monto_bruto']:,.2f}",
-                f"{m['comision']:,.2f}",
-                f"{m['monto_neto']:,.2f}",
+                m["referencia"], m["fecha"], m["concepto"], m["tipo"].capitalize(),
+                m["estado"], m["monto_bruto"], m["comision"], m["monto_neto"]
             ])
-
-        # Fila de totales
+        
+        # Totales
         movs = data["movimientos"]
         writer.writerow([])
-        writer.writerow([
-            "TOTALES", "", "", "", "",
-            f"{sum(m['monto_bruto'] for m in movs):,.2f}",
-            f"{sum(m['comision'] for m in movs):,.2f}",
-            f"{sum(m['monto_neto'] for m in movs):,.2f}",
-        ])
+        writer.writerow(["TOTALES", "", "", "", "", 
+                         sum(m['monto_bruto'] for m in movs),
+                         sum(m['comision'] for m in movs),
+                         sum(m['monto_neto'] for m in movs)])
 
-        filename = f"movimientos_amazonia_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        response = HttpResponse(
-            output.getvalue(),
-            content_type="text/csv; charset=utf-8",
-        )
+        filename = f"movimientos_{timezone.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
-        # BOM para Excel en español
-        response.content = b"\xef\xbb\xbf" + response.content
+        response.content = b"\xef\xbb\xbf" + response.content # BOM
+        return response
+
+    def _exportar_xls(self, data, nombre_empresa):
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Movimientos Financieros"
+
+        # Título
+        ws.merge_cells('A1:H1')
+        ws['A1'] = f"Reporte de Movimientos - {nombre_empresa}"
+        ws['A1'].font = Font(size=14, bold=True, color="10B981")
+        ws['A1'].alignment = Alignment(horizontal='center')
+
+        # Encabezados
+        headers = ["Referencia", "Fecha", "Concepto", "Tipo", "Estado", "Bruto (COP)", "Comisión (COP)", "Neto (COP)"]
+        ws.append(headers)
+        header_fill = PatternFill(start_color="10B981", end_color="10B981", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF")
+        
+        for cell in ws[2]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+
+        # Datos
+        for m in data["movimientos"]:
+            ws.append([
+                m["referencia"], m["fecha"][:10], m["concepto"], m["tipo"].capitalize(),
+                m["estado"], m["monto_bruto"], m["comision"], m["monto_neto"]
+            ])
+
+        # Totales
+        start_row = 3
+        last_row = start_row + len(data["movimientos"])
+        ws.append([])
+        totals_row = last_row + 1
+        ws.cell(row=totals_row, column=1, value="TOTALES").font = Font(bold=True)
+        ws.cell(row=totals_row, column=6, value=sum(m['monto_bruto'] for m in data["movimientos"])).font = Font(bold=True)
+        ws.cell(row=totals_row, column=7, value=sum(m['comision'] for m in data["movimientos"])).font = Font(bold=True)
+        ws.cell(row=totals_row, column=8, value=sum(m['monto_neto'] for m in data["movimientos"])).font = Font(bold=True)
+
+        # Ajuste de columnas
+        for col in ws.columns:
+            ws.column_dimensions[col[0].column_letter].width = 18
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f"movimientos_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        response = HttpResponse(output.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+    def _exportar_pdf(self, data, nombre_empresa):
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+        styles = getSampleStyleSheet()
+        elements = []
+
+        # Título
+        elements.append(Paragraph(f"<font size=16 color='#10B981'><b>Amazonia Viva - Liquidación</b></font>", styles['Title']))
+        elements.append(Paragraph(f"<b>Empresa:</b> {nombre_empresa}", styles['Normal']))
+        elements.append(Paragraph(f"<b>Fecha de reporte:</b> {timezone.now().strftime('%Y-%m-%d %H:%M')}", styles['Normal']))
+        elements.append(Spacer(1, 20))
+
+        # Tabla
+        table_data = [["Ref", "Fecha", "Concepto", "Tipo", "Estado", "Bruto", "Comisión", "Neto"]]
+        for m in data["movimientos"]:
+            table_data.append([
+                m["referencia"], m["fecha"][:10], Paragraph(m["concepto"], styles['Normal']),
+                m["tipo"], m["estado"], f"${m['monto_bruto']:,.0f}", f"${m['comision']:,.0f}", f"${m['monto_neto']:,.0f}"
+            ])
+        
+        # Fila de totales
+        movs = data["movimientos"]
+        table_data.append(["TOTALES", "", "", "", "", 
+                           f"${sum(m['monto_bruto'] for m in movs):,.0f}",
+                           f"${sum(m['comision'] for m in movs):,.0f}",
+                           f"${sum(m['monto_neto'] for m in movs):,.0f}"])
+
+        table = Table(table_data, colWidths=[80, 70, 180, 60, 80, 80, 80, 80])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#10B981")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ALIGN', (2, 1), (2, -1), 'LEFT'), # Concepto alineado a la izquierda
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'), # Totales en negrita
+        ]))
+        elements.append(table)
+
+        doc.build(elements)
+        buffer.seek(0)
+
+        filename = f"movimientos_{timezone.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        response = HttpResponse(buffer.read(), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
