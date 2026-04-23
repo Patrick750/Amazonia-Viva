@@ -365,30 +365,32 @@ const metodoIconos = {
             <p class="text-xs text-white/35 mt-0.5">{{ paginacion.total_count }} transacciones encontradas</p>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             <!-- Filtro tipo -->
-            <div class="flex items-center gap-1 bg-white/6 rounded-xl p-1">
+            <div class="flex items-center gap-1 bg-white/6 rounded-xl p-1 overflow-x-auto no-scrollbar max-w-full">
               <button
                 v-for="t in ['todos','ingreso','pendiente','reembolso']" :key="t"
                 @click="filtroTipo = t; aplicarFiltros()"
                 :class="[
-                  'px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all',
+                  'px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all whitespace-nowrap',
                   filtroTipo === t ? 'bg-emerald-500 text-black' : 'text-white/40 hover:text-white/70'
                 ]"
               >{{ { todos: 'Todos', ingreso: 'Ingresos', pendiente: 'Pendientes', reembolso: 'Reembolsos' }[t] }}</button>
             </div>
 
             <!-- Filtro fecha desde/hasta -->
-            <input type="date" v-model="filtroDesde" @change="aplicarFiltros"
-              class="bg-white/6 border border-white/10 text-white/70 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-400/50 transition-colors" />
-            <input type="date" v-model="filtroHasta" @change="aplicarFiltros"
-              class="bg-white/6 border border-white/10 text-white/70 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-400/50 transition-colors" />
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <input type="date" v-model="filtroDesde" @change="aplicarFiltros"
+                class="flex-1 sm:flex-initial bg-white/6 border border-white/10 text-white/70 text-[10px] sm:text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-400/50 transition-colors" />
+              <input type="date" v-model="filtroHasta" @change="aplicarFiltros"
+                class="flex-1 sm:flex-initial bg-white/6 border border-white/10 text-white/70 text-[10px] sm:text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-400/50 transition-colors" />
+            </div>
 
             <!-- Exportar Reporte -->
-            <div class="relative group/export">
+            <div class="relative group/export w-full sm:w-auto">
               <button
                 :disabled="exportando"
-                class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/8 border border-white/12 text-white/70 hover:bg-white/12 hover:text-white text-xs font-bold transition-all disabled:opacity-50"
+                class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white/8 border border-white/12 text-white/70 hover:bg-white/12 hover:text-white text-xs font-bold transition-all disabled:opacity-50"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -431,66 +433,97 @@ const metodoIconos = {
           </div>
         </div>
 
-        <!-- Tabla -->
-        <div v-else-if="movimientos.length > 0" class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-[10px] uppercase tracking-widest text-white/30 font-bold border-b border-white/6">
-                <th class="text-left px-6 py-3">Referencia</th>
-                <th class="text-left px-4 py-3">Fecha</th>
-                <th class="text-left px-4 py-3">Concepto</th>
-                <th class="text-center px-4 py-3">Tipo</th>
-                <th class="text-center px-4 py-3">Estado</th>
-                <th class="text-right px-4 py-3">Bruto</th>
-                <th class="text-right px-4 py-3">Comisión</th>
-                <th class="text-right px-6 py-3">Neto</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-white/5">
-              <tr
-                v-for="m in movimientos"
-                :key="m.id"
-                class="hover:bg-white/3 transition-colors duration-150 group"
-              >
-                <!-- Ref -->
-                <td class="px-6 py-3.5 font-mono text-xs text-white/50 group-hover:text-white/70 transition-colors">
-                  {{ m.referencia }}
-                </td>
-                <!-- Fecha -->
-                <td class="px-4 py-3.5 text-xs text-white/45 whitespace-nowrap">
-                  {{ formatFecha(m.fecha) }}
-                </td>
-                <!-- Concepto -->
-                <td class="px-4 py-3.5 text-xs text-white/70 max-w-[200px] truncate">{{ m.concepto }}</td>
-                <!-- Tipo -->
-                <td class="px-4 py-3.5 text-center">
-                  <span :class="['inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border', tipoClases[m.tipo] || 'text-white/40 bg-white/5 border-white/10']">
-                    <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" :d="tipoIcono[m.tipo] || 'M12 5v14'"/>
-                    </svg>
-                    {{ tipoLabel[m.tipo] || m.tipo }}
-                  </span>
-                </td>
-                <!-- Estado -->
-                <td class="px-4 py-3.5 text-center">
-                  <span class="text-[10px] font-semibold text-white/50 bg-white/5 border border-white/8 px-2.5 py-1 rounded-full">{{ m.estado }}</span>
-                </td>
-                <!-- Bruto -->
-                <td class="px-4 py-3.5 text-right font-mono text-xs text-white/60 tabular-nums">
-                  {{ COP(m.monto_bruto) }}
-                </td>
-                <!-- Comisión -->
-                <td class="px-4 py-3.5 text-right font-mono text-xs text-red-400/70 tabular-nums">
-                  -{{ COP(m.comision) }}
-                </td>
-                <!-- Neto -->
-                <td class="px-6 py-3.5 text-right font-mono font-black tabular-nums"
-                  :class="m.tipo === 'ingreso' ? 'text-emerald-400' : m.tipo === 'reembolso' ? 'text-red-400' : 'text-amber-400'">
-                  {{ COP(m.monto_neto) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Tabla / Vista Móvil -->
+        <div v-else-if="movimientos.length > 0">
+          
+          <!-- Vista Móvil: Cards (Visible solo en sm:hidden) -->
+          <div class="sm:hidden divide-y divide-white/5">
+            <div 
+              v-for="m in movimientos" :key="m.id"
+              class="p-4 space-y-3 active:bg-white/5 transition-colors"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-mono text-white/30 uppercase">{{ m.referencia }}</span>
+                <span :class="['text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-widest', tipoClases[m.tipo]]">
+                  {{ tipoLabel[m.tipo] }}
+                </span>
+              </div>
+              
+              <div class="flex items-start gap-3">
+                <div :class="['w-10 h-10 rounded-xl flex items-center justify-center border shrink-0', tipoClases[m.tipo]]">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" :d="tipoIcono[m.tipo]"/>
+                  </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-bold text-white truncate">{{ m.concepto }}</p>
+                  <p class="text-[10px] text-white/40 mt-0.5">{{ formatFecha(m.fecha) }}</p>
+                </div>
+                <div class="text-right">
+                  <p :class="['text-sm font-black tabular-nums', m.tipo === 'ingreso' ? 'text-emerald-400' : m.tipo === 'reembolso' ? 'text-red-400' : 'text-amber-400']">
+                    {{ COP(m.monto_neto) }}
+                  </p>
+                  <p class="text-[10px] text-white/20 line-through tabular-nums" v-if="m.monto_bruto !== m.monto_neto">
+                    {{ COP(m.monto_bruto) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vista Desktop: Tabla (Oculta en móviles) -->
+          <div class="hidden sm:block overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-[10px] uppercase tracking-widest text-white/30 font-bold border-b border-white/6">
+                  <th class="text-left px-6 py-3">Referencia</th>
+                  <th class="text-left px-4 py-3">Fecha</th>
+                  <th class="text-left px-4 py-3">Concepto</th>
+                  <th class="text-center px-4 py-3">Tipo</th>
+                  <th class="text-center px-4 py-3">Estado</th>
+                  <th class="text-right px-4 py-3">Bruto</th>
+                  <th class="text-right px-4 py-3">Comisión</th>
+                  <th class="text-right px-6 py-3">Neto</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                <tr
+                  v-for="m in movimientos"
+                  :key="m.id"
+                  class="hover:bg-white/3 transition-colors duration-150 group"
+                >
+                  <td class="px-6 py-3.5 font-mono text-xs text-white/50 group-hover:text-white/70 transition-colors">
+                    {{ m.referencia }}
+                  </td>
+                  <td class="px-4 py-3.5 text-xs text-white/45 whitespace-nowrap">
+                    {{ formatFecha(m.fecha) }}
+                  </td>
+                  <td class="px-4 py-3.5 text-xs text-white/70 max-w-[200px] truncate">{{ m.concepto }}</td>
+                  <td class="px-4 py-3.5 text-center">
+                    <span :class="['inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border', tipoClases[m.tipo] || 'text-white/40 bg-white/5 border-white/10']">
+                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" :d="tipoIcono[m.tipo] || 'M12 5v14'"/>
+                      </svg>
+                      {{ tipoLabel[m.tipo] || m.tipo }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3.5 text-center">
+                    <span class="text-[10px] font-semibold text-white/50 bg-white/5 border border-white/8 px-2.5 py-1 rounded-full">{{ m.estado }}</span>
+                  </td>
+                  <td class="px-4 py-3.5 text-right font-mono text-xs text-white/60 tabular-nums">
+                    {{ COP(m.monto_bruto) }}
+                  </td>
+                  <td class="px-4 py-3.5 text-right font-mono text-xs text-red-400/70 tabular-nums">
+                    -{{ COP(m.comision) }}
+                  </td>
+                  <td class="px-6 py-3.5 text-right font-mono font-black tabular-nums"
+                    :class="m.tipo === 'ingreso' ? 'text-emerald-400' : m.tipo === 'reembolso' ? 'text-red-400' : 'text-amber-400'">
+                    {{ COP(m.monto_neto) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Empty state -->
@@ -504,8 +537,8 @@ const metodoIconos = {
         </div>
 
         <!-- Paginación -->
-        <div v-if="paginacion.total_pages > 1" class="px-6 py-4 border-t border-white/6 flex items-center justify-between">
-          <p class="text-xs text-white/30">
+        <div v-if="paginacion.total_pages > 1" class="px-6 py-4 border-t border-white/6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p class="text-xs text-white/30 text-center sm:text-left">
             Página {{ paginacion.page }} de {{ paginacion.total_pages }}
             · {{ paginacion.total_count }} registros
           </p>
