@@ -119,49 +119,49 @@ const getNombreActividad = (id) => {
     <div v-if="abrir" class="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6 animate-fade-in" @click.self="emit('cerrar')">
       
       <!-- Backdrop -->
-      <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+      <div class="absolute inset-0 bg-[#06120b]/90 backdrop-blur-md"></div>
 
       <!-- Modal Card -->
-      <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up border-2 border-slate-100">
+      <div class="relative bg-[#0d2114] rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up border border-white/10">
         
         <!-- Header / Portada -->
-        <div class="relative w-full h-48 sm:h-64 bg-slate-100 flex-shrink-0 overflow-hidden">
+        <div class="relative w-full h-56 sm:h-80 bg-black/40 flex-shrink-0 overflow-hidden">
 
-            <!-- CARRUSEL INFINITO: más de 1 imagen -->
+            <!-- CARRUSEL INFINITO -->
             <template v-if="images.length > 1">
-                <!-- Track con clones: [últimoClón, ...originales, primerClón] -->
                 <div class="slider-track" :style="trackStyle" @transitionend="onTransitionEnd">
                     <div v-for="(img, i) in trackImages" :key="i" class="slider-slide">
-                        <img :src="img.url" :alt="img.nombre || 'Imagen del Tour'" class="w-full h-full object-cover" />
+                        <img :src="img.url" :alt="img.nombre || 'Imagen del Tour'" class="w-full h-full object-cover transition-transform duration-[2000ms] group-hover:scale-110" />
                     </div>
                 </div>
 
-                <!-- Flecha izquierda -->
-                <button @click.stop="prevSlide"
-                    class="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:scale-110 shadow-lg">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
-                </button>
-
-                <!-- Flecha derecha -->
-                <button @click.stop="nextSlide"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-black/40 hover:bg-black/65 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:scale-110 shadow-lg">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-                </button>
-
-                <!-- Dots indicadores -->
-                <div class="absolute bottom-14 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-                    <button v-for="(img, i) in images" :key="'dot-'+i"
-                        @click.stop="goToSlide(i)"
-                        :class="['w-2 h-2 rounded-full transition-all duration-300', i === currentSlide ? 'bg-white scale-125 shadow-md' : 'bg-white/45 hover:bg-white/70']"
-                    />
+                <!-- Flechas -->
+                <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none z-20">
+                    <button @click.stop="prevSlide"
+                        class="pointer-events-auto w-12 h-12 rounded-2xl bg-black/40 hover:bg-emerald-500 hover:text-black backdrop-blur-xl flex items-center justify-center text-white transition-all hover:scale-110 shadow-2xl border border-white/5">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button @click.stop="nextSlide"
+                        class="pointer-events-auto w-12 h-12 rounded-2xl bg-black/40 hover:bg-emerald-500 hover:text-black backdrop-blur-xl flex items-center justify-center text-white transition-all hover:scale-110 shadow-2xl border border-white/5">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
                 </div>
 
-                <!-- Contador -->
-                <div class="absolute top-4 left-4 z-10 px-2.5 py-1 bg-black/40 backdrop-blur-sm rounded-full text-white text-xs font-semibold">
-                    {{ currentSlide + 1 }} / {{ images.length }}
+                <!-- Dots e Indicador -->
+                <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 z-20">
+                    <div class="flex gap-2 p-2 rounded-full bg-black/40 backdrop-blur-xl border border-white/5">
+                        <button v-for="(img, i) in images" :key="'dot-'+i"
+                            @click.stop="goToSlide(i)"
+                            :class="['w-2 h-2 rounded-full transition-all duration-500', i === currentSlide ? 'bg-emerald-400 w-6' : 'bg-white/20 hover:bg-white/40']"
+                        />
+                    </div>
+                </div>
+
+                <!-- Contador Premium -->
+                <div class="absolute top-6 left-6 z-20 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-xl border border-white/10 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl">
+                    {{ currentSlide + 1 }} <span class="text-white/30 px-1">/</span> {{ images.length }}
                 </div>
             </template>
-
 
             <!-- IMAGEN ÚNICA -->
             <template v-else-if="paquete?.imagen_paquete && paquete.imagen_paquete.length === 1">
@@ -169,53 +169,69 @@ const getNombreActividad = (id) => {
             </template>
 
             <!-- SIN IMAGEN -->
-            <div v-else class="w-full h-full flex items-center justify-center bg-emerald-50">
-                <svg class="w-16 h-16 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <div v-else class="w-full h-full flex flex-col items-center justify-center bg-[#0a1a0f]">
+                <div class="w-20 h-20 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center mb-4">
+                  <svg class="w-10 h-10 text-emerald-500/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <span class="text-[10px] font-black text-emerald-500/20 uppercase tracking-[0.3em]">Sin Registro Visual</span>
             </div>
 
-            <!-- Gradiente para texto overlay -->
-            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent pointer-events-none"></div>
+            <!-- Gradientes Overlay -->
+            <div class="absolute inset-0 bg-gradient-to-t from-[#0d2114] via-transparent to-black/40 pointer-events-none"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-[#0d2114]/60 via-transparent to-transparent pointer-events-none"></div>
 
             <!-- Boton de cerrar -->
-            <button @click="emit('cerrar')" class="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all hover:rotate-90 z-10">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <button @click="emit('cerrar')" class="absolute top-6 right-6 w-12 h-12 bg-white/10 hover:bg-rose-500 text-white backdrop-blur-xl rounded-2xl flex items-center justify-center transition-all hover:rotate-90 z-30 border border-white/10 shadow-2xl">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
             <!-- Titulo Overlay -->
-            <div class="absolute bottom-0 left-0 w-full p-6 sm:px-8 pointer-events-none z-10">
-                <div class="flex items-center gap-2 mb-2">
-                    <span :class="['px-3 py-1 text-xs font-bold rounded-full border backdrop-blur-sm', paquete?.activo ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30']">
-                        {{ paquete?.activo ? 'Activo' : 'Inactivo' }}
+            <div class="absolute bottom-0 left-0 w-full p-8 sm:px-10 pointer-events-none z-20">
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    <span :class="['px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl border-2 shadow-2xl backdrop-blur-xl', 
+                      paquete?.activo ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20']">
+                        <div class="flex items-center gap-2">
+                          <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="paquete?.activo ? 'bg-emerald-400' : 'bg-rose-400'"></span>
+                          {{ paquete?.activo ? 'Servicio Operativo' : 'Servicio Suspendido' }}
+                        </div>
                     </span>
-                    <span class="px-3 py-1 text-xs font-bold rounded-full bg-slate-800/50 text-slate-300 border border-slate-600/50 backdrop-blur-sm">
-                        {{ paquete?.duracion }} h
+                    <span class="px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl bg-white/5 text-white/60 border border-white/10 backdrop-blur-xl">
+                        {{ paquete?.duracion }} HS DURACIÓN
                     </span>
                 </div>
-                <h2 class="text-3xl sm:text-4xl font-bold text-white drop-shadow-md leading-tight">{{ paquete?.nombre }}</h2>
+                <h2 class="text-4xl sm:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+                  {{ paquete?.nombre }}
+                </h2>
             </div>
         </div>
 
         <!-- Body Scrollable -->
-        <div class="flex-1 overflow-y-auto detail-scroll p-6 sm:p-8 bg-slate-50/50">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="flex-1 overflow-y-auto detail-scroll p-8 sm:p-10 bg-[#0d2114]">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
                 
                 <!-- Columna Principal -->
-                <div class="md:col-span-2 space-y-8">
+                <div class="md:col-span-2 space-y-12">
                     
                     <!-- Descripcion -->
-                    <section>
-                        <h3 class="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
-                            Acerca del Tour
-                        </h3>
-                        <p class="text-slate-600 leading-relaxed text-sm sm:text-base">{{ paquete?.descripcion || 'Sin descripción detallada.' }}</p>
+                    <section class="relative">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/5">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                            </div>
+                            <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Crónica y Experiencia</h3>
+                            <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
+                        </div>
+                        <p class="text-white/60 leading-relaxed font-medium text-sm sm:text-base selection:bg-emerald-500 selection:text-black">
+                          {{ paquete?.descripcion || 'Esta travesía espera ser documentada pronto.' }}
+                        </p>
                     </section>
 
-                    <!-- Galeria Miniaturas (thumbnails del slider) -->
-                    <section v-if="images.length > 1">
-                        <div class="flex gap-3 overflow-x-auto pb-2 form-scroll">
+                    <!-- Galeria Miniaturas -->
+                    <section v-if="images.length > 1" class="pt-4">
+                        <div class="flex gap-4 overflow-x-auto pb-4 form-scroll">
                             <button v-for="(img, i) in images" :key="img.id" @click="goToSlide(i)"
-                                :class="['relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all', i === currentSlide ? 'border-emerald-500 scale-105' : 'border-transparent hover:border-emerald-300']">
+                                :class="['relative w-24 h-24 rounded-[1.5rem] overflow-hidden flex-shrink-0 border-2 transition-all duration-500', 
+                                i === currentSlide ? 'border-emerald-500 scale-105 shadow-[0_0_20px_rgba(16,185,129,0.3)]' : 'border-white/5 hover:border-white/10 grayscale hover:grayscale-0']">
                                 <img :src="img.url" class="w-full h-full object-cover" />
                             </button>
                         </div>
@@ -223,36 +239,46 @@ const getNombreActividad = (id) => {
 
                     <!-- Beneficios (Incluido) -->
                     <section v-if="paquete?.incluido && paquete.incluido.length > 0 && paquete.incluido[0].item !== ''">
-                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            ¿Qué incluye?
-                        </h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div v-for="(inc, index) in paquete.incluido" :key="'inc-'+index" class="flex items-start gap-3 bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm">
-                                <div class="w-6 h-6 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        <div class="flex items-center gap-4 mb-8">
+                            <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                            <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Servicios de Altura</h3>
+                            <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div v-for="(inc, index) in paquete.incluido" :key="'inc-'+index" class="flex items-center gap-4 bg-white/5 p-5 rounded-3xl border border-white/5 hover:border-white/10 transition-all group">
+                                <div class="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                                 </div>
-                                <span class="text-slate-700 text-sm font-medium leading-tight">{{ inc.item }}</span>
+                                <span class="text-white/80 text-sm font-black tracking-tight">{{ inc.item }}</span>
                             </div>
                         </div>
                     </section>
 
                     <!-- Itinerario -->
                     <section v-if="paquete?.itinerario && paquete.itinerario.length > 0 && (paquete.itinerario[0].activity !== '' || paquete.itinerario[0].time !== '')">
-                        <h3 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Itinerario
-                        </h3>
-                        <div class="space-y-6 pl-4 border-l-2 border-emerald-100 relative">
+                        <div class="flex items-center gap-4 mb-10">
+                            <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Hoja de Ruta</h3>
+                            <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
+                        </div>
+                        <div class="space-y-10 pl-5 border-l-4 border-white/5 relative">
                             <div v-for="(it, index) in paquete.itinerario" :key="'it-'+index" class="relative">
-                                <!-- Bullet point -->
-                                <div class="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm ring-2 ring-emerald-50"></div>
+                                <div class="absolute -left-[30px] top-1 w-6 h-6 rounded-xl bg-[#0d2114] border-4 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] z-10 flex items-center justify-center overflow-hidden">
+                                    <div class="w-1 h-1 rounded-full bg-white animate-ping"></div>
+                                </div>
                                 
-                                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm ml-4 hover:shadow-md transition-shadow">
-                                    <span v-if="it.time" class="inline-block px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-lg mb-2">
-                                        {{ it.time }}
-                                    </span>
-                                    <p class="text-slate-700 font-medium text-sm">{{ it.activity }}</p>
+                                <div class="bg-white/5 p-6 rounded-3xl border border-white/5 ml-6 hover:bg-white/10 hover:border-emerald-500/30 transition-all group scale-100 hover:scale-[1.02]">
+                                    <div class="flex items-center justify-between mb-3">
+                                      <span v-if="it.time" class="inline-flex px-3 py-1 bg-emerald-500 text-black font-black text-[10px] rounded-lg shadow-xl uppercase tracking-widest font-mono">
+                                          {{ it.time }}
+                                      </span>
+                                      <span class="text-[9px] font-black text-white/10 uppercase tracking-[0.3em]">Hito {{ index + 1 }}</span>
+                                    </div>
+                                    <p class="text-white/80 font-bold text-sm group-hover:text-white transition-colors">{{ it.activity }}</p>
                                 </div>
                             </div>
                         </div>
@@ -260,60 +286,63 @@ const getNombreActividad = (id) => {
                 </div>
 
                 <!-- Barra Lateral (Info Rapida) -->
-                <div class="space-y-4">
+                <div class="space-y-6">
                     <!-- Tarjeta Info Principal -->
-                    <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
-                        <div class="text-3xl font-black text-emerald-600 mb-1">{{ formatPrice(paquete?.precio) }}</div>
-                        <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-6">Precio por persona</p>
+                    <div class="bg-emerald-500/5 rounded-[2.5rem] border border-emerald-500/10 p-8 text-center relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-emerald-500/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        
+                        <div class="relative z-10">
+                          <div class="text-[10px] text-emerald-500/60 font-black uppercase tracking-[0.3em] mb-4">Valor de Expedición</div>
+                          <div class="text-5xl font-black text-white mb-2 tabular-nums">{{ formatPrice(paquete?.precio) }}</div>
+                          <p class="text-[9px] text-white/30 font-black uppercase tracking-widest mb-10 pb-10 border-b border-white/5">Inversión por explorador</p>
 
-                        <div class="space-y-4">
-                            <div class="flex items-start gap-3">
-                                <div class="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                                </div>
-                                <div>
-                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Capacidad Máxima</p>
-                                    <p class="text-sm font-semibold text-slate-800">{{ paquete?.capacidad }} personas</p>
-                                </div>
-                            </div>
+                          <div class="space-y-6 text-left">
+                              <div class="flex items-center gap-4">
+                                  <div class="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                                      <svg class="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                  </div>
+                                  <div>
+                                      <p class="text-[9px] font-black text-white/20 uppercase tracking-widest leading-none mb-1">Capacidad Máxima</p>
+                                      <p class="text-sm font-black text-white">{{ paquete?.capacidad }} Exploradores</p>
+                                  </div>
+                              </div>
 
-                            <div class="flex items-start gap-3">
-                                <div class="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-                                </div>
-                                <div class="flex flex-col">
-                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Reservas Totales</p>
-                                    <p class="text-sm font-black text-emerald-700">{{ paquete?.reservas_totales || 0 }} unidades</p>
-                                </div>
-                            </div>
+                              <div class="flex items-center gap-4">
+                                  <div class="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                                      <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                                  </div>
+                                  <div>
+                                      <p class="text-[9px] font-black text-emerald-500/40 uppercase tracking-widest leading-none mb-1">Impacto en Mercado</p>
+                                      <p class="text-sm font-black text-emerald-400">{{ paquete?.reservas_totales || 0 }} Adquisiciones</p>
+                                  </div>
+                              </div>
 
-                            <div class="flex items-start gap-3">
-                                <div class="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                </div>
-                                <div>
-                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Punto de encuentro</p>
-                                    <p class="text-sm font-semibold text-slate-800 leading-tight">{{ paquete?.ubicacion }}</p>
-                                </div>
-                            </div>
-                            
-                            <div v-if="paquete?.latitud && paquete?.longitud" class="flex items-start gap-3 mt-1">
-                                <div class="w-8 h-8 flex-shrink-0 pt-0.5"></div>
-                                <div class="text-[10px] text-slate-400 font-mono bg-slate-100 px-2 py-1 rounded inline-block">
-                                    Lat: {{ Number(paquete.latitud).toFixed(4) }}, Lng: {{ Number(paquete.longitud).toFixed(4) }}
-                                </div>
-                            </div>
+                              <div class="flex items-center gap-4">
+                                  <div class="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                                      <svg class="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                  </div>
+                                  <div class="flex-1">
+                                      <p class="text-[9px] font-black text-white/20 uppercase tracking-widest leading-none mb-1">Punto de Encuentro</p>
+                                      <p class="text-xs font-black text-white leading-tight italic truncate w-40">{{ paquete?.ubicacion }}</p>
+                                      <div class="mt-2 text-[8px] font-mono text-emerald-500/40 bg-emerald-500/5 px-2 py-1 rounded-lg inline-block border border-emerald-500/10">
+                                          GPS: {{ Number(paquete?.latitud).toFixed(5) }}, {{ Number(paquete?.longitud).toFixed(5) }}
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
                         </div>
                     </div>
 
                     <!-- Actividades Badge -->
-                    <div v-if="paquete?.actividades && paquete.actividades.length > 0" class="bg-emerald-600 p-5 rounded-3xl shadow-lg shadow-emerald-200 text-white">
-                        <h4 class="font-bold mb-3 flex items-center gap-2">
-                            <svg class="w-5 h-5 opacity-80" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-                            Tipos de Aventura
+                    <div v-if="paquete?.actividades && paquete.actividades.length > 0" class="bg-emerald-600 rounded-[2.5rem] p-8 shadow-[0_20px_50px_rgba(5,150,105,0.2)] text-black relative overflow-hidden group">
+                        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-black/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+                        
+                        <h4 class="font-black text-xs uppercase tracking-[0.2em] mb-6 flex items-center gap-3 relative z-10">
+                            <svg class="w-5 h-5 transform group-hover:rotate-12 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                            Categorías de Aventura
                         </h4>
-                        <div class="flex flex-wrap gap-2">
-                            <span v-for="act_id in paquete.actividades" :key="'act-'+act_id" class="text-xs font-bold bg-white/20 px-3 py-1.5 rounded-xl backdrop-blur-sm">
+                        <div class="flex flex-wrap gap-2 relative z-10">
+                            <span v-for="act_id in paquete.actividades" :key="'act-'+act_id" class="text-[10px] font-black bg-black/10 px-4 py-2 rounded-xl backdrop-blur-xl border border-black/5 uppercase tracking-widest hover:bg-black/20 transition-all cursor-default">
                                 {{ getNombreActividad(act_id) }}
                             </span>
                         </div>
@@ -329,15 +358,16 @@ const getNombreActividad = (id) => {
 </template>
 
 <style scoped>
-.animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
-.animate-slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes fadeIn { from { opacity: 0; backdrop-filter: blur(0px); } to { opacity: 1; backdrop-filter: blur(8px); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(40px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-.detail-scroll::-webkit-scrollbar { width: 6px; }
+.detail-scroll::-webkit-scrollbar { width: 5px; }
 .detail-scroll::-webkit-scrollbar-track { background: transparent; }
-.detail-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+.detail-scroll::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.05); border-radius: 20px; }
+.detail-scroll::-webkit-scrollbar-thumb:hover { background-color: rgba(16, 185, 129, 0.2); }
 
 /* Slider */
 .slider-track {

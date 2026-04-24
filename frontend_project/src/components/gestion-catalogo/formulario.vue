@@ -383,31 +383,32 @@ const Enviar = async () => {
       @click.self="emit('cerrar')">
 
       <!-- Backdrop -->
-      <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"></div>
+      <div class="absolute inset-0 bg-black/85 backdrop-blur-md"></div>
 
       <!-- Modal Card -->
-      <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-fade-in-up">
+      <div class="relative bg-[#0d2114] border border-white/10 rounded-[2.5rem] shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-fade-in-up">
 
         <!-- === HEADER GRADIENTE === -->
-        <div class="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 px-8 py-6 flex-shrink-0">
-          <div class="flex items-start justify-between gap-4">
+        <div class="bg-gradient-to-br from-emerald-600 to-emerald-900 px-8 py-7 flex-shrink-0 relative overflow-hidden">
+          <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/leaf.png')] opacity-10"></div>
+          <div class="relative z-10 flex items-start justify-between gap-4">
             <div>
-              <div class="flex items-center gap-2 mb-2">
-                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-widest uppercase text-emerald-200">
-                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="inline-flex items-center gap-1.5 text-[10px] font-black tracking-[0.2em] uppercase text-emerald-200/70">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
                   {{ paquete ? 'Editando Tour' : 'Nuevo Tour' }}
                 </span>
               </div>
-              <h2 class="text-2xl font-bold text-white leading-tight">
-                {{ paquete ? paquete.nombre : 'Crear Experiencia' }}
+              <h2 class="text-3xl font-black text-white leading-tight">
+                {{ paquete ? paquete.nombre : 'Configurar Experiencia' }}
               </h2>
-              <p class="text-emerald-100 text-sm mt-1">
-                {{ paquete ? 'Actualiza los datos de este tour' : 'Diseña una experiencia única para tus viajeros' }}
+              <p class="text-emerald-100/60 text-sm mt-1.5 font-medium italic">
+                {{ paquete ? 'Actualiza los datos de esta experiencia premium' : 'Diseña una aventura única para tus viajeros' }}
               </p>
             </div>
             <button @click="emit('cerrar')"
-              class="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition-all hover:rotate-90 duration-200">
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              class="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-all hover:rotate-90 duration-300 border border-white/5">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
@@ -416,247 +417,262 @@ const Enviar = async () => {
 
         <!-- === LOADING OVERLAY === -->
         <div v-if="isLoading"
-          class="absolute inset-0 bg-white/85 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-3xl">
-          <div class="w-16 h-16 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
-          <p class="text-emerald-800 font-bold text-lg">{{ paquete ? 'Actualizando...' : 'Creando tour...' }}</p>
-          <p class="text-slate-400 text-sm mt-1">Esto tomará solo un momento</p>
+          class="absolute inset-0 bg-[#0d2114]/90 backdrop-blur-md z-20 flex flex-col items-center justify-center rounded-[2.5rem]">
+          <div class="w-16 h-16 border-4 border-emerald-500/10 border-t-emerald-500 rounded-full animate-spin mb-6"></div>
+          <p class="text-white font-black text-xl tracking-tight">{{ paquete ? 'Actualizando...' : 'Guardando tour...' }}</p>
+          <p class="text-emerald-500/50 text-sm mt-2 font-medium">Esto tomará solo un momento</p>
         </div>
 
         <!-- === CUERPO DEL FORMULARIO === -->
-        <div class="overflow-y-auto flex-1 form-scroll">
-          <form @submit.prevent="Enviar" class="p-8 space-y-10">
+        <div class="overflow-y-auto flex-1 form-scroll bg-[#0a1a0f]">
+          <form @submit.prevent="Enviar" class="p-8 sm:p-10 space-y-12">
 
             <!-- ─── SECCIÓN 1: INFO BÁSICA ─── -->
             <section>
-              <div class="flex items-center gap-3 mb-6">
-                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white text-sm font-bold flex items-center justify-center shadow-md shadow-emerald-200 flex-shrink-0">1</div>
-                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Información Básica</h3>
-                <div class="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
+              <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">1</div>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Información Básica</h3>
+                <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>
 
               <!-- Estado Activo -->
-              <div class="mb-5 flex items-center justify-between bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-4">
+              <div class="mb-8 flex items-center justify-between bg-white/5 border border-white/10 rounded-[1.5rem] px-6 py-5">
                 <div>
-                  <h4 class="text-sm font-bold text-slate-700">Estado del Tour</h4>
-                  <p class="text-xs text-slate-500 mt-0.5">Define si el tour est&aacute; visible y activo para los clientes.</p>
+                  <h4 class="text-sm font-black text-white tracking-tight">Estado del Tour</h4>
+                  <p class="text-xs text-white/30 mt-1 font-medium italic">Define si el tour está visible y activo para los clientes.</p>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" v-model="newTour.activo" class="sr-only peer">
-                  <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                  <span class="ml-3 text-sm font-bold flex-shrink-0 w-16" :class="newTour.activo ? 'text-emerald-600' : 'text-slate-400'">
+                  <div class="w-12 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-6 peer-checked:after:border-emerald-500 after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white/20 after:rounded-full after:h-[16px] after:w-[16px] after:transition-all peer-checked:bg-emerald-600/40 border border-white/5"></div>
+                  <span class="ml-4 text-[10px] font-black uppercase tracking-[0.1em] w-16" :class="newTour.activo ? 'text-emerald-400' : 'text-white/20'">
                     {{ newTour.activo ? 'Activo' : 'Inactivo' }}
                   </span>
                 </label>
               </div>
 
               <!-- Nombre -->
-              <div class="mb-5">
-                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nombre del Tour <span class="text-emerald-500">*</span></label>
+              <div class="mb-6">
+                <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2 px-1">Nombre del Tour <span class="text-emerald-500">*</span></label>
                 <input v-model="newTour.nombre" type="text" placeholder="Ej: Aventura en el Corazón del Amazonas"
-                  :class="['w-full bg-slate-50 border-2 rounded-2xl px-5 py-3 text-slate-800 font-medium focus:outline-none focus:bg-white transition-all placeholder:text-slate-300 placeholder:font-normal',
-                  errores.nombre ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-emerald-500']">
-                <p v-if="errores.nombre" class="text-xs text-red-500 mt-1.5 ml-1 flex items-center gap-1">
+                  :class="['w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:outline-none focus:bg-white/10 transition-all placeholder:text-white/10 focus:border-emerald-500/50',
+                  errores.nombre ? 'border-rose-500/50' : '']">
+                <p v-if="errores.nombre" class="text-[10px] text-rose-400 mt-2 font-bold italic flex items-center gap-1 px-1">
                   <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
                   {{ errores.nombre }}
                 </p>
               </div>
 
               <!-- Categoría -->
-              <div class="mb-5">
-                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Categoría del Tour <span class="text-emerald-500">*</span></label>
+              <div class="mb-6 relative">
+                <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2 px-1">Categoría del Tour <span class="text-emerald-500">*</span></label>
                 <select v-model="newTour.categoria_paquete"
-                  :class="['w-full bg-slate-50 border-2 rounded-2xl px-5 py-3 text-slate-800 font-medium focus:outline-none focus:bg-white transition-all appearance-none cursor-pointer',
-                  errores.categoria_paquete ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-emerald-500']">
-                  <option value="" disabled selected>Selecciona una categoría...</option>
-                  <optgroup v-for="grupo in [...new Set(categorias.map(c => c.grupo))]" :key="grupo" :label="grupo">
-                    <option v-for="cat in categorias.filter(c => c.grupo === grupo)" :key="cat.id" :value="cat.id">
+                  :class="['w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:outline-none focus:bg-white/10 transition-all appearance-none cursor-pointer focus:border-emerald-500/50',
+                  errores.categoria_paquete ? 'border-rose-500/50' : '']">
+                  <option value="" disabled selected class="bg-[#0d2114]">Selecciona una categoría...</option>
+                  <optgroup v-for="grupo in [...new Set(categorias.map(c => c.grupo))]" :key="grupo" :label="grupo" class="bg-[#0d2114]">
+                    <option v-for="cat in categorias.filter(c => c.grupo === grupo)" :key="cat.id" :value="cat.id" class="bg-[#0d2114]">
                       {{ cat.nombre }}
                     </option>
                   </optgroup>
                 </select>
-                <p v-if="errores.categoria_paquete" class="text-xs text-red-500 mt-1 ml-1">{{ errores.categoria_paquete }}</p>
+                <div class="pointer-events-none absolute bottom-4.5 right-6 flex items-center text-emerald-500/50">
+                  <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <p v-if="errores.categoria_paquete" class="text-[10px] text-rose-400 mt-2 font-bold px-1">{{ errores.categoria_paquete }}</p>
               </div>
 
               <!-- Descripción -->
-              <div class="mb-5">
-                <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Descripción <span class="text-emerald-500">*</span></label>
-                <textarea v-model="newTour.descripcion" rows="3"
+              <div class="mb-8">
+                <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2 px-1">Descripción <span class="text-emerald-500">*</span></label>
+                <textarea v-model="newTour.descripcion" rows="4"
                   placeholder="Describe qué hace única esta experiencia..."
-                  :class="['w-full bg-slate-50 border-2 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:bg-white transition-all resize-none placeholder:text-slate-300',
-                  errores.descripcion ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-emerald-500']"></textarea>
-                <p v-if="errores.descripcion" class="text-xs text-red-500 mt-1 ml-1">{{ errores.descripcion }}</p>
+                  :class="['w-full bg-white/5 border border-white/10 rounded-[1.5rem] px-6 py-4 text-white font-medium focus:outline-none focus:bg-white/10 transition-all resize-none placeholder:text-white/10 focus:border-emerald-500/50',
+                  errores.descripcion ? 'border-rose-500/50' : '']"></textarea>
+                <p v-if="errores.descripcion" class="text-[10px] text-rose-400 mt-2 font-bold px-1">{{ errores.descripcion }}</p>
               </div>
 
               <!-- Grid: Precio + Duración + Capacidad -->
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Precio (COP) <span class="text-emerald-500">*</span></label>
+                  <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2 px-1">Precio (COP) <span class="text-emerald-500">*</span></label>
                   <div class="relative">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                    <span class="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 font-black text-lg">$</span>
                     <input v-model="newTour.precio" type="number" placeholder="0"
-                      :class="['w-full bg-slate-50 border-2 rounded-2xl pl-9 pr-4 py-3 text-slate-800 font-semibold focus:outline-none focus:bg-white transition-all placeholder:text-slate-300 placeholder:font-normal',
-                      errores.precio ? 'border-red-400' : 'border-slate-200 focus:border-emerald-500']">
+                      :class="['w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-6 py-4 text-white font-black tabular-nums focus:outline-none focus:bg-white/10 transition-all placeholder:text-white/10 focus:border-emerald-500/50 text-xl',
+                      errores.precio ? 'border-rose-500/50' : '']">
                   </div>
-                  <p v-if="errores.precio" class="text-xs text-red-500 mt-1 ml-1">{{ errores.precio }}</p>
+                  <p v-if="errores.precio" class="text-[10px] text-rose-400 mt-2 font-bold px-1">{{ errores.precio }}</p>
                 </div>
                 <div>
-                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Duración <span class="text-emerald-500">*</span></label>
+                  <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2 px-1">Duración <span class="text-emerald-500">*</span></label>
                   <input v-model="newTour.duracion" type="text" placeholder="Ej: 8 horas"
-                    :class="['w-full bg-slate-50 border-2 rounded-2xl px-4 py-3 text-slate-800 font-medium focus:outline-none focus:bg-white transition-all placeholder:text-slate-300',
-                    errores.duracion ? 'border-red-400' : 'border-slate-200 focus:border-emerald-500']">
-                  <p v-if="errores.duracion" class="text-xs text-red-500 mt-1 ml-1">{{ errores.duracion }}</p>
+                    :class="['w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-bold focus:outline-none focus:bg-white/10 transition-all placeholder:text-white/10 focus:border-emerald-500/50 text-center',
+                    errores.duracion ? 'border-rose-500/50' : '']">
+                  <p v-if="errores.duracion" class="text-[10px] text-rose-400 mt-2 font-bold px-1">{{ errores.duracion }}</p>
                 </div>
                 <div>
-                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Capacidad Máx. <span class="text-emerald-500">*</span></label>
+                  <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2 px-1">Capacidad Máx. <span class="text-emerald-500">*</span></label>
                   <input v-model="newTour.capacidad" type="number" placeholder="20"
-                    :class="['w-full bg-slate-50 border-2 rounded-2xl px-4 py-3 text-slate-800 font-semibold focus:outline-none focus:bg-white transition-all placeholder:text-slate-300',
-                    errores.capacidad ? 'border-red-400' : 'border-slate-200 focus:border-emerald-500']">
-                  <p v-if="errores.capacidad" class="text-xs text-red-500 mt-1 ml-1">{{ errores.capacidad }}</p>
+                    :class="['w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-black focus:outline-none focus:bg-white/10 transition-all placeholder:text-white/10 focus:border-emerald-500/50 text-center text-xl',
+                    errores.capacidad ? 'border-rose-500/50' : '']">
+                  <p v-if="errores.capacidad" class="text-[10px] text-rose-400 mt-2 font-bold px-1">{{ errores.capacidad }}</p>
                 </div>
               </div>
 
               <!-- ─── FECHA DE REALIZACIÓN ─── -->
-              <div class="mt-5 p-5 rounded-2xl border-2 transition-all"
-                :class="tipoPaqueteAuto === 'fijo' ? 'border-blue-300 bg-blue-50/60' : 'border-slate-200 bg-slate-50'">
-                <div class="flex items-center justify-between mb-3">
+              <div class="mt-8 p-6 rounded-[2rem] border-2 transition-all"
+                :class="tipoPaqueteAuto === 'fijo' ? 'border-emerald-500/30 bg-emerald-500/5 shadow-2xl shadow-emerald-500/10' : 'border-white/5 bg-white/3'">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                   <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de Realización</label>
-                    <p class="text-xs text-slate-400 mt-0.5">Si estableces una fecha, el paquete será <strong>Fijo</strong>. Si está vacía, será <strong>Flexible</strong>.</p>
+                    <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Personalización Temporal</label>
+                    <p class="text-[10px] text-white/20 mt-1 font-bold italic">Si estableces una fecha, el tour será <strong class="text-emerald-500/50">Fijo</strong> (una sola salida). Si no, será <strong class="text-emerald-500/50">Flexible</strong>.</p>
                   </div>
                   <!-- Badge dinámico -->
-                  <span :class="['inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all',
+                  <span :class="['inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl',
                     tipoPaqueteAuto === 'fijo'
-                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                      : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                      ? 'bg-emerald-500 text-black'
+                      : 'bg-white/10 text-white/40 border border-white/5'
                   ]">
-                    <svg v-if="tipoPaqueteAuto === 'fijo'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    {{ tipoPaqueteAuto === 'fijo' ? '📅 Fijo' : '✨ Flexible' }}
+                    <svg v-if="tipoPaqueteAuto === 'fijo'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {{ tipoPaqueteAuto === 'fijo' ? 'Tour Fijo' : 'Tour Flexible' }}
                   </span>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-4">
                   <input v-model="newTour.fecha_realizacion" type="date"
-                    class="flex-1 bg-white border-2 border-slate-200 rounded-2xl px-4 py-3 text-slate-800 font-medium focus:outline-none focus:border-blue-400 transition-all"
+                    class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-black focus:outline-none focus:border-emerald-500/50 transition-all uppercase tracking-widest text-sm"
                   >
                   <button v-if="newTour.fecha_realizacion" @click.prevent="newTour.fecha_realizacion = ''"
-                    class="px-4 py-3 rounded-2xl bg-red-50 text-red-500 border-2 border-red-100 hover:bg-red-100 hover:border-red-200 transition-all text-xs font-bold flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    Quitar fecha
+                    class="h-[56px] px-6 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-rose-900/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Reset
                   </button>
                 </div>
               </div>
             </section>
 
-            <!-- ─── SECCIÓN 2: UBICACIÓN ─── -->
+            <!-- ─── SECCIÓN 2: UBICACIÓN Y MAPA ─── -->
             <section>
-              <div class="flex items-center gap-3 mb-6">
-                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white text-sm font-bold flex items-center justify-center shadow-md shadow-emerald-200 flex-shrink-0">2</div>
-                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Ubicación</h3>
-                <div class="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
+              <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">2</div>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Ubicación Geográfica</h3>
+                <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>
-              <div class="relative flex gap-2 mb-3">
-                <div class="relative flex-1">
-                    <input v-model="searchQuery" type="text" placeholder="Busca un lugar y presiona Buscar..."
-                      @keydown.enter.prevent="buscarUbicacionManual"
-                      class="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-5 py-3 text-slate-800 focus:outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-300">
-                      
-                    <div v-if="isSearching" class="absolute right-4 top-1/2 -translate-y-1/2">
-                        <svg class="animate-spin h-5 w-5 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    </div>
 
-                    <ul v-if="suggestions.length > 0" class="absolute z-[100] w-full mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden max-h-60 overflow-y-auto">
-                        <li v-for="place in suggestions" :key="place.place_id" 
-                            @click="selectSuggestion(place)"
-                            class="px-5 py-3 hover:bg-emerald-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors flex items-center gap-3">
-                            <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                            <span class="text-sm text-slate-700 truncate">{{ place.display_name }}</span>
-                        </li>
-                    </ul>
+              <!-- Input Búsqueda Ubicación -->
+              <div class="mb-6 relative group">
+                <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2 px-1">Punto de Encuentro <span class="text-emerald-500">*</span></label>
+                <div class="relative">
+                  <div class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-500/50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  </div>
+                  <input v-model="searchQuery" @input="searchLocation"
+                    type="text" placeholder="Busca una ciudad, parque o coordenadas..."
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white font-bold focus:outline-none focus:bg-white/10 focus:border-emerald-500/50 transition-all placeholder:text-white/10">
                 </div>
-                <button @click.prevent="buscarUbicacionManual" type="button" class="px-5 py-3 bg-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-300 transition-colors flex-shrink-0">
-                  Buscar
-                </button>
+
+                <!-- Lista de Sugerencias -->
+                <div v-if="suggestions.length > 0"
+                  class="absolute z-30 left-0 right-0 mt-3 bg-[#0d2114] border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl animate-fade-in">
+                  <ul class="divide-y divide-white/5">
+                    <li v-for="s in suggestions" :key="s.place_id"
+                        @click="selectLocation(s)"
+                        class="px-6 py-4 hover:bg-emerald-50/10 cursor-pointer transition-all group flex items-start gap-3">
+                      <svg class="w-4 h-4 text-emerald-500 mt-0.5 group-hover:scale-125 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                      <div>
+                        <p class="text-sm font-black text-white group-hover:text-emerald-400 transition-colors">{{ s.display_name.split(',')[0] }}</p>
+                        <p class="text-[10px] text-white/30 font-bold italic truncate max-w-[400px]">{{ s.display_name.split(',').slice(1).join(',') }}</p>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
               </div>
-              
-              <div class="flex items-center justify-between mb-2">
-                <p class="text-xs text-slate-500 italic">Haz clic en el mapa central o arrastra el marcador para seleccionar un punto.</p>
-                <button @click.prevent="toggleMapSize" type="button" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline decoration-2 underline-offset-4 flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path v-if="!isMapExpanded" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                        <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h6m0 0v6m0-6l-7 7m17-11h-6m0 0V4m0 6l-7-7M4 10h6m0 0V4m0 6l-7-7m17 11h-6m0 0v6m0-6l7 7" />
-                    </svg>
-                    {{ isMapExpanded ? 'Reducir mapa' : 'Ampliar mapa' }}
-                </button>
-              </div>
-              
-              <div :class="['w-full bg-slate-100 rounded-2xl overflow-hidden border-2 z-0 relative transition-all duration-300 ease-in-out flex flex-col', isMapExpanded ? 'h-[50vh]' : 'h-52', errores.ubicacion ? 'border-red-400' : 'border-slate-200']">
-                <div ref="mapContainer" class="absolute inset-0 w-full h-full" style="touch-action: none;"></div>
-              </div>
-              <p v-if="errores.ubicacion" class="text-xs text-red-500 mt-2 font-bold">{{ errores.ubicacion }}</p>
-              
-              <div v-if="newTour.latitud && newTour.longitud" class="mt-2.5 flex items-center gap-2 text-xs text-emerald-600 font-bold">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                Coordenadas: {{ Number(newTour.latitud).toFixed(5) }}, {{ Number(newTour.longitud).toFixed(5) }}
+
+              <!-- MAPA -->
+              <div class="space-y-4">
+                <div class="relative bg-black/20 rounded-[2rem] border border-white/10 overflow-hidden shadow-inner group">
+                  <div id="map" ref="mapContainer" class="w-full h-80 z-10 brightness-90 contrast-110"></div>
+                  <!-- Overlay informativo -->
+                  <div class="absolute bottom-6 left-6 right-6 z-20 pointer-events-none">
+                    <div class="inline-flex items-center gap-3 bg-black/60 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 text-white shadow-2xl">
+                      <div class="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                      </div>
+                      <div>
+                        <p class="text-[9px] font-black text-emerald-500 uppercase tracking-widest leading-none mb-1">Coordenadas del Pin</p>
+                        <p class="text-xs font-black font-mono tracking-tight">{{ newTour.latitud || '0.0000' }} , {{ newTour.longitud || '0.0000' }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <p v-if="errores.ubicacion" class="text-[10px] text-rose-400 font-bold px-1 flex items-center gap-1">
+                   <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                   {{ errores.ubicacion }}
+                </p>
               </div>
             </section>
 
-            <!-- ─── SECCIÓN 3: ACTIVIDADES ─── -->
+            <!-- ─── SECCIÓN 3: ATRIBUTOS EXTRA ─── -->
             <section>
-              <div class="flex items-center gap-3 mb-6">
-                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white text-sm font-bold flex items-center justify-center shadow-md shadow-emerald-200 flex-shrink-0">3</div>
-                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Actividades <span class="text-emerald-500">*</span></h3>
-                <div class="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
-                <span v-if="newTour.actividades.length > 0"
-                  class="flex-shrink-0 text-xs bg-emerald-100 text-emerald-700 font-bold px-3 py-1 rounded-full">
-                  {{ newTour.actividades.length }} seleccionadas
-                </span>
+              <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">3</div>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Atributos Adicionales</h3>
+                <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>
-              <div :class="['grid grid-cols-1 md:grid-cols-2 gap-2 max-h-56 overflow-y-auto form-scroll rounded-2xl border-2 p-3',
-                errores.actividades ? 'border-red-400 focus-within:border-red-500 bg-red-50' : 'border-slate-200 focus-within:border-emerald-500 bg-slate-50']">
-                <label v-for="actividad in actividades" :key="actividad.id"
-                  :class="['flex items-start gap-3 p-3 rounded-xl cursor-pointer border-2 transition-all select-none',
-                  newTour.actividades.includes(actividad.id)
-                    ? 'border-emerald-400 bg-white shadow-sm shadow-emerald-100'
-                    : 'border-transparent bg-white hover:border-emerald-200 hover:shadow-sm']">
-                  <input type="checkbox" :value="actividad.id" v-model="newTour.actividades" class="hidden">
-                  <div :class="['w-5 h-5 flex-shrink-0 rounded-md border-2 flex items-center justify-center mt-0.5 transition-all',
-                    newTour.actividades.includes(actividad.id) ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300']">
-                    <svg v-if="newTour.actividades.includes(actividad.id)" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                    </svg>
+
+              <div class="bg-white/5 border border-white/10 rounded-[2rem] p-8 space-y-8">
+                <!-- Checkboxes Actividades -->
+                <div>
+                  <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-6 px-1">Tipos de Actividad <span class="text-emerald-500">*</span></label>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <label v-for="actividad in actividades" :key="actividad.id"
+                      class="relative flex items-center gap-3 p-4 rounded-2xl border transition-all cursor-pointer group overflow-hidden"
+                      :class="newTour.actividades.includes(actividad.id)
+                        ? 'bg-emerald-500/10 border-emerald-500/30'
+                        : 'bg-white/3 border-white/5 hover:border-white/10 hover:bg-white/5'">
+
+                      <input type="checkbox" :value="actividad.id" v-model="newTour.actividades" class="sr-only">
+                      <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 z-10"
+                        :class="newTour.actividades.includes(actividad.id) ? 'bg-emerald-50 border-emerald-500' : 'border-white/10 bg-black/20'">
+                        <svg v-if="newTour.actividades.includes(actividad.id)" class="w-4 h-4 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      </div>
+                      <span class="text-xs font-black tracking-tight z-10 transition-colors"
+                        :class="newTour.actividades.includes(actividad.id) ? 'text-white' : 'text-white/40 group-hover:text-white/60'">
+                        {{ actividad.nombre }}
+                      </span>
+                    </label>
                   </div>
-                  <div>
-                    <p class="text-sm font-semibold text-slate-700 leading-tight">{{ actividad.nombre }}</p>
-                    <p class="text-xs text-slate-400 mt-0.5">Riesgo Nivel {{ actividad.nivel_riesgo }}</p>
-                  </div>
-                </label>
+                  <p v-if="errores.actividades" class="text-[10px] text-rose-400 mt-4 font-bold px-1">{{ errores.actividades }}</p>
+                </div>
               </div>
-              <p v-if="errores.actividades" class="text-xs text-red-500 mt-1.5 ml-1">{{ errores.actividades }}</p>
             </section>
 
             <!-- ─── SECCIÓN 4: ITINERARIO ─── -->
             <section>
-              <div class="flex items-center gap-3 mb-6">
-                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white text-sm font-bold flex items-center justify-center shadow-md shadow-emerald-200 flex-shrink-0">4</div>
-                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Itinerario</h3>
-                <div class="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
+              <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">4</div>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Crónica del Viaje</h3>
+                <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
                 <button @click.prevent="addItineraryItem" type="button"
-                  class="flex-shrink-0 flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-full transition-colors">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                  class="flex-shrink-0 flex items-center gap-2 text-[10px] text-emerald-400 font-black bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-xl transition-all border border-emerald-500/10 uppercase tracking-widest shadow-xl">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                   Agregar
                 </button>
               </div>
-              <div class="space-y-2.5">
+              
+              <div class="space-y-4">
                 <div v-for="(item, index) in newTour.itinerario" :key="'iti-'+index"
-                  class="flex gap-3 items-center group">
-                  <span class="text-xs text-slate-300 font-mono w-5 text-center flex-shrink-0">{{ index + 1 }}</span>
-                  <input v-model="item.time" type="time"
-                    class="bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-emerald-500 transition-all w-32 flex-shrink-0">
+                  class="flex gap-4 items-center group bg-white/3 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+                  <span class="text-[10px] text-white/20 font-black w-6 text-center flex-shrink-0 italic">{{ (index + 1).toString().padStart(2, '0') }}</span>
+                  <div class="w-28 flex-shrink-0 relative">
+                    <input v-model="item.time" type="time"
+                      class="w-full bg-black/20 border border-white/5 rounded-xl px-3 py-2.5 text-xs text-white font-bold focus:outline-none focus:border-emerald-500/50 transition-all appearance-none cursor-pointer">
+                  </div>
                   <input v-model="item.activity" type="text" :placeholder="`Actividad ${index + 1}...`"
-                    class="flex-1 bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-300">
+                    class="flex-1 bg-black/20 border border-white/5 rounded-xl px-5 py-2.5 text-xs text-white font-medium focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-white/10">
                   <button v-if="newTour.itinerario.length > 1" @click.prevent="removeItineraryItem(index)" type="button"
-                    class="w-8 h-8 flex items-center justify-center rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    class="w-8 h-8 flex items-center justify-center rounded-xl text-white/10 hover:text-rose-400 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
                 </div>
               </div>
@@ -664,151 +680,116 @@ const Enviar = async () => {
 
             <!-- ─── SECCIÓN 5: QUÉ INCLUYE ─── -->
             <section>
-              <div class="flex items-center gap-3 mb-6">
-                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white text-sm font-bold flex items-center justify-center shadow-md shadow-emerald-200 flex-shrink-0">5</div>
-                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">¿Qué Incluye?</h3>
-                <div class="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
-                <button @click.prevent="addIncludedItem" type="button"
-                  class="flex-shrink-0 flex items-center gap-1.5 text-xs text-emerald-700 font-bold bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-full transition-colors">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">5</div>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Beneficios Incluidos</h3>
+                <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
+                <button @click.prevent="addInclusion" type="button"
+                  class="flex-shrink-0 flex items-center gap-2 text-[10px] text-emerald-400 font-black bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-xl transition-all border border-emerald-500/10 uppercase tracking-widest shadow-xl">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                   Agregar
                 </button>
               </div>
-              <div class="space-y-2.5">
-                <div v-for="(item, index) in newTour.incluido" :key="'inc-'+index"
-                  class="flex gap-3 items-center group">
-                  <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                  </svg>
-                  <input v-model="item.item" type="text" :placeholder="`Beneficio ${index + 1}... ej: Transporte incluido`"
-                    class="flex-1 bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-300">
-                  <button v-if="newTour.incluido.length > 1" @click.prevent="removeIncludedItem(index)" type="button"
-                    class="w-8 h-8 flex items-center justify-center rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div v-for="(inc, index) in newTour.incluido" :key="'inc-'+index"
+                  class="flex gap-3 items-center group bg-white/3 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+                  <div class="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/10">
+                    <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  </div>
+                  <input v-model="inc.item" type="text" :placeholder="`Item ${index + 1}...`"
+                    class="flex-1 bg-transparent border-none p-0 text-xs text-white font-medium focus:ring-0 placeholder:text-white/10">
+                  <button v-if="newTour.incluido.length > 1" @click.prevent="removeInclusion(index)" type="button"
+                    class="w-7 h-7 flex items-center justify-center rounded-lg text-white/10 hover:text-rose-400 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
                 </div>
               </div>
             </section>
 
-            <!-- ─── SECCIÓN 6: GALERÍA DE IMÁGENES ─── -->
+            <!-- ─── SECCIÓN 6: GALERÍA ─── -->
             <section>
-              <div class="flex items-center gap-3 mb-6">
-                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white text-sm font-bold flex items-center justify-center shadow-md shadow-emerald-200 flex-shrink-0">6</div>
-                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Galería de Imágenes</h3>
-                <div class="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
-                <span class="flex-shrink-0 text-xs text-slate-400 font-medium">{{ totalImageCount }} imagen{{ totalImageCount !== 1 ? 'es' : '' }}</span>
+              <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">6</div>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Galería Visual</h3>
+                <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>
 
-              <!-- Imágenes existentes (modo edición) -->
-              <div v-if="imagenesExistentes.length > 0" class="mb-5">
-                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full bg-slate-300"></span>
-                  Imágenes guardadas
-                </p>
-                <div class="grid grid-cols-4 sm:grid-cols-5 gap-3">
-                  <div v-for="(img, index) in imagenesExistentes" :key="'existing-'+img.id"
-                    class="relative group rounded-2xl overflow-hidden aspect-square bg-slate-100 ring-2 ring-slate-200 shadow-sm">
-                    <img :src="img.url" :alt="'Imagen guardada ' + (index+1)" class="w-full h-full object-cover">
-                    <!-- Overlay hover -->
-                    <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                      <button @click.prevent="removeExistingImage(img.id, index)" type="button"
-                        class="w-11 h-11 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all transform hover:scale-110">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
+              <div class="bg-white/5 border border-white/10 rounded-[2rem] p-8">
+                <!-- Imágenes existentes (modo edición) -->
+                <div v-if="imagenesExistentes.length > 0" class="mb-10">
+                  <p class="text-[10px] font-black text-white/20 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500/50"></span>
+                    Colección Actual
+                  </p>
+                  <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
+                    <div v-for="(img, index) in imagenesExistentes" :key="'existing-'+img.id"
+                      class="relative group rounded-2xl overflow-hidden aspect-square bg-white/5 border border-white/10">
+                      <img :src="img.url" class="w-full h-full object-cover">
+                      <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                        <button @click.prevent="removeExistingImage(img.id, index)" type="button"
+                          class="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 transition-all shadow-xl">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </div>
+                      <div v-if="img.es_portada" class="absolute top-2 left-2 bg-emerald-500 text-black text-[8px] font-black px-2 py-0.5 rounded shadow-xl uppercase tracking-tighter">Principal</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Aviso de imágenes a eliminar -->
+                <div v-if="imagenesAEliminar.length > 0" class="mb-10 p-5 bg-rose-500/5 border border-rose-500/20 rounded-2xl animate-pulse">
+                  <p class="text-[10px] text-rose-400 font-black uppercase tracking-widest flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Pendiente de eliminación: {{ imagenesAEliminar.length }} elemento(s)
+                  </p>
+                </div>
+
+                <!-- Drop Zone -->
+                <div @dragover.prevent="isDragging = true" @dragleave.prevent="isDragging = false" @drop.prevent="handleDrop"
+                  @click="$refs.fileInput.click()"
+                  class="flex flex-col items-center justify-center border-2 border-dashed border-white/10 rounded-3xl p-10 hover:bg-white/5 hover:border-emerald-500/30 transition-all group cursor-pointer relative overflow-hidden">
+                  <input ref="fileInput" type="file" multiple accept="image/*" class="hidden" @change="handleSelect">
+                  <div class="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-500 shadow-2xl">
+                    <svg class="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  </div>
+                  <p class="text-xs font-black text-white/60 uppercase tracking-widest">Añadir Nuevas Imágenes</p>
+                  <p class="text-[9px] text-white/20 mt-2 font-bold italic">Arrastra o haz clic para subir fotos</p>
+                </div>
+
+                <!-- Preview Nuevas -->
+                <div v-if="newTour.imagen.length > 0" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-5 mt-10">
+                  <div v-for="(img, idx) in newTour.imagen" :key="'new-'+idx"
+                    class="relative aspect-square rounded-2xl overflow-hidden border border-emerald-500/30 group shadow-2xl shadow-emerald-500/10">
+                    <img :src="img.url" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                      <button @click.prevent="removeImage(idx)" type="button"
+                        class="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center hover:bg-rose-600 transition-all shadow-xl">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                       </button>
                     </div>
-                    <!-- Badge portada -->
-                    <div v-if="img.es_portada"
-                      class="absolute top-1.5 left-1.5 bg-amber-400 text-amber-900 text-[9px] font-bold px-2 py-0.5 rounded-full shadow">
-                      PORTADA
-                    </div>
+                    <div class="absolute top-2 left-2 bg-emerald-500 text-black text-[8px] font-black px-2 py-0.5 rounded shadow-xl uppercase tracking-tighter">Nuevo</div>
                   </div>
                 </div>
-              </div>
-
-              <!-- Aviso de imágenes a eliminar -->
-              <div v-if="imagenesAEliminar.length > 0"
-                class="mb-5 flex items-center gap-3 p-3.5 bg-red-50 border border-red-200 rounded-2xl">
-                <div class="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                </div>
-                <p class="text-sm text-red-700 font-semibold">
-                  {{ imagenesAEliminar.length }} imagen{{ imagenesAEliminar.length !== 1 ? 'es' : '' }} se eliminará{{ imagenesAEliminar.length !== 1 ? 'n' : '' }} al guardar.
-                </p>
-              </div>
-
-              <!-- Nuevas imágenes -->
-              <div v-if="newTour.imagen.length > 0" class="mb-5">
-                <p class="text-[11px] font-bold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  Nuevas imágenes a subir
-                </p>
-                <div class="grid grid-cols-4 sm:grid-cols-5 gap-3">
-                  <div v-for="(img, index) in newTour.imagen" :key="'new-'+index"
-                    class="relative group rounded-2xl overflow-hidden aspect-square bg-slate-100 ring-2 ring-emerald-400 shadow-sm">
-                    <img :src="img.url" :alt="img.name" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                      <button @click.prevent="removeImage(index)" type="button"
-                        class="w-11 h-11 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all transform hover:scale-110">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                      </button>
-                    </div>
-                    <div class="absolute top-1.5 left-1.5 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">
-                      NUEVA
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Drop Zone -->
-              <div @dragover.prevent="isDragging = true" @dragleave.prevent="isDragging = false" @drop.prevent="handleDrop"
-                @click="$refs.fileInput.click()"
-                :class="['rounded-2xl border-2 border-dashed p-8 transition-all duration-200 cursor-pointer',
-                isDragging ? 'border-emerald-500 bg-emerald-50 scale-[1.01] shadow-lg shadow-emerald-100' : 'border-slate-200 bg-slate-50 hover:border-emerald-300 hover:bg-emerald-50/40']">
-                <div class="flex flex-col items-center gap-3 pointer-events-none">
-                  <div :class="['w-14 h-14 rounded-2xl flex items-center justify-center transition-all', isDragging ? 'bg-emerald-100 rotate-3' : 'bg-white border border-slate-200']">
-                    <svg :class="['w-7 h-7 transition-colors', isDragging ? 'text-emerald-600' : 'text-emerald-400']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                    </svg>
-                  </div>
-                  <div class="text-center">
-                    <p class="text-sm font-bold text-slate-600">
-                      <span class="text-emerald-600">Haz clic para seleccionar</span> o arrastra aquí
-                    </p>
-                    <p class="text-xs text-slate-400 mt-1">PNG, JPG, WEBP · Puedes subir múltiples imágenes</p>
-                  </div>
-                </div>
-                <input ref="fileInput" type="file" multiple accept="image/*" class="hidden" @change="handleSelect">
               </div>
             </section>
-
           </form>
         </div>
 
-        <!-- === FOOTER === -->
-        <div class="border-t border-slate-100 px-8 py-5 flex items-center justify-between gap-4 bg-white/80 backdrop-blur-sm flex-shrink-0 rounded-b-3xl">
-          <p class="text-xs text-slate-400">Campos con <span class="text-emerald-500 font-bold">*</span> son obligatorios</p>
-          <div class="flex items-center gap-3">
-            <button @click="emit('cerrar')" type="button" :disabled="isLoading"
-              class="px-6 py-2.5 rounded-2xl font-semibold text-slate-600 border-2 border-slate-200 hover:bg-slate-100 transition-colors disabled:opacity-50">
-              Cancelar
-            </button>
-            <button @click="Enviar" type="button" :disabled="isLoading"
-              class="px-7 py-2.5 rounded-2xl font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 shadow-lg shadow-emerald-200/60 transition-all flex items-center gap-2 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:hover:translate-y-0">
-              <svg v-if="isLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <svg v-else-if="paquete" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              {{ isLoading ? (paquete ? 'Actualizando...' : 'Creando...') : (paquete ? 'Guardar Cambios' : 'Crear Tour') }}
-            </button>
-          </div>
+        <!-- === FOOTER ACCIONES === -->
+        <div class="px-8 py-8 bg-[#0d2114] border-t border-white/10 flex items-center justify-end gap-5 flex-shrink-0">
+          <button @click="emit('cerrar')" type="button" :disabled="isLoading"
+            class="px-8 py-4 rounded-2xl text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-white hover:bg-white/5 transition-all disabled:opacity-50">
+            Descartar Cambios
+          </button>
+          <button @click="Enviar" type="button" :disabled="isLoading"
+            class="group px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-black font-black uppercase tracking-[0.2em] text-[11px] rounded-2xl transition-all shadow-xl shadow-emerald-900/20 flex items-center gap-3 disabled:opacity-50">
+            <svg v-if="isLoading" class="animate-spin h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span v-else>{{ paquete ? 'Guardar Cambios' : 'Confirmar Registro' }}</span>
+            <svg v-if="!isLoading" class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
         </div>
       </div>
     </div>

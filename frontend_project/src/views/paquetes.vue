@@ -91,21 +91,25 @@
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#e8f4f1] text-slate-900 p-6 md:p-10 relative z-0">
+  <div class="min-h-screen bg-[#0a1a0f] text-white p-6 md:p-10 relative z-0">
     
     <main class="max-w-6xl mx-auto">
-      <header class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+      <header class="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
         <div>
-          <router-link to="/panel/dashboard" class="group inline-flex items-center gap-2 text-sm font-bold text-emerald-600 hover:text-emerald-800 mb-3 transition-colors">
-            <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          <router-link to="/panel/dashboard" class="group inline-flex items-center gap-2.5 text-[11px] font-black uppercase tracking-[0.2em] text-emerald-500/60 hover:text-emerald-400 mb-4 transition-all">
+            <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center group-hover:-translate-x-1 transition-transform">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            </div>
             Volver al Dashboard
           </router-link>
-          <h1 class="text-3xl font-bold text-emerald-900 tracking-tight">Gestión de Tours</h1>
-          <p class="text-slate-600 mt-1">Administra tu oferta de experiencias turísticas</p>
+          <h1 class="text-4xl sm:text-5xl font-black text-white tracking-tighter drop-shadow-2xl">Gestión de <span class="text-emerald-500">Tours</span></h1>
+          <p class="text-white/40 mt-2 font-bold italic text-sm">Administra tu oferta de experiencias turísticas premium</p>
         </div>
         <button @click="abrirModalNuevo" 
-                class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-5 rounded-xl transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 w-fit">
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                class="group flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-black font-black uppercase tracking-widest text-[11px] py-4 px-8 rounded-2xl transition-all shadow-xl shadow-emerald-900/20 hover:-translate-y-1 active:translate-y-0 w-fit">
+          <div class="w-6 h-6 rounded-lg bg-black/10 flex items-center justify-center group-hover:rotate-90 transition-transform">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </div>
           Nuevo Tour
         </button>
       </header>
