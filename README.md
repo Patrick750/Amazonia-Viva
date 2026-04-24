@@ -31,10 +31,10 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 
 - **[Feature] Billetera Virtual Premium**: Implementación de una interfaz centralizada para agencias y proveedores con diseño oscuro y métricas de saldo (Total, Disponible, Pendiente).
 - **[Feature] Gestión de Retiros**: Sistema de solicitud de retiros con soporte para múltiples métodos (Transferencia Bancaria, Nequi, Daviplata, PSE) y formularios dinámicos.
-- **[Feature] Reportes Multi-formato**: Motor de exportación avanzado que permite descargar el historial de movimientos en formatos CSV, Excel (XLSX) y PDF con desglose de comisiones.
-- **[Feature] Control de Comisiones**: Implementación de lógica de cálculo automático de comisión de plataforma (8%) sobre ventas brutas, con visualización transparente para el socio.
+- **[Feature] Reportes Multi-formato**: Motor de exportación avanzado (CSV, Excel, PDF) con selector optimizado.
+- **[UI] Responsive Selector**: Implementación de un "Bottom Sheet" exclusivo para móviles que facilita la exportación en pantallas táctiles.
+- **[UX] Interfaz Simplificada**: Eliminación del panel de desglose visual para priorizar la visualización de saldos y el historial de transacciones.
 - **[UX] Historial de Movimientos**: Tabla interactiva con paginación, filtros por tipo (Ingreso, Pendiente, Reembolso) y rango de fechas.
-- **[UI] Diseño Responsivo**: Adaptación completa de la billetera para dispositivos móviles, utilizando tarjetas táctiles y navegación optimizada.
 
 ### 4.3.0 — Paginación de Catálogo y Dashboard de Agencias (SCRUM-65)
 > Archivos: `catalogo.vue`, `dashboard.vue`, `GestionReservas.vue`, `views.py`, `urls.py`, `seed_paquetes.py`, `seed_ventas.py`
