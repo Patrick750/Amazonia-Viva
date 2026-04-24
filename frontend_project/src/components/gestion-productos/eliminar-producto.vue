@@ -36,63 +36,65 @@ const confirmarEliminar = async () => {
   <Teleport to="body">
     <div v-if="abrir" class="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:pt-24 animate-fade-in" @click.self="emit('cerrar')">
       
-      <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+      <div class="absolute inset-0 bg-black/85 backdrop-blur-md"></div>
 
-      <div class="relative bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] w-full max-w-md px-6 sm:px-8 pb-8 pt-12 sm:pt-16 text-center transform transition-all animate-scale-up border-4 border-slate-800 overflow-visible">
+      <div class="relative bg-[#0d2114] border border-white/10 rounded-[2.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] w-full max-w-md px-8 pb-10 pt-16 sm:pt-20 text-center transform transition-all animate-scale-up overflow-visible">
         
-        <div class="absolute -top-20 sm:-top-28 left-1/2 -translate-x-1/2 w-40 h-40 sm:w-52 sm:h-52 pointer-events-none group-hover:scale-105 transition-transform duration-300">
+        <div class="absolute -top-24 sm:-top-32 left-1/2 -translate-x-1/2 w-48 h-48 sm:w-60 sm:h-60 pointer-events-none group-hover:scale-110 transition-transform duration-500">
           
-          <svg viewBox="-20 -20 240 240" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-2xl overflow-visible">
+          <svg viewBox="-20 -20 240 240" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-[0_0_30px_rgba(244,63,94,0.3)] overflow-visible">
             
             <!-- Sparkles -->
-            <path d="M30 60 L10 40 M170 60 L190 40" stroke="#1E293B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" class="animate-pulse" />
+            <path d="M30 60 L10 40 M170 60 L190 40" stroke="#f43f5e" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" class="animate-pulse" />
             
             <!-- Bouncing Security Lock -->
-            <g class="animate-bounce" style="animation-duration: 2s;">
+            <g class="animate-bounce" style="animation-duration: 2.5s;">
               <!-- Shackle (Arco) -->
-              <path d="M70 100 V60 C70 30, 130 30, 130 60 V100" fill="none" stroke="#94A3B8" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M70 100 V60 C70 30, 130 30, 130 60 V100" fill="none" stroke="#334155" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
               <!-- Highlight on Shackle -->
-              <path d="M70 100 V60 C70 45, 100 40, 100 40" fill="none" stroke="#F8FAFC" stroke-width="6" stroke-linecap="round" opacity="0.8" />
+              <path d="M70 100 V60 C70 45, 100 40, 100 40" fill="none" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" opacity="0.4" />
               
               <!-- Lock Body -->
-              <rect x="50" y="100" width="100" height="80" rx="16" fill="#FBBF24" stroke="#1E293B" stroke-width="10" stroke-linejoin="round" />
-              <rect x="55" y="105" width="90" height="35" rx="12" fill="#FDE68A" stroke="none" />
-              <path d="M50 145 H150" stroke="#1E293B" stroke-width="8" />
+              <rect x="50" y="100" width="100" height="85" rx="20" fill="#f43f5e" stroke="#1e293b" stroke-width="12" stroke-linejoin="round" />
+              <rect x="58" y="108" width="84" height="30" rx="12" fill="#fda4af" opacity="0.3" stroke="none" />
+              <path d="M50 148 H150" stroke="#1e293b" stroke-width="10" />
 
               <!-- Keyhole -->
-              <circle cx="100" cy="155" r="10" fill="#1E293B" />
-              <path d="M95 160 L92 175 A6 6 0 0 0 108 175 L105 160 Z" fill="#1E293B" stroke="#1E293B" stroke-width="2" stroke-linejoin="round" />
-              <circle cx="100" cy="155" r="4" fill="#FDE68A" opacity="0.6" />
+              <circle cx="100" cy="160" r="12" fill="#1e293b" />
+              <path d="M94 165 L90 182 A8 8 0 0 0 110 182 L106 165 Z" fill="#1e293b" stroke="#1e293b" stroke-width="2" stroke-linejoin="round" />
+              <circle cx="100" cy="160" r="4" fill="#fb7185" opacity="0.8" />
             </g>
 
-            <!-- Decorative Stars -->
-            <path d="M160 130 L165 145 L180 150 L165 155 L160 170 L155 155 L140 150 L155 145 Z" fill="#38BDF8" stroke="#1E293B" stroke-width="4" stroke-linejoin="round" />
-            <circle cx="35" cy="160" r="10" fill="#F4A261" stroke="#1E293B" stroke-width="5" />
+            <!-- Decorative Elements -->
+            <path d="M165 140 L172 158 L190 165 L172 172 L165 190 L158 172 L140 165 L158 158 Z" fill="#fb7185" stroke="#1e293b" stroke-width="4" stroke-linejoin="round" />
+            <circle cx="35" cy="170" r="12" fill="#f43f5e" stroke="#1e293b" stroke-width="6" opacity="0.5" />
           </svg>
         </div>
         
-        <h3 class="text-3xl font-black text-slate-800 tracking-tight mb-3 mt-4">¡Alto ahí!</h3>
-        <p class="text-slate-600 mb-8 leading-relaxed font-medium">
-          Estás a punto de retirar de circulación el producto <br>
-          <strong class="text-slate-900 font-black text-lg underline decoration-rose-500 decoration-4 underline-offset-4">"{{ producto?.nombre }}"</strong>.<br>
-          Esta acción removerá el inventario completamente.
+        <h3 class="text-4xl font-black text-white tracking-tighter mb-4 mt-6">¡Un momento!</h3>
+        <p class="text-white/40 mb-10 leading-relaxed font-bold text-sm tracking-tight px-4">
+          Estás a punto de retirar definitivamente el producto <br>
+          <span class="inline-block mt-3 px-4 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 font-black text-xl rounded-2xl italic shadow-2xl">
+            "{{ producto?.nombre }}"
+          </span><br>
+          <span class="block mt-4 text-[10px] uppercase tracking-[0.2em] font-black opacity-50 italic">¿Confirmas esta eliminación total?</span>
         </p>
 
-        <div class="flex items-center gap-4 w-full relative z-10">
+        <div class="flex flex-col sm:flex-row items-center gap-4 w-full relative z-10 font-black uppercase tracking-widest text-[11px]">
           <button @click="emit('cerrar')" type="button" :disabled="isLoading"
-            class="flex-1 px-5 py-3.5 rounded-2xl font-black text-slate-700 bg-white border-4 border-slate-800 shadow-[0_6px_0_0_#1e293b] hover:shadow-[0_2px_0_0_#1e293b] hover:translate-y-1 transition-all disabled:opacity-50 cursor-pointer">
-            Mejor no
+            class="w-full sm:flex-1 px-8 py-4 rounded-2xl text-white/40 bg-white/5 border border-white/5 transition-all hover:bg-white/10 hover:text-white disabled:opacity-30 cursor-pointer">
+            Cancelar
           </button>
 
           <button @click="confirmarEliminar" type="button" :disabled="isLoading"
-            class="flex-1 px-5 py-3.5 rounded-2xl font-black text-white bg-rose-500 border-4 border-slate-800 shadow-[0_6px_0_0_#1e293b] hover:shadow-[0_2px_0_0_#1e293b] hover:translate-y-1 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer">
+            class="w-full sm:flex-1 px-8 py-4 rounded-2xl text-black bg-rose-500 border border-rose-500 shadow-xl shadow-rose-900/40 hover:bg-rose-400 hover:-translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 cursor-pointer">
             
-            <svg v-if="isLoading" class="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg v-if="isLoading" class="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             
-            <span v-else>¡Borrar!</span>
+            <span v-else>Borrar Todo</span>
           </button>
         </div>
       </div>
