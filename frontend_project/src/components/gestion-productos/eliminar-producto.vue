@@ -34,13 +34,13 @@ const confirmarEliminar = async () => {
 
 <template>
   <Teleport to="body">
-    <div v-if="abrir" class="fixed inset-0 z-[70] flex items-center justify-center p-4 pt-24 animate-fade-in" @click.self="emit('cerrar')">
+    <div v-if="abrir" class="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:pt-24 animate-fade-in" @click.self="emit('cerrar')">
       
       <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
 
-      <div class="relative bg-white rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] w-full max-w-md px-8 pb-8 pt-16 text-center transform transition-all animate-scale-up border-4 border-slate-800 overflow-visible">
+      <div class="relative bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] w-full max-w-md px-6 sm:px-8 pb-8 pt-12 sm:pt-16 text-center transform transition-all animate-scale-up border-4 border-slate-800 overflow-visible">
         
-        <div class="absolute -top-28 left-1/2 -translate-x-1/2 w-52 h-52 pointer-events-none group-hover:scale-105 transition-transform duration-300">
+        <div class="absolute -top-20 sm:-top-28 left-1/2 -translate-x-1/2 w-40 h-40 sm:w-52 sm:h-52 pointer-events-none group-hover:scale-105 transition-transform duration-300">
           
           <svg viewBox="-20 -20 240 240" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-2xl overflow-visible">
             

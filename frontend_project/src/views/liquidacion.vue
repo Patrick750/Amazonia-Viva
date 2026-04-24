@@ -213,6 +213,15 @@ const metodoIconos = {
         </div>
         <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
+            <router-link
+              to="/panel/dashboard"
+              class="group inline-flex items-center gap-2 text-[10px] font-bold text-emerald-500/80 hover:text-emerald-400 mb-3 transition-all tracking-widest uppercase"
+            >
+              <svg class="w-3.5 h-3.5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+              </svg>
+              Volver al Dashboard
+            </router-link>
             <h1 class="text-4xl sm:text-5xl font-black text-white leading-tight mb-2">Liquidación</h1>
             <p class="text-white/45 text-base max-w-lg">Gestiona tus saldos, solicita retiros y consulta el historial de movimientos financieros.</p>
           </div>
@@ -229,15 +238,6 @@ const metodoIconos = {
                 Solicitar Retiro
               </button>
             </template>
-            <router-link
-              to="/panel/dashboard"
-              class="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-all border border-white/10 flex-shrink-0"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-              </svg>
-              Volver al Dashboard
-            </router-link>
           </div>
         </div>
       </div>

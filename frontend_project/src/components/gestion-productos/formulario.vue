@@ -228,7 +228,7 @@ const removeImage = (index) => {
       <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-fade-in-up">
         
         <!-- HEADER -->
-        <div class="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 px-8 py-6 flex-shrink-0">
+        <div class="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 px-6 sm:px-8 py-5 sm:py-6 flex-shrink-0">
           <div class="flex items-start justify-between gap-4">
             <div>
               <div class="flex items-center gap-2 mb-2">
@@ -265,7 +265,7 @@ const removeImage = (index) => {
 
         <!-- FORM BODY -->
         <div class="overflow-y-auto flex-1 form-scroll">
-            <form id="productForm" @submit.prevent="guardarProducto" class="p-8 space-y-8">
+            <form id="productForm" @submit.prevent="guardarProducto" class="p-6 sm:p-8 space-y-6 sm:space-y-8">
                 
                 <section>
                     <div class="flex items-center gap-3 mb-6">
@@ -389,8 +389,8 @@ const removeImage = (index) => {
 
                     <div class="space-y-3 p-5 rounded-2xl bg-slate-50 border-2 border-slate-200">
                         <transition-group name="list">
-                            <div v-for="(carac, index) in form.caracteristicas" :key="index" class="flex items-center gap-3 group animate-fade-in-up">
-                                <div class="w-1/3 relative">
+                            <div v-for="(carac, index) in form.caracteristicas" :key="index" class="flex flex-col sm:flex-row sm:items-center gap-3 group animate-fade-in-up relative bg-white/50 sm:bg-transparent p-3 sm:p-0 rounded-xl border border-slate-200 sm:border-none">
+                                <div class="w-full sm:w-1/3 relative">
                                     <select v-model="carac.clave" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 pr-8 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 shadow-sm transition-all focus:ring-2 focus:ring-emerald-500/20 appearance-none cursor-pointer">
                                         <option value="" disabled>Elegir atributo...</option>
                                         <option v-for="attr in atributosPredefinidos" :key="attr" :value="attr">{{ attr }}</option>
@@ -399,10 +399,12 @@ const removeImage = (index) => {
                                       <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
                                 </div>
-                                <input v-model="carac.valor" type="text" placeholder="Valor o listado (Ej. Rojo, Verde o 300g)" class="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 shadow-sm transition-all focus:ring-2 focus:ring-emerald-500/20">
-                                <button type="button" @click="eliminarCaracteristica(index)" class="w-10 h-10 flex items-center justify-center rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0 opacity-0 group-hover:opacity-100">
-                                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                </button>
+                                <div class="flex items-center gap-2 flex-1">
+                                    <input v-model="carac.valor" type="text" placeholder="Valor o listado (Ej. Rojo, Verde o 300g)" class="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 shadow-sm transition-all focus:ring-2 focus:ring-emerald-500/20">
+                                    <button type="button" @click="eliminarCaracteristica(index)" class="w-10 h-10 flex items-center justify-center rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100">
+                                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                </div>
                             </div>
                         </transition-group>
                         <p v-if="form.caracteristicas.length === 0" class="text-sm text-slate-400 text-center py-3 italic border border-dashed border-slate-300 rounded-xl bg-white/50">
@@ -414,7 +416,7 @@ const removeImage = (index) => {
         </div>
 
         <!-- FOOTER -->
-        <div class="border-t border-slate-100 px-8 py-5 flex items-center justify-between gap-4 bg-white/80 backdrop-blur-sm flex-shrink-0 rounded-b-3xl">
+        <div class="border-t border-slate-100 px-6 sm:px-8 py-4 sm:py-5 flex items-center justify-between gap-4 bg-white/80 backdrop-blur-sm flex-shrink-0 rounded-b-3xl">
           <p class="text-xs text-slate-400">Campos con <span class="text-emerald-500 font-bold">*</span> son obligatorios</p>
           <div class="flex items-center gap-3">
             <button @click="limpiarFormularioYcerrar" type="button" :disabled="isLoading"
