@@ -235,60 +235,72 @@ const chartOptions = computed(() => ({
     fontFamily: 'Inter, sans-serif'
   },
   dataLabels: { enabled: false },
-  stroke: { curve: 'smooth', width: 2 },
+  stroke: { 
+    curve: 'smooth', 
+    width: 3, 
+    lineCap: 'round'
+  },
   fill: {
     type: 'gradient',
     gradient: {
       shadeIntensity: 1,
-      opacityFrom: 0.45,
-      opacityTo: 0.05,
-      stops: [20, 100]
+      opacityFrom: 0.6,
+      opacityTo: 0.1,
+      stops: [0, 90, 100],
+      colorStops: [
+        { offset: 0, color: '#10b880', opacity: 0.4 },
+        { offset: 100, color: '#10b880', opacity: 0 },
+      ]
     }
   },
-  colors: ['#059669'],
+  markers: {
+    size: 5,
+    colors: ['#0a1a0f'],
+    strokeColors: '#10b880',
+    strokeWidth: 3,
+    hover: { size: 7 }
+  },
+  colors: ['#10b880'],
   xaxis: {
     categories: chartData.value.labels,
     axisBorder: { show: false },
     axisTicks: { show: false },
-    labels: { style: { colors: '#64748b', fontSize: '12px' } }
+    labels: { style: { colors: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600 } }
   },
   yaxis: {
     labels: {
-      style: { colors: '#64748b', fontSize: '12px' },
-      formatter: (val) => `$${val.toLocaleString()}`
+      style: { colors: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600 },
+      formatter: (val) => `$${(val/1000).toFixed(0)}k`
     }
   },
   grid: { 
     show: true,
-    borderColor: 'rgba(5, 150, 105, 0.1)', 
+    borderColor: 'rgba(255, 255, 255, 0.05)', 
     strokeDashArray: 4,
-    xaxis: {
-      lines: {
-        show: true
-      }
-    },
-    yaxis: {
-      lines: {
-        show: true
-      }
-    },
-    padding: {
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 10
-    }
+    xaxis: { lines: { show: true } },
+    yaxis: { lines: { show: true } },
+    padding: { top: 10, right: 10, bottom: 0, left: 10 }
+  },
+  legend: {
+    show: true,
+    position: 'top',
+    horizontalAlign: 'right',
+    labels: { colors: 'rgba(255,255,255,0.7)', useSeriesColors: false },
+    markers: { radius: 12, offsetX: -4 },
+    itemMargin: { horizontal: 15, vertical: 0 }
   },
   tooltip: {
-    theme: 'light',
-    y: { formatter: (val) => `$${val.toLocaleString()}` }
+    theme: 'dark',
+    x: { show: true },
+    y: { formatter: (val) => `$${val.toLocaleString()}` },
+    style: { fontSize: '12px', fontFamily: 'Inter, sans-serif' }
   }
 }));
 
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#e8f4f1] text-slate-900 p-6 md:p-10 overflow-x-hidden relative z-0">
+  <div class="min-h-screen bg-[#0a1a0f] text-white p-6 md:p-10 overflow-x-hidden relative z-0">
     
     <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
       
@@ -313,14 +325,14 @@ const chartOptions = computed(() => ({
 
     <div ref="interactiveElRef" class="fixed top-0 left-0 w-[60px] h-[60px] pointer-events-none z-[9999]">
       <svg v-if="currentConfig.theme === 'fauna'" viewBox="0 0 100 100" class="morpho-wings w-full h-full drop-shadow-[0_10px_10px_rgba(0,180,255,0.3)]"><defs><linearGradient id="morpho-blue" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#00f2fe" /><stop offset="100%" stop-color="#4facfe" /></linearGradient></defs><path d="M50,40 C 30,10 10,20 15,50 C 30,55 45,45 50,40 Z" fill="url(#morpho-blue)"/><path d="M50,40 C 70,10 90,20 85,50 C 70,55 55,45 50,40 Z" fill="url(#morpho-blue)"/><path d="M50,45 C 35,60 20,80 30,90 C 40,80 48,60 50,45 Z" fill="url(#morpho-blue)"/><path d="M50,45 C 65,60 80,80 70,90 C 60,80 52,60 50,45 Z" fill="url(#morpho-blue)"/><ellipse cx="50" cy="45" rx="3" ry="15" fill="#1e293b"/></svg>
-      <svg v-else viewBox="0 0 100 100" class="w-full h-full drop-shadow-[0_8px_15px_rgba(5,150,105,0.4)]"><circle cx="50" cy="50" r="45" fill="rgba(255,255,255,0.9)" stroke="#0f172a" stroke-width="4"/><circle cx="50" cy="50" r="38" fill="none" stroke="#e2e8f0" stroke-width="1"/><polygon points="50,15 40,50 60,50" fill="#ef4444"/><polygon points="50,85 40,50 60,50" fill="#94a3b8"/><circle cx="50" cy="50" r="4" fill="#0f172a"/></svg>
+      <svg v-else viewBox="0 0 100 100" class="w-full h-full drop-shadow-[0_8px_15px_rgba(16,185,129,0.3)]"><circle cx="50" cy="50" r="45" fill="#0d2114" stroke="#10b981" stroke-width="3"/><circle cx="50" cy="50" r="38" fill="none" stroke="white" stroke-opacity="0.1" stroke-width="1"/><polygon points="50,15 40,50 60,50" fill="#ef4444"/><polygon points="50,85 40,50 60,50" fill="#475569"/><circle cx="50" cy="50" r="4" fill="#10b981"/></svg>
     </div>
 
     <main class="relative z-10 max-w-7xl mx-auto">
       
       <header class="mb-10 animate-fade-in-down">
-        <h1 class="text-3xl font-bold text-emerald-900 tracking-tight">{{ currentConfig.header.title }}</h1>
-        <p class="text-slate-600 mt-1">{{ currentConfig.header.subtitle }}</p>
+        <h1 class="text-3xl font-bold text-white tracking-tight">{{ currentConfig.header.title }}</h1>
+        <p class="text-white/45 mt-1">{{ currentConfig.header.subtitle }}</p>
       </header>
 
       <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" :class="currentConfig.gridClass">
@@ -328,25 +340,25 @@ const chartOptions = computed(() => ({
         <component :is="kpi.link ? 'router-link' : 'article'" 
                  v-for="(kpi, index) in currentConfig.kpis" :key="index" 
                  :to="kpi.link"
-                 class="group relative overflow-hidden bg-white/65 backdrop-blur-xl border border-white/80 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/85 animate-fade-in-up block no-underline" 
+                 class="group relative overflow-hidden bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:bg-white/10 animate-fade-in-up block no-underline" 
                  :style="{ animationDelay: `${0.1 * (index + 1)}s` }">
           
-          <svg class="absolute -bottom-4 -right-4 w-[120px] h-[120px] opacity-[0.04] z-0 pointer-events-none fill-slate-900 transition-all duration-400 group-hover:fill-emerald-600 group-hover:opacity-10 group-hover:-translate-x-2 group-hover:-translate-y-2 group-hover:scale-105" 
+          <svg class="absolute -bottom-4 -right-4 w-[120px] h-[120px] opacity-[0.08] z-0 pointer-events-none fill-white transition-all duration-400 group-hover:fill-emerald-400 group-hover:opacity-20 group-hover:-translate-x-2 group-hover:-translate-y-2 group-hover:scale-105" 
                viewBox="0 0 24 24" v-html="kpi.watermark"></svg>
           
           <div class="relative z-10 flex flex-col h-full justify-between">
             <div class="flex justify-between items-start mb-2">
-                <h3 class="text-sm font-semibold text-slate-700">{{ kpi.title }}</h3>
-                <svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" v-html="kpi.icon"></svg>
+                <h3 class="text-sm font-semibold text-white/70">{{ kpi.title }}</h3>
+                <svg class="w-5 h-5 text-white/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" v-html="kpi.icon"></svg>
             </div>
             
-            <div class="text-3xl font-bold text-slate-900 my-2">{{ kpi.value }}</div>
+            <div class="text-3xl font-bold text-white my-2">{{ kpi.value }}</div>
             
             <div class="text-sm font-medium mt-auto" 
                  :class="{
-                   'text-emerald-600': kpi.trendType === 'up',
-                   'text-red-500': kpi.trendType === 'down',
-                   'text-slate-500': kpi.trendType === 'neutral'
+                   'text-emerald-400': kpi.trendType === 'up',
+                   'text-rose-400': kpi.trendType === 'down',
+                   'text-slate-400': kpi.trendType === 'neutral'
                  }">
               {{ kpi.trend }}
             </div>
@@ -356,8 +368,8 @@ const chartOptions = computed(() => ({
       </section>
 
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in-up" style="animation-delay: 0.8s;">
-        <div class="lg:col-span-2 bg-white/65 backdrop-blur-xl border border-white/80 rounded-2xl p-6 shadow-sm">
-          <h2 class="text-lg font-semibold text-emerald-900 mb-4 pb-4 border-b border-white/80 relative z-10">Rendimiento Mensual</h2>
+        <div class="lg:col-span-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-sm">
+          <h2 class="text-lg font-semibold text-white mb-4 pb-4 border-b border-white/5 relative z-10">Rendimiento Mensual</h2>
           <div class="relative z-10 h-[300px]">
              <VueApexCharts
               v-if="!isLoading && chartData.labels.length > 0"
@@ -369,32 +381,32 @@ const chartOptions = computed(() => ({
             <div v-else-if="isLoading" class="w-full h-full flex items-center justify-center text-slate-400">
               Cargando gráfico...
             </div>
-            <div v-else class="w-full h-full flex items-center justify-center text-slate-400 bg-white/40 rounded-xl border border-dashed border-white/80">
+            <div v-else class="w-full h-full flex items-center justify-center text-white/20 bg-white/5 rounded-xl border border-dashed border-white/10">
               No hay datos disponibles para el gráfico
             </div>
           </div>
         </div>
 
-        <div class="bg-white/65 backdrop-blur-xl border border-white/80 rounded-2xl p-6 shadow-sm">
-          <h2 class="text-lg font-semibold text-emerald-900 mb-4 pb-4 border-b border-white/80 relative z-10">Acciones Rápidas</h2>
+        <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-sm">
+          <h2 class="text-lg font-semibold text-white mb-4 pb-4 border-b border-white/5 relative z-10">Acciones Rápidas</h2>
           <div class="flex flex-col gap-3 relative z-10">
-            <router-link v-if="userRole === 'agencia'" to="/panel/gestion-paquetes" class="flex items-center gap-3 p-4 bg-white/50 border border-white/80 rounded-xl font-semibold text-slate-900 text-sm transition-all duration-200 hover:bg-white hover:border-emerald-600 hover:text-emerald-600 hover:translate-x-1">
+            <router-link v-if="userRole === 'agencia'" to="/panel/gestion-paquetes" class="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl font-semibold text-white/80 text-sm transition-all duration-200 hover:bg-white/10 hover:border-emerald-500 hover:text-emerald-400 hover:translate-x-1">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
               Gestionar Catálogo
             </router-link>
-            <router-link v-if="userRole === 'proveedor'" to="/panel/productos" class="flex items-center gap-3 p-4 bg-white/50 border border-white/80 rounded-xl font-semibold text-slate-900 text-sm transition-all duration-200 hover:bg-white hover:border-emerald-600 hover:text-emerald-600 hover:translate-x-1">
+            <router-link v-if="userRole === 'proveedor'" to="/panel/productos" class="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl font-semibold text-white/80 text-sm transition-all duration-200 hover:bg-white/10 hover:border-emerald-500 hover:text-emerald-400 hover:translate-x-1">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
               Gestión de Productos
             </router-link>
-            <router-link v-if="userRole === 'agencia' || userRole === 'proveedor'" to="/panel/gestion-reservas" class="flex items-center gap-3 p-4 bg-white/50 border border-white/80 rounded-xl font-semibold text-slate-900 text-sm transition-all duration-200 hover:bg-white hover:border-emerald-600 hover:text-emerald-600 hover:translate-x-1">
+            <router-link v-if="userRole === 'agencia' || userRole === 'proveedor'" to="/panel/gestion-reservas" class="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl font-semibold text-white/80 text-sm transition-all duration-200 hover:bg-white/10 hover:border-emerald-500 hover:text-emerald-400 hover:translate-x-1">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
               Ver Ventas
             </router-link>
-            <router-link v-if="userRole === 'agencia'" to="/panel/experiencias" class="flex items-center gap-3 p-4 bg-white/50 border border-white/80 rounded-xl font-semibold text-slate-900 text-sm transition-all duration-200 hover:bg-white hover:border-emerald-600 hover:text-emerald-600 hover:translate-x-1">
+            <router-link v-if="userRole === 'agencia'" to="/panel/experiencias" class="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl font-semibold text-white/80 text-sm transition-all duration-200 hover:bg-white/10 hover:border-emerald-500 hover:text-emerald-400 hover:translate-x-1">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               Experiencias
             </router-link>
-            <router-link v-if="userRole === 'turista'" to="/panel/mis-experiencias" class="flex items-center gap-3 p-4 bg-white/50 border border-white/80 rounded-xl font-semibold text-slate-900 text-sm transition-all duration-200 hover:bg-white hover:border-emerald-600 hover:text-emerald-600 hover:translate-x-1">
+            <router-link v-if="userRole === 'turista'" to="/panel/mis-experiencias" class="flex items-center gap-3 p-4 bg-white/5 border border-white/10 rounded-xl font-semibold text-white/80 text-sm transition-all duration-200 hover:bg-white/10 hover:border-emerald-500 hover:text-emerald-400 hover:translate-x-1">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               Mis Experiencias
             </router-link>
@@ -402,7 +414,7 @@ const chartOptions = computed(() => ({
             <router-link
               v-if="userRole === 'agencia' || userRole === 'proveedor'"
               to="/panel/liquidacion"
-              class="flex items-center gap-3 p-4 bg-emerald-50/70 border border-emerald-200/60 rounded-xl font-semibold text-emerald-800 text-sm transition-all duration-200 hover:bg-emerald-100 hover:border-emerald-500 hover:text-emerald-700 hover:translate-x-1 shadow-sm"
+              class="flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl font-semibold text-emerald-400 text-sm transition-all duration-200 hover:bg-emerald-500/20 hover:border-emerald-500 hover:text-emerald-300 hover:translate-x-1 shadow-sm shadow-emerald-500/10"
             >
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3z"/>
