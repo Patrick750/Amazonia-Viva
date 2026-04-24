@@ -205,21 +205,29 @@ class CatalogoTours(APIView):
             if tipo in ('fijo', 'flexible'):
                 tours = tours.filter(tipo_paquete=tipo)
 
-            # Auto-expirar paquetes fijos con fecha pasada
-            vencidos = PaqueteTuristico.objects.filter(
-                activo=True,
-                tipo_paquete='fijo',
-                fecha_realizacion__lt=tz.now().date()
-            )
-            if vencidos.exists():
-                vencidos.update(activo=False)
-                # Excluir los recién vencidos del resultado actual
-                tours = tours.exclude(fecha_realizacion__lt=tz.now().date())
+            # Auto-expirar paquetes fijos con fecha pasada (manejo seguro de efectos secundarios)
+            try:
+                vencidos = PaqueteTuristico.objects.filter(
+                    activo=True,
+                    tipo_paquete='fijo',
+                    fecha_realizacion__lt=tz.now().date()
+                )
+                if vencidos.exists():
+                    vencidos.update(activo=False)
+            except Exception as e_side:
+                print(f"Error al auto-expirar paquetes: {e_side}")
+
+            # Filtrar los que siguen activos (incluyendo recien desactivados)
+            tours = tours.filter(activo=True)
 
             serializer = SerializerCatalogoTour(tours, many=True)
             return Response(serializer.data)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print(f"ERROR EN CATALOGO TOURS: {str(e)}")
+            return Response(
+                {'error': 'Error interno al cargar el catálogo de tours.', 'detalle': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class CuposDisponiblesView(APIView):
