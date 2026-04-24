@@ -185,7 +185,12 @@ const removeExistingImage = (imgId, index) => {
 
 // --- LEAFLET MAPS ---
 const initMap = () => {
-    if (!mapContainer.value) return;
+    // Usar DOM nativo para evitar problemas de ref() con Teleport en Vue 3
+    const mapEl = document.getElementById('map');
+    if (!mapEl) {
+        setTimeout(initMap, 100);
+        return;
+    }
     
     // Si ya existe el mapa lo destruimos para volver a crearlo
     if (map) {
@@ -194,11 +199,17 @@ const initMap = () => {
         map = null;
     }
 
-    const defaultPos = (newTour.latitud && newTour.longitud)
+    const hasCoords = newTour.latitud !== null && newTour.latitud !== undefined && newTour.latitud !== '' &&
+                      newTour.longitud !== null && newTour.longitud !== undefined && newTour.longitud !== '';
+
+    const defaultPos = hasCoords
         ? [Number(newTour.latitud), Number(newTour.longitud)]
         : [4.6097, -74.0817];
 
-    map = L.map(mapContainer.value).setView(defaultPos, newTour.latitud ? 15 : 12);
+    // Asegurarse de que el contenedor esté limpio antes de inicializar
+    mapEl.innerHTML = '';
+    
+    map = L.map(mapEl).setView(defaultPos, hasCoords ? 15 : 12);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
@@ -206,7 +217,7 @@ const initMap = () => {
 
     marker = L.marker(defaultPos, { draggable: true }).addTo(map);
     
-    if (!newTour.latitud) {
+    if (!hasCoords) {
         marker.setOpacity(0);
     }
 
@@ -223,10 +234,13 @@ const initMap = () => {
         newTour.longitud = e.latlng.lng;
     });
     
-    // Resize map when modal opens
+    // Resize map forcefully after modal layout and CSS animations finish
     setTimeout(() => {
-        if(map) map.invalidateSize();
-    }, 200);
+        if(map) {
+            map.invalidateSize();
+            if (hasCoords) map.setView(defaultPos, 15);
+        }
+    }, 450);
 };
 
 // --- AUTOCOMPLETADO Y BÚSQUEDA ---
