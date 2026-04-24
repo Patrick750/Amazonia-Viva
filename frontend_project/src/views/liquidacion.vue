@@ -26,6 +26,7 @@ const retiroError      = ref('');
 
 // ── Exportar ──────────────────────────────────────────────────────────────────
 const exportando       = ref(false);
+const showExportMobile = ref(false);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const COP = (v) =>
@@ -178,6 +179,13 @@ const tipoIcono = {
   reembolso: 'M19 14l-7 7-7-7M12 21V3',
 };
 
+const filtroLabels = { 
+  todos:     'Todos', 
+  ingreso:   'Ingresos', 
+  pendiente: 'Pendientes', 
+  reembolso: 'Reembolsos' 
+};
+
 // Icono de método de retiro
 const metodoIconos = {
   transferencia_bancaria: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3z',
@@ -302,57 +310,6 @@ const metodoIconos = {
             </div>
           </div>
         </div>
-
-        <!-- ── DESGLOSE DE COMISIÓN ──────────────────────────────────── -->
-        <div class="bg-white/3 border border-white/8 rounded-2xl p-6">
-          <div class="flex items-center gap-3 mb-5">
-            <div class="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
-              <svg class="w-4.5 h-4.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
-              </svg>
-            </div>
-            <div>
-              <h2 class="font-black text-white text-base">Desglose de Comisión</h2>
-              <p class="text-xs text-white/40">Amazonia Viva – Modelo de comisión fija por ventas generadas</p>
-            </div>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-white/4 border border-white/8 rounded-xl p-4">
-              <p class="text-[10px] uppercase tracking-widest text-white/35 font-bold mb-1">Tasa plataforma</p>
-              <p class="text-2xl font-black text-amber-400">{{ saldos.comision_porcentaje }}%</p>
-              <p class="text-xs text-white/35 mt-1">Sobre ventas brutas</p>
-            </div>
-            <div class="bg-white/4 border border-white/8 rounded-xl p-4">
-              <p class="text-[10px] uppercase tracking-widest text-white/35 font-bold mb-1">Comisión cobrada</p>
-              <p class="text-xl font-black text-red-400 tabular-nums">{{ COP(saldos.comision_total) }}</p>
-              <p class="text-xs text-white/35 mt-1">Total descontado</p>
-            </div>
-            <div class="bg-white/4 border border-white/8 rounded-xl p-4">
-              <p class="text-[10px] uppercase tracking-widest text-white/35 font-bold mb-1">Sobre completadas</p>
-              <p class="text-xl font-black text-white/70 tabular-nums">{{ COP(saldos.desglose_comision.sobre_completado) }}</p>
-              <p class="text-xs text-white/35 mt-1">Ventas liquidadas</p>
-            </div>
-            <div class="bg-white/4 border border-white/8 rounded-xl p-4">
-              <p class="text-[10px] uppercase tracking-widest text-white/35 font-bold mb-1">Sobre pendientes</p>
-              <p class="text-xl font-black text-white/70 tabular-nums">{{ COP(saldos.desglose_comision.sobre_pendiente) }}</p>
-              <p class="text-xs text-white/35 mt-1">Por confirmar</p>
-            </div>
-          </div>
-          <!-- Barra visual de comisión -->
-          <div class="mt-5">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs text-white/40">Retención de plataforma</span>
-              <span class="text-xs font-bold text-white/60">{{ saldos.comision_porcentaje }}% de {{ COP(saldos.bruto_total) }}</span>
-            </div>
-            <div class="h-2 bg-white/8 rounded-full overflow-hidden">
-              <div
-                class="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-1000"
-                :style="{ width: saldos.comision_porcentaje + '%' }"
-              ></div>
-            </div>
-            <p class="text-[10px] text-white/25 mt-2">La comisión cubre: procesamiento de pagos, mantenimiento de plataforma, soporte y marketing.</p>
-          </div>
-        </div>
       </template>
 
       <!-- ── TABLA DE MOVIMIENTOS ────────────────────────────────────── -->
@@ -375,7 +332,7 @@ const metodoIconos = {
                   'px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold uppercase tracking-wider transition-all whitespace-nowrap',
                   filtroTipo === t ? 'bg-emerald-500 text-black' : 'text-white/40 hover:text-white/70'
                 ]"
-              >{{ { todos: 'Todos', ingreso: 'Ingresos', pendiente: 'Pendientes', reembolso: 'Reembolsos' }[t] }}</button>
+              >{{ filtroLabels[t] }}</button>
             </div>
 
             <!-- Filtro fecha desde/hasta -->
@@ -389,6 +346,7 @@ const metodoIconos = {
             <!-- Exportar Reporte -->
             <div class="relative group/export w-full sm:w-auto">
               <button
+                @click="showExportMobile = true"
                 :disabled="exportando"
                 class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white/8 border border-white/12 text-white/70 hover:bg-white/12 hover:text-white text-xs font-bold transition-all disabled:opacity-50"
               >
@@ -398,8 +356,8 @@ const metodoIconos = {
                 {{ exportando ? 'Exportando…' : 'Exportar como' }}
               </button>
               
-              <!-- Dropdown Formatos -->
-              <div class="absolute right-0 top-full mt-2 w-48 bg-[#0d2114] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/export:opacity-100 group-hover/export:visible transition-all z-20 overflow-hidden">
+              <!-- Dropdown Formatos (Desktop: hover) -->
+              <div class="absolute right-0 top-full mt-2 w-48 bg-[#0d2114] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible sm:group-hover/export:opacity-100 sm:group-hover/export:visible transition-all z-20 overflow-hidden hidden sm:block">
                 <button @click="exportarReporte('csv')" class="w-full text-left px-4 py-3 text-xs hover:bg-white/5 flex items-center gap-3 border-b border-white/5">
                   <span class="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-[10px] font-black text-white/30">CSV</span>
                   <div>
@@ -727,6 +685,68 @@ const metodoIconos = {
               </button>
             </div>
 
+          </div>
+        </Transition>
+      </div>
+    </Transition>
+    
+    <!-- ══ SELECTOR DE EXPORTACIÓN MÓVIL (BOTTOM SHEET) ════════════════ -->
+    <Transition
+      enter-active-class="transition ease-out duration-300"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition ease-in duration-200"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="showExportMobile" class="fixed inset-0 z-[110] flex items-end justify-center sm:hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="showExportMobile = false"></div>
+
+        <Transition
+          enter-active-class="transition ease-out duration-300 transform"
+          enter-from-class="translate-y-full"
+          enter-to-class="translate-y-0"
+          leave-active-class="transition ease-in duration-200 transform"
+          leave-from-class="translate-y-0"
+          leave-to-class="translate-y-full"
+        >
+          <div v-if="showExportMobile" class="relative bg-[#0d1f14] border-t border-white/10 rounded-t-[2.5rem] shadow-2xl w-full p-8 pb-12 overflow-hidden">
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 mt-3 w-12 h-1.5 bg-white/10 rounded-full"></div>
+            
+            <div class="mb-8">
+              <h3 class="text-xl font-black text-white">Exportar Reporte</h3>
+              <p class="text-sm text-white/40">Selecciona el formato para descargar tu historial</p>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3">
+              <button @click="exportarReporte('csv'); showExportMobile = false" class="flex items-center gap-4 p-5 rounded-2xl bg-white/5 border border-white/8 active:bg-white/10 transition-all text-left">
+                <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-xs font-black text-white/40 border border-white/5">CSV</div>
+                <div>
+                  <p class="font-bold text-white">Archivo CSV</p>
+                  <p class="text-[11px] text-white/30">Valores estándar separados por coma</p>
+                </div>
+              </button>
+              
+              <button @click="exportarReporte('excel'); showExportMobile = false" class="flex items-center gap-4 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 active:bg-emerald-500/20 transition-all text-left">
+                <div class="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center text-xs font-black text-emerald-400 border border-emerald-500/20">XLS</div>
+                <div>
+                  <p class="font-bold text-white">Hoja de Cálculo Excel</p>
+                  <p class="text-[11px] text-emerald-400/50">Formato profesional para análisis de datos</p>
+                </div>
+              </button>
+
+              <button @click="exportarReporte('pdf'); showExportMobile = false" class="flex items-center gap-4 p-5 rounded-2xl bg-red-500/10 border border-red-500/20 active:bg-red-500/20 transition-all text-left">
+                <div class="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center text-xs font-black text-red-400 border border-red-500/20">PDF</div>
+                <div>
+                  <p class="font-bold text-white">Documento PDF</p>
+                  <p class="text-[11px] text-red-400/50">Reporte financiero listo para imprimir</p>
+                </div>
+              </button>
+            </div>
+
+            <button @click="showExportMobile = false" class="mt-6 w-full py-4 text-sm font-bold text-white/40 hover:text-white transition-colors">
+              Cancelar
+            </button>
           </div>
         </Transition>
       </div>
