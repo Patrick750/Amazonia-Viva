@@ -15,5 +15,11 @@ class Command(BaseCommand):
         
         self.stdout.write("\n--- Paso 3: Enriquecimiento de Datos ---")
         call_command('enrich_data')
+
+        self.stdout.write("\n--- Paso 4: Sembrado de paquetes ---")
+        call_command('seed_paquetes')
+
+        self.stdout.write("\n--- Paso 5: Sembrado de ventas ---")
+        call_command('seed_ventas')
         
         self.stdout.write(self.style.SUCCESS("\n=== CONFIGURACIÓN DE DEMO FINALIZADA CON ÉXITO ==="))
