@@ -26,10 +26,14 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("No hay paquetes ni productos para vender."))
             return
 
-        # Generar unas 50 ventas aleatorias
-        for i in range(50):
+        # Generar unas 200 ventas aleatorias para poblar el histórico de 24 meses
+        for i in range(200):
             turista_user = random.choice(turistas)
             
+            # Generar fecha aleatoria en los últimos 24 meses (aprox 730 días)
+            dias_atras = random.randint(0, 730)
+            fecha_aleatoria = timezone.now() - timedelta(days=dias_atras)
+
             # Crear una Venta
             venta = Venta.objects.create(
                 usuario=turista_user,
@@ -38,6 +42,10 @@ class Command(BaseCommand):
                 fotograficas={},
                 novedades_turistas=[]
             )
+            
+            # Forzar la fecha (auto_now_add=True previene asignarla en create)
+            venta.fecha = fecha_aleatoria
+            venta.save()
 
             total_venta = Decimal('0.00')
             
