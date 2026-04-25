@@ -1,9 +1,28 @@
 <script setup>
 
-    import { ref } from 'vue';
+    import { ref, computed } from 'vue';
 
     const props = defineProps(['datos'])
     const emit = defineEmits(['editar', 'eliminar', 'verDetalles'])
+
+    // --- PAGINACIÓN ---
+    const currentPage = ref(1);
+    const itemsPerPage = 12;
+
+    const totalPages = computed(() => Math.ceil(props.datos.length / itemsPerPage));
+
+    const paginatedData = computed(() => {
+        const start = (currentPage.value - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        return props.datos.slice(start, end);
+    });
+
+    const irPagina = (p) => {
+        if (p < 1 || p > totalPages.value) return;
+        currentPage.value = p;
+        // Scroll suave al inicio de la tabla/sección
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     const deleteTour = (id) => {
         emit('eliminar', id);
@@ -30,7 +49,7 @@
 
         <!-- VISTA MÓVIL (Tarjetas) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 md:hidden">
-            <div v-for="tour in datos" :key="tour.id" class="bg-white/5 rounded-3xl border border-white/5 p-5 relative flex flex-col gap-4 transition-all hover:bg-white/10 hover:border-white/10 group">
+            <div v-for="tour in paginatedData" :key="tour.id" class="bg-white/5 rounded-3xl border border-white/5 p-5 relative flex flex-col gap-4 transition-all hover:bg-white/10 hover:border-white/10 group">
                 
                 <!-- Indicador de estado móvil -->
                 <span class="absolute top-4 right-4 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-xl"
@@ -104,7 +123,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-white/5 text-white">
-                    <tr v-for="tour in datos" :key="tour.id" class="hover:bg-white/5 transition-all group">
+                    <tr v-for="tour in paginatedData" :key="tour.id" class="hover:bg-white/5 transition-all group">
                         <!-- Columna: Tour -->
                         <td class="px-4 py-4">
                             <div class="flex items-center gap-5">
@@ -209,6 +228,48 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- PAGINACIÓN -->
+        <div v-if="totalPages > 1" class="mt-10 flex flex-col sm:flex-row items-center justify-between gap-6 bg-white/5 p-6 rounded-[2rem] border border-white/5">
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+                Página <span class="text-emerald-400">{{ currentPage }}</span> de {{ totalPages }} 
+                <span class="mx-2 text-white/10">|</span> 
+                {{ datos.length }} Total
+            </p>
+            
+            <div class="flex items-center gap-2">
+                <button 
+                    @click="irPagina(currentPage - 1)" 
+                    :disabled="currentPage === 1"
+                    class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
+                >
+                    <svg class="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+
+                <div class="flex items-center gap-1.5">
+                    <button 
+                        v-for="p in totalPages" :key="p"
+                        @click="irPagina(p)"
+                        :class="[
+                            'w-10 h-10 rounded-xl text-[11px] font-black transition-all border',
+                            currentPage === p 
+                                ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)]' 
+                                : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+                        ]"
+                    >
+                        {{ p }}
+                    </button>
+                </div>
+
+                <button 
+                    @click="irPagina(currentPage + 1)" 
+                    :disabled="currentPage === totalPages"
+                    class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
+                >
+                    <svg class="w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                </button>
+            </div>
         </div>
     </section>
 </template>
