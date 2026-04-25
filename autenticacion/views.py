@@ -14,7 +14,7 @@ import os
 from django.conf import settings
 from django.http import JsonResponse
 from django.db.models import Count, Q, Sum, Avg, F
-from django.db.models.functions import TruncDate
+from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 from datetime import date, timedelta
 from decimal import Decimal
@@ -545,6 +545,33 @@ class DashboardKPIsView(APIView):
             series.append(stats_dict.get(current_day, 0.0))
             current_day += timedelta(days=1)
 
+
+        # 6. Datos para el gráfico de barras (Últimos 6 meses)
+        six_months_ago = (timezone.now() - timedelta(days=180)).date()
+        ventas_mensuales = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
+            mes=TruncMonth('venta__fecha')
+        ).filter(mes__gte=six_months_ago).values('mes').annotate(
+            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
+        ).order_by('mes')
+
+        monthly_labels = []
+        monthly_series = []
+        stats_monthly_dict = { v['mes'].strftime('%Y-%m'): float(v['total']) for v in ventas_mensuales }
+        
+        today = timezone.now().date()
+        for i in range(5, -1, -1):
+            year = today.year
+            month = today.month - i
+            while month <= 0:
+                month += 12
+                year -= 1
+            
+            key = f"{year}-{month:02d}"
+            import datetime
+            date_obj = datetime.date(year, month, 1)
+            monthly_labels.append(date_obj.strftime('%b %Y'))
+            monthly_series.append(stats_monthly_dict.get(key, 0.0))
+
         return Response({
             'kpis': [
                 {
@@ -578,6 +605,15 @@ class DashboardKPIsView(APIView):
                     {
                         'name': 'Ingresos por Venta',
                         'data': series
+                    }
+                ]
+            },
+            'monthly_chart_data': {
+                'labels': monthly_labels,
+                'series': [
+                    {
+                        'name': 'Ganancias Mensuales',
+                        'data': monthly_series
                     }
                 ]
             }
@@ -638,6 +674,33 @@ class DashboardKPIsView(APIView):
             series.append(stats_dict.get(current_day, 0.0))
             current_day += timedelta(days=1)
 
+
+        # 8. Datos para el gráfico de barras (Últimos 6 meses)
+        six_months_ago = (timezone.now() - timedelta(days=180)).date()
+        ventas_mensuales = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
+            mes=TruncMonth('venta__fecha')
+        ).filter(mes__gte=six_months_ago).values('mes').annotate(
+            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
+        ).order_by('mes')
+
+        monthly_labels = []
+        monthly_series = []
+        stats_monthly_dict = { v['mes'].strftime('%Y-%m'): float(v['total']) for v in ventas_mensuales }
+        
+        today = timezone.now().date()
+        for i in range(5, -1, -1):
+            year = today.year
+            month = today.month - i
+            while month <= 0:
+                month += 12
+                year -= 1
+            
+            key = f"{year}-{month:02d}"
+            import datetime
+            date_obj = datetime.date(year, month, 1)
+            monthly_labels.append(date_obj.strftime('%b %Y'))
+            monthly_series.append(stats_monthly_dict.get(key, 0.0))
+
         return Response({
             'kpis': [
                 {
@@ -683,6 +746,15 @@ class DashboardKPIsView(APIView):
                     {
                         'name': 'Ingresos por Venta',
                         'data': series
+                    }
+                ]
+            },
+            'monthly_chart_data': {
+                'labels': monthly_labels,
+                'series': [
+                    {
+                        'name': 'Ganancias Mensuales',
+                        'data': monthly_series
                     }
                 ]
             }

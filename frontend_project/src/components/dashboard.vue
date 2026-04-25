@@ -183,6 +183,7 @@ const roleConfigs = {
 
 const kpisData = ref([]);
 const chartData = ref({ labels: [], series: [] });
+const monthlyChartData = ref({ labels: [], series: [] });
 const isLoading = ref(true);
 
 const fetchKPIs = async () => {
@@ -192,6 +193,9 @@ const fetchKPIs = async () => {
     kpisData.value = data.kpis;
     if (data.chart_data) {
       chartData.value = data.chart_data;
+    }
+    if (data.monthly_chart_data) {
+      monthlyChartData.value = data.monthly_chart_data;
     }
   } catch (error) {
     console.error('Error fetching dashboard KPIs:', error);
@@ -297,6 +301,72 @@ const chartOptions = computed(() => ({
   }
 }));
 
+const monthlyChartSeries = computed(() => monthlyChartData.value.series);
+
+const monthlyChartOptions = computed(() => ({
+  chart: {
+    type: 'bar',
+    toolbar: { show: false },
+    fontFamily: 'Inter, sans-serif',
+    background: 'transparent',
+    animations: {
+      enabled: true,
+      easing: 'easeinout',
+      speed: 800,
+    }
+  },
+  plotOptions: {
+    bar: {
+      borderRadius: 6,
+      columnWidth: '45%',
+      distributed: true,
+      dataLabels: { position: 'top' }
+    }
+  },
+  dataLabels: {
+    enabled: true,
+    formatter: (val) => `$${(val/1000).toFixed(0)}k`,
+    offsetY: -20,
+    style: {
+      fontSize: '10px',
+      colors: ["#fff"],
+      fontWeight: 900
+    }
+  },
+  colors: ['#10b880', '#34d399', '#059669', '#10b880', '#34d399', '#059669'],
+  xaxis: {
+    categories: monthlyChartData.value.labels,
+    axisBorder: { show: false },
+    axisTicks: { show: false },
+    labels: {
+      style: { colors: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600 }
+    }
+  },
+  yaxis: {
+    labels: {
+      style: { colors: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600 },
+      formatter: (val) => `$${(val/1000).toFixed(0)}k`
+    }
+  },
+  grid: {
+    show: true,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    strokeDashArray: 4,
+    xaxis: { lines: { show: false } },
+    yaxis: { lines: { show: true } },
+    padding: { top: 20, right: 10, bottom: 0, left: 10 }
+  },
+  legend: { show: false },
+  tooltip: {
+    theme: 'dark',
+    y: { formatter: (val) => `$${val.toLocaleString()}` }
+  },
+  states: {
+    hover: { filter: { type: 'lighten', value: 0.15 } },
+    active: { filter: { type: 'none', value: 0 } }
+  }
+}));
+
 </script>
 
 <template>
@@ -383,6 +453,34 @@ const chartOptions = computed(() => ({
             </div>
             <div v-else class="w-full h-full flex items-center justify-center text-white/20 bg-white/5 rounded-xl border border-dashed border-white/10">
               No hay datos disponibles para el gráfico
+            </div>
+          </div>
+
+          <!-- Nuevo Gráfico de Ganancias Mensuales -->
+          <div class="mt-12 pt-8 border-t border-white/5">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-lg font-semibold text-white relative z-10 flex items-center gap-2">
+                <span class="w-2 h-6 bg-emerald-500 rounded-full"></span>
+                Ganancias Mensuales
+              </h2>
+              <span class="text-[10px] font-black uppercase tracking-widest text-emerald-400/60 bg-emerald-500/5 px-3 py-1 rounded-full border border-emerald-500/10">
+                Últimos 6 meses
+              </span>
+            </div>
+            <div class="relative z-10 h-[300px]">
+              <VueApexCharts
+                v-if="!isLoading && monthlyChartData.labels.length > 0"
+                width="100%"
+                height="100%"
+                :options="monthlyChartOptions"
+                :series="monthlyChartSeries"
+              />
+              <div v-else-if="isLoading" class="w-full h-full flex items-center justify-center text-slate-400">
+                Cargando datos mensuales...
+              </div>
+              <div v-else class="w-full h-full flex items-center justify-center text-white/20 bg-white/5 rounded-xl border border-dashed border-white/10">
+                No hay suficientes datos históricos
+              </div>
             </div>
           </div>
         </div>
