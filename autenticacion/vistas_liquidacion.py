@@ -29,7 +29,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-from .models import Venta, Detalles_Venta, Agencia, Proveedor, Productos, PaqueteTuristico
+from .models import Venta, Detalles_Venta, Agencia, Proveedor, Productos, PaqueteTuristico, Retiro
 
 # ─── Tasa de comisión de la plataforma (%) ────────────────────────────────────
 COMISION_PLATAFORMA = Decimal("8.00")   # 8 % sobre ventas brutas
@@ -90,14 +90,22 @@ def _calcular_saldos(user):
     comision_completado = (bruto_completado * COMISION_PLATAFORMA / 100).quantize(Decimal("0.01"))
     comision_pendiente = (bruto_pendiente * COMISION_PLATAFORMA / 100).quantize(Decimal("0.01"))
 
+    # Restar retiros realizados o en proceso
+    retiros_activos = Retiro.objects.filter(usuario=user).exclude(estado='Rechazado').aggregate(
+        total=Sum('monto')
+    )['total'] or Decimal('0.00')
+
     neto_completado = bruto_completado - comision_completado
+    # El saldo disponible es lo completado menos lo ya retirado
+    saldo_disponible = neto_completado - retiros_activos
     neto_pendiente = bruto_pendiente - comision_pendiente
-    saldo_total = neto_completado + neto_pendiente
+    saldo_total = saldo_disponible + neto_pendiente
 
     return {
         "saldo_total": float(saldo_total),
-        "saldo_disponible": float(neto_completado),
+        "saldo_disponible": float(saldo_disponible),
         "saldo_pendiente": float(neto_pendiente),
+        "retiros_realizados": float(retiros_activos),
         "bruto_total": float(bruto_completado + bruto_pendiente),
         "comision_total": float(comision_completado + comision_pendiente),
         "comision_porcentaje": float(COMISION_PLATAFORMA),
@@ -299,7 +307,17 @@ class SolicitarRetiroView(APIView):
 
         # En una implementación real aquí se crearía un modelo SolicitudRetiro.
         # Para este MVP respondemos con confirmación optimista.
+        # Guardar el retiro en la base de datos
         referencia = f"RET-{timezone.now().strftime('%Y%m%d%H%M%S')}-{request.user.pk}"
+        
+        retiro = Retiro.objects.create(
+            usuario=request.user,
+            monto=monto_decimal,
+            metodo=metodo,
+            datos_bancarios=datos_bancarios,
+            referencia=referencia,
+            estado='Pendiente'
+        )
 
         return Response(
             {
@@ -307,9 +325,9 @@ class SolicitarRetiroView(APIView):
                 "referencia": referencia,
                 "monto": float(monto_decimal),
                 "metodo": metodo,
-                "estado": "Pendiente de procesamiento",
+                "estado": retiro.estado,
                 "estimado": _tiempo_estimado(metodo),
-                "fecha_solicitud": timezone.now().isoformat(),
+                "fecha_solicitud": retiro.fecha_solicitud.isoformat(),
             },
             status=status.HTTP_201_CREATED,
         )
@@ -510,3 +528,21 @@ class ExportarMovimientosView(APIView):
         response = HttpResponse(buffer.read(), content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
+class ListaRetirosView(APIView):
+    """GET /api/liquidacion/retiros/ — Ver historial de retiros del usuario."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        retiros = Retiro.objects.filter(usuario=request.user).order_by('-fecha_solicitud')
+        data = []
+        for r in retiros:
+            data.append({
+                "id": r.id,
+                "referencia": r.referencia,
+                "monto": float(r.monto),
+                "metodo": r.metodo,
+                "estado": r.estado,
+                "fecha": r.fecha_solicitud.isoformat(),
+                "fecha_procesado": r.fecha_procesado.isoformat() if r.fecha_procesado else None
+            })
+        return Response(data)

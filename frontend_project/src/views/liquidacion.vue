@@ -14,6 +14,11 @@ const cargandoMovs    = ref(false);
 const filtroTipo      = ref('todos');
 const filtroDesde     = ref('');
 const filtroHasta     = ref('');
+const activeTab       = ref('movimientos'); // 'movimientos' o 'retiros'
+
+// ── Retiros ──────────────────────────────────────────────────────────────────
+const retiros         = ref([]);
+const cargandoRetiros = ref(false);
 
 // ── Modal Retiro ──────────────────────────────────────────────────────────────
 const showRetiroModal  = ref(false);
@@ -72,6 +77,18 @@ async function cargarMovimientos(page = 1) {
   }
 }
 
+async function cargarRetiros() {
+  cargandoRetiros.value = true;
+  try {
+    const { data } = await axios.get('api/liquidacion/retiros/');
+    retiros.value = data;
+  } catch (e) {
+    console.error('Error cargando retiros:', e);
+  } finally {
+    cargandoRetiros.value = false;
+  }
+}
+
 function aplicarFiltros() { cargarMovimientos(1); }
 
 function irPagina(p) {
@@ -82,6 +99,7 @@ function irPagina(p) {
 onMounted(() => {
   cargarSaldos();
   cargarMovimientos();
+  cargarRetiros();
 });
 
 // ── Retiro ────────────────────────────────────────────────────────────────────
@@ -309,11 +327,45 @@ const metodoIconos = {
               <span class="text-[11px] text-amber-400/70 font-semibold">Aguardando confirmación</span>
             </div>
           </div>
+
+          <!-- Total Retirado -->
+          <div class="relative bg-white/4 border border-white/10 rounded-2xl p-6 overflow-hidden group hover:bg-white/6 hover:border-white/18 transition-all duration-300 sm:col-span-3 lg:col-span-1">
+            <div class="absolute -right-6 -bottom-6 w-28 h-28 rounded-full bg-red-500/6 group-hover:bg-red-500/10 transition-all duration-500"></div>
+            <p class="text-[11px] uppercase tracking-widest font-bold text-red-400/70 mb-1">Dinero Retirado</p>
+            <p class="text-3xl font-black text-red-400 tabular-nums leading-none mb-1">{{ COP(saldos.retiros_realizados) }}</p>
+            <p class="text-xs text-white/40">Total retirado de la plataforma</p>
+            <div class="mt-4 flex items-center gap-1.5">
+              <div class="w-1.5 h-1.5 rounded-full bg-red-400/70"></div>
+              <span class="text-[11px] text-red-400/70 font-semibold">Salida de capital</span>
+            </div>
+          </div>
         </div>
       </template>
 
+      <!-- ── TABS SELECTOR ────────────────────────────────────────── -->
+      <div class="flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/10 w-fit">
+        <button
+          @click="activeTab = 'movimientos'"
+          :class="[
+            'px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all',
+            activeTab === 'movimientos' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-white/40 hover:text-white/70'
+          ]"
+        >
+          Movimientos
+        </button>
+        <button
+          @click="activeTab = 'retiros'"
+          :class="[
+            'px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all',
+            activeTab === 'retiros' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-white/40 hover:text-white/70'
+          ]"
+        >
+          Historial de Retiros
+        </button>
+      </div>
+
       <!-- ── TABLA DE MOVIMIENTOS ────────────────────────────────────── -->
-      <div class="bg-white/3 border border-white/8 rounded-2xl overflow-hidden">
+      <div v-if="activeTab === 'movimientos'" class="bg-white/3 border border-white/8 rounded-2xl overflow-hidden animate-fade-in">
 
         <!-- Cabecera con filtros -->
         <div class="px-6 py-5 border-b border-white/8 flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
@@ -526,6 +578,72 @@ const metodoIconos = {
           </div>
         </div>
 
+      </div>
+
+      <!-- ── TABLA DE RETIROS ────────────────────────────────────── -->
+      <div v-if="activeTab === 'retiros'" class="bg-white/3 border border-white/8 rounded-2xl overflow-hidden animate-fade-in">
+        <div class="px-6 py-5 border-b border-white/8">
+          <h2 class="font-black text-white text-base">Historial de Retiros</h2>
+          <p class="text-xs text-white/35 mt-0.5">Dinero transferido a tus cuentas personales</p>
+        </div>
+
+        <div v-if="cargandoRetiros" class="p-6 space-y-3">
+          <div v-for="i in 3" :key="i" class="h-16 bg-white/4 rounded-xl animate-pulse relative overflow-hidden">
+            <div class="shimmer absolute inset-0 rounded-xl"></div>
+          </div>
+        </div>
+
+        <div v-else-if="retiros.length > 0" class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-[10px] uppercase tracking-widest text-white/30 font-bold border-b border-white/6">
+                <th class="text-left px-6 py-3">Referencia</th>
+                <th class="text-left px-4 py-3">Fecha Solicitud</th>
+                <th class="text-left px-4 py-3">Método</th>
+                <th class="text-center px-4 py-3">Estado</th>
+                <th class="text-right px-6 py-3">Monto</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5">
+              <tr v-for="r in retiros" :key="r.id" class="hover:bg-white/3 transition-colors duration-150">
+                <td class="px-6 py-4 font-mono text-xs text-white/50">{{ r.referencia }}</td>
+                <td class="px-4 py-4 text-xs text-white/45">{{ formatFecha(r.fecha) }}</td>
+                <td class="px-4 py-4">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded bg-white/5 border border-white/10 flex items-center justify-center">
+                      <svg class="w-4 h-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" :d="metodoIconos[r.metodo] || metodoIconos.pse"/>
+                      </svg>
+                    </div>
+                    <span class="text-xs text-white/70">{{ r.metodo.replace('_', ' ').toUpperCase() }}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-4 text-center">
+                  <span :class="[
+                    'text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wider',
+                    r.estado === 'Completado' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400' :
+                    r.estado === 'Pendiente' ? 'bg-amber-500/10 border-amber-500/25 text-amber-400' :
+                    'bg-red-500/10 border-red-500/25 text-red-400'
+                  ]">
+                    {{ r.estado }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-right font-black text-red-400 tabular-nums">
+                  -{{ COP(r.monto) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-else class="py-20 text-center">
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-white/5 border border-white/8 flex items-center justify-center mb-4">
+            <svg class="w-8 h-8 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <p class="text-white/30 font-semibold">Aún no has realizado ningún retiro</p>
+        </div>
       </div>
     </main>
 

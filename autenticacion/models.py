@@ -334,3 +334,26 @@ class ExperienciaCalificacion(models.Model):
     class Meta:
         verbose_name = "Calificación de Experiencia"
         verbose_name_plural = "Calificaciones de Experiencias"
+
+class Retiro(models.Model):
+    ESTADO_CHOICES = [
+        ('Pendiente', 'Pendiente'),
+        ('Procesando', 'Procesando'),
+        ('Completado', 'Completado'),
+        ('Rechazado', 'Rechazado'),
+    ]
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='retiros')
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    metodo = models.CharField(max_length=50)
+    datos_bancarios = models.JSONField(default=dict)
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='Pendiente')
+    referencia = models.CharField(max_length=50, unique=True)
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+    fecha_procesado = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Retiro"
+        verbose_name_plural = "Retiros"
+
+    def __str__(self):
+        return f"{self.referencia} - {self.monto}"
