@@ -77,13 +77,13 @@ class Command(BaseCommand):
                     total_venta += subtotal
                     used_items.add(f"paq_{paquete.id}")
 
-                    # Agregar una calificación aleatoria (80% de probabilidad)
-                    if random.random() > 0.2 and detalle.estado == 'Confirmado':
-                        ExperienciaCalificacion.objects.create(
-                            detalle_venta=detalle,
-                            puntuacion=random.randint(4, 5),
-                            comentario=random.choice(["¡Increíble experiencia!", "Muy buena atención", "Recomendado", "Paisajes hermosos"])
-                        )
+                    # Agregar una calificación aleatoria (Comentado para evitar reseñas falsas)
+                    # if random.random() > 0.2 and detalle.estado == 'Confirmado':
+                    #     ExperienciaCalificacion.objects.create(
+                    #         detalle_venta=detalle,
+                    #         puntuacion=random.randint(4, 5),
+                    #         comentario=random.choice(["¡Increíble experiencia!", "Muy buena atención", "Recomendado", "Paisajes hermosos"])
+                    #     )
 
                 elif item_type == 'producto' and productos:
                     producto = random.choice(productos)
