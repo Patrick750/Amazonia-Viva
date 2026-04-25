@@ -593,47 +593,69 @@ const metodoIconos = {
           </div>
         </div>
 
-        <div v-else-if="retiros.length > 0" class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-[10px] uppercase tracking-widest text-white/30 font-bold border-b border-white/6">
-                <th class="text-left px-6 py-3">Referencia</th>
-                <th class="text-left px-4 py-3">Fecha Solicitud</th>
-                <th class="text-left px-4 py-3">Método</th>
-                <th class="text-center px-4 py-3">Estado</th>
-                <th class="text-right px-6 py-3">Monto</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-white/5">
-              <tr v-for="r in retiros" :key="r.id" class="hover:bg-white/3 transition-colors duration-150">
-                <td class="px-6 py-4 font-mono text-xs text-white/50">{{ r.referencia }}</td>
-                <td class="px-4 py-4 text-xs text-white/45">{{ formatFecha(r.fecha) }}</td>
-                <td class="px-4 py-4">
-                  <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded bg-white/5 border border-white/10 flex items-center justify-center">
-                      <svg class="w-4 h-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" :d="metodoIconos[r.metodo] || metodoIconos.pse"/>
-                      </svg>
+        <div v-else-if="retiros.length > 0">
+          
+          <!-- Vista Móvil: Cards -->
+          <div class="sm:hidden divide-y divide-white/5">
+            <div 
+              v-for="r in retiros" :key="r.id"
+              class="p-4 space-y-3 active:bg-white/5 transition-colors"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-mono text-white/30 uppercase">{{ r.referencia }}</span>
+              </div>
+              
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                  <svg class="w-5 h-5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" :d="metodoIconos[r.metodo] || metodoIconos.pse"/>
+                  </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-bold text-white truncate">{{ r.metodo.replace('_', ' ').toUpperCase() }}</p>
+                  <p class="text-[10px] text-white/40 mt-0.5">{{ formatFecha(r.fecha) }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm font-black tabular-nums text-red-400">
+                    -{{ COP(r.monto) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vista Desktop: Tabla -->
+          <div class="hidden sm:block overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-[10px] uppercase tracking-widest text-white/30 font-bold border-b border-white/6">
+                  <th class="text-left px-6 py-3">Referencia</th>
+                  <th class="text-left px-4 py-3">Fecha Solicitud</th>
+                  <th class="text-left px-4 py-3">Método</th>
+                  <th class="text-right px-6 py-3">Monto</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-white/5">
+                <tr v-for="r in retiros" :key="r.id" class="hover:bg-white/3 transition-colors duration-150">
+                  <td class="px-6 py-4 font-mono text-xs text-white/50">{{ r.referencia }}</td>
+                  <td class="px-4 py-4 text-xs text-white/45">{{ formatFecha(r.fecha) }}</td>
+                  <td class="px-4 py-4">
+                    <div class="flex items-center gap-2">
+                      <div class="w-7 h-7 rounded bg-white/5 border border-white/10 flex items-center justify-center">
+                        <svg class="w-4 h-4 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" :d="metodoIconos[r.metodo] || metodoIconos.pse"/>
+                        </svg>
+                      </div>
+                      <span class="text-xs text-white/70">{{ r.metodo.replace('_', ' ').toUpperCase() }}</span>
                     </div>
-                    <span class="text-xs text-white/70">{{ r.metodo.replace('_', ' ').toUpperCase() }}</span>
-                  </div>
-                </td>
-                <td class="px-4 py-4 text-center">
-                  <span :class="[
-                    'text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wider',
-                    r.estado === 'Completado' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400' :
-                    r.estado === 'Pendiente' ? 'bg-amber-500/10 border-amber-500/25 text-amber-400' :
-                    'bg-red-500/10 border-red-500/25 text-red-400'
-                  ]">
-                    {{ r.estado }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 text-right font-black text-red-400 tabular-nums">
-                  -{{ COP(r.monto) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  </td>
+                  <td class="px-6 py-4 text-right font-black text-red-400 tabular-nums">
+                    -{{ COP(r.monto) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div v-else class="py-20 text-center">
