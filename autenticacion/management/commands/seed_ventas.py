@@ -26,14 +26,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("No hay paquetes ni productos para vender."))
             return
 
-        # Generar unas 200 ventas aleatorias para poblar el histórico de 24 meses
-        for i in range(200):
+        # Generar unas 50 ventas aleatorias
+        for i in range(50):
             turista_user = random.choice(turistas)
             
-            # Generar fecha aleatoria en los últimos 24 meses (aprox 730 días)
-            dias_atras = random.randint(0, 730)
-            fecha_aleatoria = timezone.now() - timedelta(days=dias_atras)
-
             # Crear una Venta
             venta = Venta.objects.create(
                 usuario=turista_user,
@@ -42,10 +38,6 @@ class Command(BaseCommand):
                 fotograficas={},
                 novedades_turistas=[]
             )
-            
-            # Forzar la fecha (auto_now_add=True previene asignarla en create)
-            venta.fecha = fecha_aleatoria
-            venta.save()
 
             total_venta = Decimal('0.00')
             
@@ -85,13 +77,13 @@ class Command(BaseCommand):
                     total_venta += subtotal
                     used_items.add(f"paq_{paquete.id}")
 
-                    # Agregar una calificación aleatoria (Comentado para evitar reseñas falsas)
-                    # if random.random() > 0.2 and detalle.estado == 'Confirmado':
-                    #     ExperienciaCalificacion.objects.create(
-                    #         detalle_venta=detalle,
-                    #         puntuacion=random.randint(4, 5),
-                    #         comentario=random.choice(["¡Increíble experiencia!", "Muy buena atención", "Recomendado", "Paisajes hermosos"])
-                    #     )
+                    # Agregar una calificación aleatoria (80% de probabilidad)
+                    if random.random() > 0.2 and detalle.estado == 'Confirmado':
+                        ExperienciaCalificacion.objects.create(
+                            detalle_venta=detalle,
+                            puntuacion=random.randint(4, 5),
+                            comentario=random.choice(["¡Increíble experiencia!", "Muy buena atención", "Recomendado", "Paisajes hermosos"])
+                        )
 
                 elif item_type == 'producto' and productos:
                     producto = random.choice(productos)

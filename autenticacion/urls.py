@@ -79,5 +79,4 @@ urlpatterns = [
     path("liquidacion/solicitar-retiro/", vistas_liquidacion.SolicitarRetiroView.as_view(), name='liquidacion_retiro'),
     path("liquidacion/movimientos/", vistas_liquidacion.MovimientosView.as_view(), name='liquidacion_movimientos'),
     path("liquidacion/exportar/", vistas_liquidacion.ExportarMovimientosView.as_view(), name='liquidacion_exportar'),
-    path("liquidacion/retiros/", vistas_liquidacion.ListaRetirosView.as_view(), name='liquidacion_retiros'),
 ]

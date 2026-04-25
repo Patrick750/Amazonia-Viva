@@ -84,7 +84,7 @@ class Command(BaseCommand):
                 "Origen": "Amazonas, Colombia"
             }
             p.caracteristicas.update(extra_info)
-            # p.rating = random.choice([4.0, 4.5, 5.0, 4.8])
+            p.rating = random.choice([4.0, 4.5, 5.0, 4.8])
             p.save()
 
             # 4. Imágenes dummy

@@ -1,5 +1,4 @@
 from django.shortcuts import render, get_object_or_404
-import calendar
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status 
@@ -15,7 +14,7 @@ import os
 from django.conf import settings
 from django.http import JsonResponse
 from django.db.models import Count, Q, Sum, Avg, F
-from django.db.models.functions import TruncDate, TruncMonth
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from datetime import date, timedelta
 from decimal import Decimal
@@ -486,59 +485,47 @@ class DashboardKPIsView(APIView):
 
     def get(self, request):
         user = request.user
-        months_range = int(request.query_params.get('months', 24))
-        filter_month = request.query_params.get('month')
-        filter_year = request.query_params.get('year')
-        
-        # Valores por defecto para el filtro (Mes actual si no se especifica)
-        now = timezone.now()
-        month = int(filter_month) if filter_month else now.month
-        year = int(filter_year) if filter_year else now.year
         
         if hasattr(user, 'agencia'):
-            return self._get_agencia_kpis(user, months_range, month, year)
+            return self._get_agencia_kpis(user)
         elif hasattr(user, 'proveedor'):
-            return self._get_proveedor_kpis(user, months_range, month, year)
+            return self._get_proveedor_kpis(user)
         else:
             return Response({'error': 'Rol no soportado para este dashboard.'}, status=status.HTTP_403_FORBIDDEN)
 
-    def _get_agencia_kpis(self, user, range_months=24, month=None, year=None):
+    def _get_agencia_kpis(self, user):
         from .models import PaqueteTuristico, Detalles_Venta, ExperienciaCalificacion
-        from datetime import date
         
-        # Rango del mes seleccionado
-        start_date = date(year, month, 1)
-        last_day = calendar.monthrange(year, month)[1]
-        end_date = date(year, month, last_day)
-
         paquetes_ids = PaqueteTuristico.objects.filter(agencia_id=user.id).values_list('id', flat=True)
-        detalles_base = Detalles_Venta.objects.filter(paquete__in=paquetes_ids)
+        detalles = Detalles_Venta.objects.filter(paquete__in=paquetes_ids)
         
-        # Filtrar detalles por el mes seleccionado para los KPIs
-        detalles_mes = detalles_base.filter(venta__fecha__date__range=[start_date, end_date])
-        
-        # 1. Ingresos del Mes
-        ingresos_total = detalles_mes.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+        # 1. Ingresos Totales
+        # Solo consideramos ventas que no estén canceladas o rechazadas
+        ingresos_total = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
             total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
         )['total'] or Decimal('0.00')
         
-        # 2. Tours Vendidos en el Mes
-        tours_vendidos = detalles_mes.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+        # 2. Tours Vendidos (Cantidad total de personas)
+        tours_vendidos = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
             total=Sum('cantidad')
         )['total'] or 0
         
-        # 3. Satisfacción Promedio del Mes
+        # 3. Satisfacción Promedio
         satisfaccion = ExperienciaCalificacion.objects.filter(
-            detalle_venta__paquete__in=paquetes_ids,
-            detalle_venta__venta__fecha__date__range=[start_date, end_date]
+            detalle_venta__paquete__in=paquetes_ids
         ).aggregate(avg=Avg('puntuacion'))['avg'] or 0
         
-        # 4. Reservas Pendientes del Mes
-        pendientes = detalles_mes.filter(estado='Confirmado').count()
+        # 4. Reservas Pendientes (Confirmado)
+        pendientes = detalles.filter(estado='Confirmado').count()
         
-        # 5. Datos para el gráfico diario (Días del mes seleccionado)
-        ventas_historico = detalles_base.filter(
-            venta__fecha__date__range=[start_date, end_date]
+        # Tendencias (Simuladas por ahora, o podrías comparar con el mes anterior si tuvieras datos temporales)
+        # Para este ejemplo, usaremos datos reales para el valor y una tendencia neutral/positiva genérica
+        
+        # 5. Datos para el gráfico (Ventas de los últimos 15 días)
+        fifteen_days_ago = (timezone.now() - timedelta(days=15)).date()
+        ventas_historico = Detalles_Venta.objects.filter(
+            paquete__in=paquetes_ids,
+            venta__fecha__date__gte=fifteen_days_ago
         ).exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
             dia=TruncDate('venta__fecha')
         ).values('dia').annotate(
@@ -548,51 +535,15 @@ class DashboardKPIsView(APIView):
         # Formatear datos para el gráfico
         labels = []
         series = []
+        
+        # Llenar huecos con ceros para una visualización continua
+        current_day = fifteen_days_ago
         stats_dict = { v['dia']: float(v['total']) for v in ventas_historico }
         
-        # Iterar todos los días del mes seleccionado
-        current_day = start_date
-        # Solo mostrar hasta el día actual si es el mes actual, sino todo el mes
-        today_date = timezone.now().date()
-        limit_date = end_date if end_date < today_date else today_date
-        
-        while current_day <= limit_date:
+        while current_day <= timezone.now().date():
             labels.append(current_day.strftime('%d %b'))
             series.append(stats_dict.get(current_day, 0.0))
             current_day += timedelta(days=1)
-
-
-        # 6. Datos para el gráfico de barras (Rango variable relativo al mes seleccionado)
-        # Calculamos la fecha de inicio del rango (X meses atrás desde el mes seleccionado)
-        rel_year = year
-        rel_month = month - (range_months - 1)
-        while rel_month <= 0:
-            rel_month += 12
-            rel_year -= 1
-        
-        start_date_range = date(rel_year, rel_month, 1)
-        ventas_mensuales = detalles_base.exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
-            mes_trunc=TruncMonth('venta__fecha')
-        ).filter(mes_trunc__gte=start_date_range).values('mes_trunc').annotate(
-            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
-        ).order_by('mes_trunc')
-
-        monthly_labels = []
-        monthly_series = []
-        stats_monthly_dict = { v['mes_trunc'].strftime('%Y-%m'): float(v['total']) for v in ventas_mensuales }
-        
-        for i in range(range_months - 1, -1, -1):
-            y = year
-            m = month - i
-            while m <= 0:
-                m += 12
-                y -= 1
-            
-            key = f"{y}-{m:02d}"
-            import datetime
-            d_obj = datetime.date(y, m, 1)
-            monthly_labels.append(d_obj.strftime('%b %Y'))
-            monthly_series.append(stats_monthly_dict.get(key, 0.0))
 
         return Response({
             'kpis': [
@@ -629,65 +580,45 @@ class DashboardKPIsView(APIView):
                         'data': series
                     }
                 ]
-            },
-            'monthly_chart_data': {
-                'labels': monthly_labels,
-                'series': [
-                    {
-                        'name': 'Ganancias Mensuales',
-                        'data': monthly_series
-                    }
-                ]
             }
         })
 
-    def _get_proveedor_kpis(self, user, range_months=24, month=None, year=None):
+    def _get_proveedor_kpis(self, user):
         from .models import Productos, Detalles_Venta, ExperienciaCalificacion, Venta
-        from datetime import date
         
-        # Rango del mes seleccionado
-        start_date = date(year, month, 1)
-        last_day = calendar.monthrange(year, month)[1]
-        end_date = date(year, month, last_day)
-
         productos_qs = Productos.objects.filter(proveedor_id=user.id)
         productos_ids = productos_qs.values_list('id', flat=True)
-        detalles_base = Detalles_Venta.objects.filter(producto__in=productos_ids)
+        detalles = Detalles_Venta.objects.filter(producto__in=productos_ids)
         
-        # Filtrar detalles por el mes seleccionado
-        detalles_mes = detalles_base.filter(venta__fecha__date__range=[start_date, end_date])
-        
-        # 1. Total Productos Vendidos en el Mes
-        vendidos_cont = detalles_mes.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+        # 1. Total Productos Vendidos
+        vendidos_cont = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
             total=Sum('cantidad')
         )['total'] or 0
         
-        # 2. Ingresos del Mes
-        ingresos_total = detalles_mes.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+        # 2. Ingresos Totales
+        ingresos_total = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
             total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
         )['total'] or Decimal('0.00')
         
-        # 3. Productos Activos (Este es absoluto, pero podríamos filtrarlo si fuera necesario)
+        # 3. Productos Activos
         activos = productos_qs.filter(disponible=True).count()
         
-        # 4. Pedidos Pendientes del Mes
-        pendientes = detalles_mes.filter(estado='Pendiente de Empaque').count()
+        # 4. Pedidos Pendientes
+        pendientes = detalles.filter(estado='Pendiente de Empaque').count()
         
-        # 5. Calificación Promedio del Mes
+        # 5. Calificación Promedio
         satisfaccion = ExperienciaCalificacion.objects.filter(
-            detalle_venta__producto__in=productos_ids,
-            detalle_venta__venta__fecha__date__range=[start_date, end_date]
+            detalle_venta__producto__in=productos_ids
         ).aggregate(avg=Avg('puntuacion'))['avg'] or 0
         
-        # 6. Total Clientes del Mes
-        clientes = Venta.objects.filter(
-            detalles_venta__producto__in=productos_ids,
-            fecha__date__range=[start_date, end_date]
-        ).distinct().count()
+        # 6. Total Clientes
+        clientes = Venta.objects.filter(detalles_venta__producto__in=productos_ids).distinct().count()
         
-        # 7. Datos para el gráfico diario (Días del mes seleccionado)
-        ventas_historico = detalles_base.filter(
-            venta__fecha__date__range=[start_date, end_date]
+        # 7. Datos para el gráfico (Ventas de los últimos 15 días)
+        fifteen_days_ago = (timezone.now() - timedelta(days=15)).date()
+        ventas_historico = Detalles_Venta.objects.filter(
+            producto__in=productos_ids,
+            venta__fecha__date__gte=fifteen_days_ago
         ).exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
             dia=TruncDate('venta__fecha')
         ).values('dia').annotate(
@@ -697,49 +628,15 @@ class DashboardKPIsView(APIView):
         # Formatear datos para el gráfico
         labels = []
         series = []
+        
+        # Llenar huecos con ceros
+        current_day = fifteen_days_ago
         stats_dict = { v['dia']: float(v['total']) for v in ventas_historico }
         
-        # Iterar todos los días del mes
-        current_day = start_date
-        today_date = timezone.now().date()
-        limit_date = end_date if end_date < today_date else today_date
-        
-        while current_day <= limit_date:
+        while current_day <= timezone.now().date():
             labels.append(current_day.strftime('%d %b'))
             series.append(stats_dict.get(current_day, 0.0))
             current_day += timedelta(days=1)
-
-
-        # 8. Datos para el gráfico de barras (Rango variable relativo al mes seleccionado)
-        rel_year = year
-        rel_month = month - (range_months - 1)
-        while rel_month <= 0:
-            rel_month += 12
-            rel_year -= 1
-        
-        start_date_range = date(rel_year, rel_month, 1)
-        ventas_mensuales = detalles_base.exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
-            mes_trunc=TruncMonth('venta__fecha')
-        ).filter(mes_trunc__gte=start_date_range).values('mes_trunc').annotate(
-            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
-        ).order_by('mes_trunc')
-
-        monthly_labels = []
-        monthly_series = []
-        stats_monthly_dict = { v['mes_trunc'].strftime('%Y-%m'): float(v['total']) for v in ventas_mensuales }
-        
-        for i in range(range_months - 1, -1, -1):
-            y = year
-            m = month - i
-            while m <= 0:
-                m += 12
-                y -= 1
-            
-            key = f"{y}-{m:02d}"
-            import datetime
-            d_obj = datetime.date(y, m, 1)
-            monthly_labels.append(d_obj.strftime('%b %Y'))
-            monthly_series.append(stats_monthly_dict.get(key, 0.0))
 
         return Response({
             'kpis': [
@@ -786,15 +683,6 @@ class DashboardKPIsView(APIView):
                     {
                         'name': 'Ingresos por Venta',
                         'data': series
-                    }
-                ]
-            },
-            'monthly_chart_data': {
-                'labels': monthly_labels,
-                'series': [
-                    {
-                        'name': 'Ganancias Mensuales',
-                        'data': monthly_series
                     }
                 ]
             }

@@ -87,7 +87,7 @@ class Command(BaseCommand):
                     categoria_paquete=random.choice(categorias_paquete),
                     itinerario=[{"time": "08:00", "activity": "Inicio del tour"}],
                     incluido=[{"item": "Todo incluido"}],
-                    # rating=Decimal(random.uniform(4.0, 5.0)).quantize(Decimal('0.0')),
+                    rating=Decimal(random.uniform(4.0, 5.0)).quantize(Decimal('0.0')),
                     activo=True
                 )
                 paquete.actividades.set(random.sample(actividades, k=3))
