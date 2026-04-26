@@ -5,6 +5,7 @@ import TablaProductos from '@/components/gestion-productos/tabla-productos.vue';
 import FormularioProducto from '@/components/gestion-productos/formulario.vue';
 import DetallesProducto from '@/components/gestion-productos/detalles-producto.vue';
 import EliminarProducto from '@/components/gestion-productos/eliminar-producto.vue';
+import CargaMasiva from '@/components/gestion-productos/carga-masiva.vue';
 
 const API_URL = 'api/productos/';
 
@@ -128,6 +129,18 @@ const onEliminadoExitoso = (id) => {
 const eliminarProducto = (id) => {
     abrirModalEliminar(id);
 };
+
+// --- ESTADO DEL MODAL CARGA MASIVA ---
+const isModalCargaMasivaOpen = ref(false);
+
+const abrirModalCargaMasiva = () => {
+    isModalCargaMasivaOpen.value = true;
+};
+
+const cerrarModalCargaMasiva = () => {
+    isModalCargaMasivaOpen.value = false;
+};
+
 </script>
 
 <template>
@@ -144,11 +157,18 @@ const eliminarProducto = (id) => {
           <h1 class="text-3xl font-black text-white tracking-tight">Gestión de Productos</h1>
           <p class="text-white/45 mt-1 font-medium italic">Administra la oferta de inventario en tus diferentes catálogos</p>
         </div>
-        <button @click="abrirModalNuevo" 
-                class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-black font-black py-3 px-6 rounded-xl transition-all shadow-lg shadow-emerald-500/20 hover:-translate-y-0.5 active:scale-95 w-fit">
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Nuevo Producto
-        </button>
+        <div class="flex items-center gap-3">
+          <button @click="abrirModalCargaMasiva" 
+                  class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 font-black py-3 px-6 rounded-xl transition-all shadow-lg hover:-translate-y-0.5 active:scale-95 w-fit">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+            Carga Masiva
+          </button>
+          <button @click="abrirModalNuevo" 
+                  class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-black font-black py-3 px-6 rounded-xl transition-all shadow-lg shadow-emerald-500/20 hover:-translate-y-0.5 active:scale-95 w-fit">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Nuevo Producto
+          </button>
+        </div>
       </header>
       
       <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 animate-fade-in-up" style="animation-delay: 0.1s;">
@@ -242,6 +262,13 @@ const eliminarProducto = (id) => {
         :producto="productoParaEliminar"
         @cerrar="cerrarModalEliminar"
         @eliminadoExitoso="onEliminadoExitoso"
+      />
+
+      <!-- MODAL DE CARGA MASIVA -->
+      <CargaMasiva 
+        :abrir="isModalCargaMasivaOpen"
+        @cerrar="cerrarModalCargaMasiva"
+        @cargaExitosa="onGuardadoExitoso"
       />
 
     </div>
