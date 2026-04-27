@@ -7,7 +7,7 @@ from .views import (
     CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
     DetalleProductoPublico, UserStatsView, PerfilView, PerfilFotoView,
     VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView,
-    CuposDisponiblesView, MisReservasView, CancelarReservaView, DashboardKPIsView
+    CuposDisponiblesView, MisReservasView, CancelarReservaView, DashboardKPIsView, CargaMasivaPaquetesAPIView
 )
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView, CargaMasivaProductosAPIView
 from .vistas_experiencias import (
@@ -28,6 +28,7 @@ urlpatterns = [
     path("updatepack/<int:pk>/", UpdatePack.as_view(), name="updatepack"),
     path("deletepack/<int:pk>/", DeletePack.as_view(), name="deletepack"),
     path("pack/", PaquetesTuristicos.as_view(), name="packs"),
+    path("pack/carga-masiva/", CargaMasivaPaquetesAPIView.as_view(), name="paquetes_carga_masiva"),
     path("productos/", ProductosAPIView.as_view(), name="productos_list_create"),
     path("productos/carga-masiva/", CargaMasivaProductosAPIView.as_view(), name="productos_carga_masiva"),
     path("productos/<int:pk>/", ProductoDetalleAPIView.as_view(), name="productos_detail"),

@@ -11,6 +11,10 @@ from .models import *
 import time
 import json
 import os
+import csv
+import io
+import openpyxl
+from django.http import HttpResponse
 from django.conf import settings
 from django.http import JsonResponse
 from django.db.models import Count, Q, Sum, Avg, F
@@ -115,6 +119,10 @@ class Actividades(APIView):
 
 class NewPack(APIView):
     def post(self, request):
+        nombre = request.data.get('nombre')
+        if nombre and PaqueteTuristico.objects.filter(agencia_id=request.user.pk, nombre__iexact=nombre).exists():
+            return Response({"nombre": ["Ya tienes un paquete con este nombre."]}, status=status.HTTP_400_BAD_REQUEST)
+            
         serializer = SerializersCreateNewPack(data=request.data)
         if serializer.is_valid():
             try:
@@ -139,6 +147,10 @@ class UpdatePack(APIView):
             paquete = PaqueteTuristico.objects.get(pk=pk)
         except PaqueteTuristico.DoesNotExist:
             return Response({"error": "Paquete no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        nombre = request.data.get('nombre')
+        if nombre and PaqueteTuristico.objects.filter(agencia_id=request.user.pk, nombre__iexact=nombre).exclude(pk=pk).exists():
+            return Response({"nombre": ["Ya tienes un paquete con este nombre."]}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = SerializersCreateNewPack(paquete, data=request.data, partial=True)
         if serializer.is_valid():
@@ -184,6 +196,232 @@ class PaquetesTuristicos(APIView):
             return Response(serializers.data)
         except Exception as e:
             return Response({'mensaje': 'Hubo un error al obtener los paquetes', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CargaMasivaPaquetesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Generar plantilla Excel
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Plantilla Tours"
+        
+        # Cabeceras
+        headers = [
+            "nombre", "descripcion", "precio", "duracion", "capacidad", 
+            "tipo_paquete", "ubicacion", "categoria_id"
+        ]
+        ws.append(headers)
+        
+        # Fila de ejemplo
+        ejemplo = [
+            "Expedición Selva", "Un viaje increíble por el Amazonas", 150000, "3 días", 10, 
+            "flexible", "Leticia", 1
+        ]
+        ws.append(ejemplo)
+        
+        # Ajustar ancho de columnas
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = (max_length + 2)
+            ws.column_dimensions[column].width = adjusted_width
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_tours.xlsx"'
+        wb.save(response)
+        return response
+
+    def post(self, request):
+        try:
+            if not hasattr(request.user, 'agencia'):
+                return Response({"error": "No tienes una cuenta de agencia activa."}, status=status.HTTP_403_FORBIDDEN)
+            
+            agencia = request.user.agencia
+            archivo = request.FILES.get('archivo')
+            
+            if not archivo:
+                return Response({"error": "No se ha proporcionado ningún archivo."}, status=status.HTTP_400_BAD_REQUEST)
+
+            nombre_archivo = archivo.name.lower()
+            paquetes_a_crear = []
+            paquetes_a_actualizar = []
+            errores = []
+            nombres_en_lote = set()
+
+            def procesar_fila(fila, numero_fila):
+                try:
+                    # Limpiar las llaves y los valores de la fila
+                    cleaned_fila = {}
+                    for k, v in fila.items():
+                        if k:
+                            key_clean = str(k).strip().lower()
+                            val_clean = str(v).strip() if v is not None else ""
+                            if val_clean.lower() == 'none':
+                                val_clean = ""
+                            cleaned_fila[key_clean] = val_clean
+
+                    nombre = cleaned_fila.get('nombre', '')
+                    descripcion = cleaned_fila.get('descripcion', '')
+                    precio_str = cleaned_fila.get('precio', '0')
+                    duracion = cleaned_fila.get('duracion', '')
+                    capacidad_str = cleaned_fila.get('capacidad', '1')
+                    tipo_paquete = cleaned_fila.get('tipo_paquete', 'flexible').lower()
+                    ubicacion = cleaned_fila.get('ubicacion', '')
+                    categoria_id_str = cleaned_fila.get('categoria_id', '')
+
+                    # Procesar atributos dinámicos (columnas extra no contempladas en base)
+                    campos_base = ['nombre', 'descripcion', 'precio', 'duracion', 'capacidad', 'tipo_paquete', 'ubicacion', 'categoria_id']
+                    incluido = []
+                    for key, value in cleaned_fila.items():
+                        if key not in campos_base and value:
+                            # Añadir a la lista de "incluido"
+                            incluido.append({"item": f"{key.capitalize()}: {value}"})
+
+                    # Limpieza de datos y manejo de vacíos sin arrojar error
+                    if not nombre:
+                        nombre = f"Tour importado {numero_fila}"
+                    if not descripcion:
+                        descripcion = "Sin descripción"
+                    if not duracion:
+                        duracion = "No especificada"
+                    if not ubicacion:
+                        ubicacion = "No especificada"
+
+                    if nombre.lower() in nombres_en_lote:
+                        errores.append(f"Fila {numero_fila}: El paquete '{nombre}' está repetido en el archivo. Se ignoró.")
+                        return
+                    
+                    nombres_en_lote.add(nombre.lower())
+
+                    try:
+                        precio = float(precio_str) if precio_str else 0.0
+                        if precio < 0: precio = 0.0
+                    except ValueError:
+                        precio = 0.0
+
+                    try:
+                        capacidad = int(float(capacidad_str)) if capacidad_str else 1
+                        if capacidad < 1: capacidad = 1
+                    except ValueError:
+                        capacidad = 1
+
+                    if tipo_paquete not in ['fijo', 'flexible']:
+                        tipo_paquete = 'flexible'
+
+                    # Manejar categoría de forma segura
+                    categoria = None
+                    if categoria_id_str:
+                        try:
+                            cat_id = int(float(categoria_id_str))
+                            categoria = CategoriaPaquete.objects.filter(id=cat_id).first()
+                        except ValueError:
+                            pass
+                    
+                    if not categoria:
+                        categoria = CategoriaPaquete.objects.first()
+                        if not categoria:
+                            categoria = CategoriaPaquete.objects.create(grupo="General", nombre="General")
+
+                    paquete_existente = PaqueteTuristico.objects.filter(agencia=agencia, nombre__iexact=nombre).first()
+
+                    if paquete_existente:
+                        # Comparar valores
+                        son_iguales = (
+                            paquete_existente.descripcion == descripcion and
+                            float(paquete_existente.precio) == float(precio) and
+                            paquete_existente.duracion == duracion and
+                            paquete_existente.capacidad == capacidad and
+                            paquete_existente.tipo_paquete == tipo_paquete and
+                            paquete_existente.ubicacion == ubicacion and
+                            paquete_existente.categoria_paquete_id == (categoria.id if categoria else None) and
+                            paquete_existente.incluido == incluido
+                        )
+                        
+                        if son_iguales:
+                            errores.append(f"Fila {numero_fila}: El paquete '{nombre}' no tiene cambios. Se omitió.")
+                            return
+                        else:
+                            # Actualizar
+                            paquete_existente.descripcion = descripcion
+                            paquete_existente.precio = precio
+                            paquete_existente.duracion = duracion
+                            paquete_existente.capacidad = capacidad
+                            paquete_existente.tipo_paquete = tipo_paquete
+                            paquete_existente.ubicacion = ubicacion
+                            paquete_existente.categoria_paquete = categoria
+                            paquete_existente.incluido = incluido
+                            paquetes_a_actualizar.append(paquete_existente)
+                    else:
+                        paquetes_a_crear.append(PaqueteTuristico(
+                            nombre=nombre,
+                            descripcion=descripcion,
+                            precio=precio,
+                            duracion=duracion,
+                            capacidad=capacidad,
+                            tipo_paquete=tipo_paquete,
+                            ubicacion=ubicacion,
+                            agencia=agencia,
+                            categoria_paquete=categoria,
+                            incluido=incluido,
+                            itinerario=[],
+                            activo=True
+                        ))
+                except Exception as e:
+                    errores.append(f"Fila {numero_fila}: Error inesperado - {str(e)}")
+
+            if nombre_archivo.endswith('.csv'):
+                decoded_file = archivo.read().decode('utf-8-sig')
+                io_string = io.StringIO(decoded_file)
+                reader = csv.DictReader(io_string, delimiter=',')
+                
+                for i, row in enumerate(reader, start=2):
+                    if not any(str(v).strip() for v in row.values() if v is not None):
+                        continue
+                    procesar_fila(row, i)
+                    
+            elif nombre_archivo.endswith('.xlsx') or nombre_archivo.endswith('.xls'):
+                wb = openpyxl.load_workbook(archivo, data_only=True)
+                ws = wb.active
+                rows = list(ws.iter_rows(values_only=True))
+                
+                if not rows:
+                    return Response({"error": "El archivo Excel está vacío."}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                headers = [str(h).strip() if h else f"col_{idx}" for idx, h in enumerate(rows[0])]
+                
+                for i, row in enumerate(rows[1:], start=2):
+                    if not any(str(v).strip() for v in row if v is not None):
+                        continue
+                    row_dict = dict(zip(headers, row))
+                    procesar_fila(row_dict, i)
+            else:
+                return Response({"error": "Formato de archivo no soportado. Use .csv o .xlsx"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if paquetes_a_crear:
+                PaqueteTuristico.objects.bulk_create(paquetes_a_crear)
+            
+            if paquetes_a_actualizar:
+                PaqueteTuristico.objects.bulk_update(paquetes_a_actualizar, fields=[
+                    'descripcion', 'precio', 'duracion', 'capacidad', 
+                    'tipo_paquete', 'ubicacion', 'categoria_paquete', 'incluido'
+                ])
+
+            return Response({
+                "mensaje": f"Se crearon {len(paquetes_a_crear)} y se actualizaron {len(paquetes_a_actualizar)} tours exitosamente.",
+                "errores": errores,
+                "creados": len(paquetes_a_crear)
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': f"Error al procesar el archivo: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CatalogoTours(APIView):

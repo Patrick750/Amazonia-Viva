@@ -200,11 +200,13 @@ class CargaMasivaProductosAPIView(APIView):
                     # Limpieza de datos y manejo de vacíos sin arrojar error
                     try:
                         stock = int(float(stock_str)) if stock_str else 0
+                        if stock < 0: stock = 0
                     except ValueError:
                         stock = 0
 
                     try:
                         precio = float(precio_str) if precio_str else 0.0
+                        if precio < 0: precio = 0.0
                     except ValueError:
                         precio = 0.0
 
