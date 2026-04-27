@@ -165,51 +165,67 @@ class CargaMasivaProductosAPIView(APIView):
             productos_a_crear = []
             errores = []
 
-            # Función auxiliar para procesar cada fila
             def procesar_fila(fila, numero_fila):
                 try:
-                    # Dejar campos en blanco/default si faltan
-                    nombre = str(fila.get('nombre') or '').strip()
-                    sku = str(fila.get('sku') or '').strip()
-                    stock_str = str(fila.get('stock') or '0').strip()
-                    precio_str = str(fila.get('precio') or '0').strip()
-                    disponible_str = str(fila.get('disponible') or 'true').strip().lower()
-                    categoria_id_str = str(fila.get('categoria_id') or '').strip()
-                    tipo_catalogo = str(fila.get('tipo_catalogo') or 'turistas').strip().lower()
+                    # Limpiar las llaves y los valores de la fila
+                    cleaned_fila = {}
+                    for k, v in fila.items():
+                        if k:
+                            key_clean = str(k).strip().lower()
+                            # Eliminar prefijo attr: si lo traen, por retrocompatibilidad
+                            if key_clean.startswith('attr:'):
+                                key_clean = key_clean[5:].strip()
+                            
+                            val_clean = str(v).strip() if v is not None else ""
+                            if val_clean.lower() == 'none':
+                                val_clean = ""
+                                
+                            cleaned_fila[key_clean] = val_clean
 
-                    # Procesar atributos dinámicos (columnas que empiezan por attr:)
+                    nombre = cleaned_fila.get('nombre', '')
+                    sku = cleaned_fila.get('sku', '')
+                    stock_str = cleaned_fila.get('stock', '0')
+                    precio_str = cleaned_fila.get('precio', '0')
+                    disponible_str = cleaned_fila.get('disponible', 'true').lower()
+                    categoria_id_str = cleaned_fila.get('categoria_id', '')
+                    tipo_catalogo = cleaned_fila.get('tipo_catalogo', 'turistas').lower()
+
+                    # Procesar atributos dinámicos (columnas extra no contempladas en base)
+                    campos_base = ['nombre', 'sku', 'stock', 'precio', 'disponible', 'categoria_id', 'tipo_catalogo']
                     caracteristicas = []
-                    for key, value in fila.items():
-                        key_str = str(key).strip()
-                        if key_str.startswith('attr:'):
-                            nombre_attr = key_str[5:].strip() # Quitar "attr:"
-                            val_attr = str(value or '').strip()
-                            if nombre_attr and val_attr and val_attr.lower() != 'none':
-                                caracteristicas.append({"clave": nombre_attr, "valor": val_attr})
+                    for key, value in cleaned_fila.items():
+                        if key not in campos_base and value:
+                            caracteristicas.append({"clave": key.capitalize(), "valor": value})
 
-                    if not nombre or not sku or not categoria_id_str:
-                        errores.append(f"Fila {numero_fila}: Faltan campos obligatorios (nombre, sku o categoria_id).")
-                        return
+                    # Limpieza de datos y manejo de vacíos sin arrojar error
+                    try:
+                        stock = int(float(stock_str)) if stock_str else 0
+                    except ValueError:
+                        stock = 0
 
                     try:
-                        stock = int(float(stock_str))
-                        precio = float(precio_str)
-                        categoria_id = int(float(categoria_id_str))
+                        precio = float(precio_str) if precio_str else 0.0
                     except ValueError:
-                        errores.append(f"Fila {numero_fila}: Valores numéricos inválidos en stock, precio o categoria_id.")
-                        return
+                        precio = 0.0
 
-                    disponible = disponible_str in ['true', '1', 'si', 'yes']
+                    disponible = disponible_str in ['true', '1', 'si', 'yes', 's', 't']
                     
                     if tipo_catalogo not in ['turistas', 'agencias']:
                         tipo_catalogo = 'turistas'
 
-                    # Verificar si la categoría existe
-                    try:
-                        categoria = Categorias.objects.get(id=categoria_id)
-                    except Categorias.DoesNotExist:
-                        errores.append(f"Fila {numero_fila}: La categoría con ID {categoria_id} no existe.")
-                        return
+                    # Manejar categoría de forma segura (si viene vacía o es inválida, no rompemos)
+                    categoria = None
+                    if categoria_id_str:
+                        try:
+                            cat_id = int(float(categoria_id_str))
+                            categoria = Categorias.objects.filter(id=cat_id).first()
+                        except ValueError:
+                            pass
+                    
+                    if not categoria:
+                        categoria = Categorias.objects.first()
+                        if not categoria:
+                            categoria = Categorias.objects.create(nombre="General")
 
                     productos_a_crear.append(Productos(
                         nombre=nombre,
@@ -230,18 +246,7 @@ class CargaMasivaProductosAPIView(APIView):
                 io_string = io.StringIO(decoded_file)
                 reader = csv.DictReader(io_string, delimiter=',')
                 
-                # Normalizar nombres de columnas a minúsculas, excepto para attr: que mantiene case
-                def clean_header(h):
-                    if not h: return ''
-                    h = str(h).strip()
-                    if h.lower().startswith('attr:'):
-                        return 'attr:' + h[5:]
-                    return h.lower()
-                    
-                reader.fieldnames = [clean_header(field) for field in reader.fieldnames]
-                
                 for i, row in enumerate(reader, start=2): # Start at 2 to account for header
-                    # Ignorar filas completamente vacías
                     if not any(str(v).strip() for v in row.values() if v is not None):
                         continue
                     procesar_fila(row, i)
@@ -254,20 +259,11 @@ class CargaMasivaProductosAPIView(APIView):
                 if not rows:
                     return Response({"error": "El archivo Excel está vacío."}, status=status.HTTP_400_BAD_REQUEST)
                     
-                def clean_header(h):
-                    if not h: return ''
-                    h = str(h).strip()
-                    if h.lower().startswith('attr:'):
-                        return 'attr:' + h[5:]
-                    return h.lower()
-                    
-                headers = [clean_header(h) for h in rows[0]]
+                headers = [str(h).strip() if h else f"col_{idx}" for idx, h in enumerate(rows[0])]
                 
                 for i, row in enumerate(rows[1:], start=2):
-                    # Ignorar filas completamente vacías
                     if not any(str(v).strip() for v in row if v is not None):
                         continue
-                    # Crear diccionario combinando headers con row values
                     row_dict = dict(zip(headers, row))
                     procesar_fila(row_dict, i)
             else:
