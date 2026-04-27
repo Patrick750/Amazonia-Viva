@@ -183,15 +183,22 @@ const roleConfigs = {
 
 const kpisData = ref([]);
 const chartData = ref({ labels: [], series: [] });
+const monthlyChartData = ref({ labels: [], series: [] });
+const selectedMonths = ref(12);
+const filterMonth = ref(new Date().getMonth() + 1);
+const filterYear = ref(new Date().getFullYear());
 const isLoading = ref(true);
 
 const fetchKPIs = async () => {
   isLoading.value = true;
   try {
-    const { data } = await axios.get('api/dashboard/stats/');
+    const { data } = await axios.get(`api/dashboard/stats/?months=${selectedMonths.value}&month=${filterMonth.value}&year=${filterYear.value}`);
     kpisData.value = data.kpis;
     if (data.chart_data) {
       chartData.value = data.chart_data;
+    }
+    if (data.monthly_chart_data) {
+      monthlyChartData.value = data.monthly_chart_data;
     }
   } catch (error) {
     console.error('Error fetching dashboard KPIs:', error);
@@ -297,6 +304,74 @@ const chartOptions = computed(() => ({
   }
 }));
 
+const monthlyChartSeries = computed(() => monthlyChartData.value.series);
+
+const monthlyChartOptions = computed(() => ({
+  chart: {
+    type: 'bar',
+    toolbar: { show: false },
+    fontFamily: 'Inter, sans-serif',
+    background: 'transparent',
+    animations: {
+      enabled: true,
+      easing: 'easeinout',
+      speed: 800,
+    }
+  },
+  plotOptions: {
+    bar: {
+      borderRadius: 6,
+      columnWidth: '45%',
+      distributed: true,
+      dataLabels: { position: 'top' }
+    }
+  },
+  dataLabels: {
+    enabled: true,
+    formatter: (val) => `$${(val/1000).toFixed(0)}k`,
+    offsetY: -20,
+    style: {
+      fontSize: '10px',
+      colors: ["#fff"],
+      fontWeight: 900
+    }
+  },
+  colors: ['#10b880', '#34d399', '#059669', '#10b880', '#34d399', '#059669'],
+  xaxis: {
+    categories: monthlyChartData.value.labels,
+    axisBorder: { show: false },
+    axisTicks: { show: false },
+    labels: {
+      rotate: -45,
+      rotateAlways: monthlyChartData.value.labels.length > 10,
+      style: { colors: 'rgba(255,255,255,0.6)', fontSize: '10px', fontWeight: 600 }
+    }
+  },
+  yaxis: {
+    labels: {
+      style: { colors: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 600 },
+      formatter: (val) => `$${(val/1000).toFixed(0)}k`
+    }
+  },
+  grid: {
+    show: true,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    strokeDashArray: 4,
+    xaxis: { lines: { show: false } },
+    yaxis: { lines: { show: true } },
+    padding: { top: 20, right: 10, bottom: 0, left: 10 }
+  },
+  legend: { show: false },
+  tooltip: {
+    theme: 'dark',
+    y: { formatter: (val) => `$${val.toLocaleString()}` }
+  },
+  states: {
+    hover: { filter: { type: 'lighten', value: 0.15 } },
+    active: { filter: { type: 'none', value: 0 } }
+  }
+}));
+
 </script>
 
 <template>
@@ -330,9 +405,31 @@ const chartOptions = computed(() => ({
 
     <main class="relative z-10 max-w-7xl mx-auto">
       
-      <header class="mb-10 animate-fade-in-down">
-        <h1 class="text-3xl font-bold text-white tracking-tight">{{ currentConfig.header.title }}</h1>
-        <p class="text-white/45 mt-1">{{ currentConfig.header.subtitle }}</p>
+      <header class="mb-10 animate-fade-in-down flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+          <h1 class="text-3xl font-bold text-white tracking-tight">{{ currentConfig.header.title }}</h1>
+          <p class="text-white/45 mt-1">{{ currentConfig.header.subtitle }}</p>
+        </div>
+        
+        <div class="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-lg">
+          <div class="flex flex-col px-2">
+            <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Periodo</span>
+            <div class="flex items-center gap-2">
+              <select v-model="filterMonth" @change="fetchKPIs" class="bg-transparent text-sm font-bold text-white outline-none border-none cursor-pointer hover:text-emerald-400 transition-colors">
+                <option v-for="(m, i) in ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']" 
+                        :key="i" :value="i + 1" class="bg-[#0a1a0f]">{{ m }}</option>
+              </select>
+              <select v-model="filterYear" @change="fetchKPIs" class="bg-transparent text-sm font-bold text-white outline-none border-none cursor-pointer hover:text-emerald-400 transition-colors">
+                <option v-for="y in [2024, 2025, 2026]" :key="y" :value="y" class="bg-[#0a1a0f]">{{ y }}</option>
+              </select>
+            </div>
+          </div>
+          <button @click="fetchKPIs" class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl hover:bg-emerald-500 hover:text-white transition-all duration-300">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
+            </svg>
+          </button>
+        </div>
       </header>
 
       <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" :class="currentConfig.gridClass">
@@ -383,6 +480,42 @@ const chartOptions = computed(() => ({
             </div>
             <div v-else class="w-full h-full flex items-center justify-center text-white/20 bg-white/5 rounded-xl border border-dashed border-white/10">
               No hay datos disponibles para el gráfico
+            </div>
+          </div>
+
+          <!-- Nuevo Gráfico de Ganancias Mensuales -->
+          <div class="mt-12 pt-8 border-t border-white/5">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-semibold text-white relative z-10 flex items-center gap-2">
+                  <span class="w-2 h-6 bg-emerald-500 rounded-full"></span>
+                  Ganancias Mensuales
+                </h2>
+              </div>
+              
+              <div class="flex items-center gap-3 bg-white/5 p-1 rounded-xl border border-white/10 relative z-20">
+                <button v-for="range in [6, 12, 24, 36]" :key="range"
+                        @click="selectedMonths = range; fetchKPIs()"
+                        class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200"
+                        :class="selectedMonths === range ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-white/40 hover:text-white/70 hover:bg-white/5'">
+                  {{ range }}M
+                </button>
+              </div>
+            </div>
+            <div class="relative z-10 h-[320px]">
+              <VueApexCharts
+                v-if="!isLoading && monthlyChartData.labels.length > 0"
+                width="100%"
+                height="100%"
+                :options="monthlyChartOptions"
+                :series="monthlyChartSeries"
+              />
+              <div v-else-if="isLoading" class="w-full h-full flex items-center justify-center text-slate-400">
+                Cargando datos mensuales...
+              </div>
+              <div v-else class="w-full h-full flex items-center justify-center text-white/20 bg-white/5 rounded-xl border border-dashed border-white/10">
+                No hay suficientes datos históricos
+              </div>
             </div>
           </div>
         </div>
