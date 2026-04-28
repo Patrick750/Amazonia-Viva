@@ -9,16 +9,16 @@ class Command(BaseCommand):
         roles_base = ['turista', 'agencia', 'proveedor']
         grupos_creados = 0
 
-        self.stdout.write(self.style.WARNING('Iniciando creación de grupos (Roles)...'))
+        self.stdout.write(self.style.WARNING('Iniciando creacion de grupos (Roles)...'))
 
         for nombre_rol in roles_base:
             # get_or_create busca el grupo, si no existe, lo crea automáticamente
             grupo, creado = Group.objects.get_or_create(name=nombre_rol)
             
             if creado:
-                self.stdout.write(self.style.SUCCESS(f'✅ Grupo "{nombre_rol}" creado exitosamente.'))
+                self.stdout.write(self.style.SUCCESS(f'Grupo "{nombre_rol}" creado exitosamente.'))
                 grupos_creados += 1
             else:
-                self.stdout.write(self.style.NOTICE(f'ℹ️ El grupo "{nombre_rol}" ya existía.'))
+                self.stdout.write(self.style.NOTICE(f'El grupo "{nombre_rol}" ya existia.'))
 
         self.stdout.write(self.style.SUCCESS(f'¡Proceso completado! Se crearon {grupos_creados} grupos nuevos.'))

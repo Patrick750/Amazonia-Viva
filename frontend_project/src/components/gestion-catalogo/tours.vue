@@ -112,7 +112,9 @@
                 
                 <div class="flex items-center gap-4">
                     <div class="w-20 h-20 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-white/5 flex-shrink-0 cursor-pointer group-hover:scale-105 transition-transform" @click="emit('verDetalles', tour)">
-                        <img v-if="tour.imagen_paquete && tour.imagen_paquete.length > 0" :src="tour.imagen_paquete.find(i => i.es_portada)?.url || tour.imagen_paquete[0].url" :alt="tour.nombre" class="w-full h-full object-cover" />
+                        <template v-if="tour.imagen_paquete && tour.imagen_paquete.length > 0">
+                            <img :src="tour.imagen_paquete.find(i => i.es_portada)?.url || tour.imagen_paquete[0].url" :alt="tour.nombre" class="w-full h-full object-cover" />
+                        </template>
                         <div v-else class="w-full h-full flex items-center justify-center">
                             <svg class="w-8 h-8 text-white/10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         </div>
@@ -182,12 +184,13 @@
                             <div class="flex items-center gap-5">
                                 <div class="relative flex-shrink-0 group-hover:scale-110 transition-transform duration-500">
                                     <div class="w-16 h-16 rounded-2xl overflow-hidden shadow-2xl bg-white/10 border border-white/10">
-                                        <img 
-                                            v-if="tour.imagen_paquete && tour.imagen_paquete.length > 0"
-                                            :src="tour.imagen_paquete.find(i => i.es_portada)?.url || tour.imagen_paquete[0].url" 
-                                            :alt="tour.nombre"
-                                            class="w-full h-full object-cover group-hover:scale-110 transition-all duration-700"
-                                        />
+                                        <template v-if="tour.imagen_paquete && tour.imagen_paquete.length > 0">
+                                            <img 
+                                                :src="tour.imagen_paquete.find(i => i.es_portada)?.url || tour.imagen_paquete[0].url" 
+                                                :alt="tour.nombre"
+                                                class="w-full h-full object-cover group-hover:scale-110 transition-all duration-700"
+                                            />
+                                        </template>
                                         <div v-else class="w-full h-full flex items-center justify-center">
                                             <svg class="w-7 h-7 text-white/5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                         </div>
@@ -203,7 +206,7 @@
                                     </h3>
                                     <div class="flex items-center gap-2">
                                         <span class="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded uppercase tracking-widest">
-                                            {{ tour.category || 'Experiencia' }}
+                                            {{ tour.categoria_paquete_nombre || 'Experiencia' }}
                                         </span>
                                         <span class="text-[9px] font-black text-white/20 uppercase tracking-widest italic">
                                             {{ tour.reservas_totales || 0 }} Reservas

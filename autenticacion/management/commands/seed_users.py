@@ -2,6 +2,7 @@ import random
 import re
 from datetime import date, timedelta
 from django.core.management.base import BaseCommand
+from django.contrib.auth.models import Group
 from autenticacion.models import Agencia, Turista, Usuario
 
 AGENCY_NAMES = [
@@ -36,7 +37,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         password = "pac131pap"
         
-        self.stdout.write(self.style.SUCCESS(f"Iniciando creación de {len(AGENCY_NAMES)} agencias..."))
+        # Obtener o crear los grupos (Roles)
+        grupo_agencia, _ = Group.objects.get_or_create(name='agencia')
+        grupo_turista, _ = Group.objects.get_or_create(name='turista')
+
+        self.stdout.write(self.style.SUCCESS(f"Iniciando creacion de {len(AGENCY_NAMES)} agencias..."))
         for name in AGENCY_NAMES:
             username = slugify(name)
             email = f"{username}@test.com"
@@ -51,14 +56,16 @@ class Command(BaseCommand):
                 )
                 agencia.set_password(password)
                 agencia.save()
+                agencia.groups.add(grupo_agencia) # Asignar rol
                 self.stdout.write(f"  - Creada Agencia: {name}")
             else:
                 u = Usuario.objects.get(email=email)
                 u.set_password(password)
+                u.groups.add(grupo_agencia) # Asegurar rol en actualización
                 u.save()
-                self.stdout.write(self.style.WARNING(f"  - Actualizada contraseña: {name}"))
+                self.stdout.write(self.style.WARNING(f"  - Actualizada Agencia (Rol + Password): {name}"))
 
-        self.stdout.write(self.style.SUCCESS(f"\nIniciando creación de {len(TOURIST_NAMES)} turistas..."))
+        self.stdout.write(self.style.SUCCESS(f"\nIniciando creacion de {len(TOURIST_NAMES)} turistas..."))
         for name in TOURIST_NAMES:
             parts = name.split()
             first_name = parts[0]
@@ -78,11 +85,13 @@ class Command(BaseCommand):
                 )
                 turista.set_password(password)
                 turista.save()
+                turista.groups.add(grupo_turista) # Asignar rol
                 self.stdout.write(f"  - Creado Turista: {name}")
             else:
                 u = Usuario.objects.get(email=email)
                 u.set_password(password)
+                u.groups.add(grupo_turista) # Asegurar rol en actualización
                 u.save()
-                self.stdout.write(self.style.WARNING(f"  - Actualizada contraseña: {name}"))
+                self.stdout.write(self.style.WARNING(f"  - Actualizado Turista (Rol + Password): {name}"))
 
-        self.stdout.write(self.style.SUCCESS("\n¡Sembrado de usuarios completado con éxito!"))
+        self.stdout.write(self.style.SUCCESS("\nSembrado de usuarios completado con exito!"))

@@ -15,6 +15,7 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 - **Autenticación:** JWT / Sesiones Django
 - **Servicios en la nube:** Cloudinary (Imágenes) + Github + Render + Neon 
 - **Control de versiones:** Git
+- **Despliegue:** Render
 
 ---
 
@@ -25,6 +26,14 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MAYOR** — cambio funcional significativo o rediseño arquitectónico
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
+ 
+ ### 4.5.0 — Sistema de Carga Masiva y Refuerzo de Marca (SCRUM-70)
+ > Archivos: `carga-masiva.vue`, `tours.vue`, `views.py`, `login.vue`, `signup.vue`, `assets/public/*`
+ 
+ - **[Feature] Módulo de Carga Masiva**: Implementación de un sistema robusto de importación para Tours y Productos mediante archivos Excel/CSV. Incluye descarga de plantillas oficiales, validación de datos en tiempo real con reporte de errores por fila y soporte para Drag & Drop.
+ - **[UI/Branding] Unificación de Identidad**: Transición final de "TravelHub" a **Amazonia Viva** en todas las interfaces de autenticación y metadatos del sitio para garantizar coherencia de marca.
+ - **[Fix] Estabilización de Catálogos**: Resolución de conflictos críticos de mezcla en el componente de tours y limpieza de marcadores de versión residuales de Git.
+ - **[Assets] Galería de Alta Resolución**: Incorporación de nuevos recursos visuales (`IMG_2540.JPG`, `IMG_2820.JPG`) para mejorar el impacto visual en las vistas de detalle.
  
  ### 4.4.1 — Corrección de Codificación y Estabilización de Textos (Hotfix)
  > Archivos: `dashboard.vue`, `autenticacion/views.py`
@@ -523,6 +532,9 @@ python manage.py migrate
 python manage.py seed_actividades
 python manage.py seed_groups
 python manage.py seed_categorias_paquetes
+python manage.py seed_users
+python manage.py seed_productos
+python manage.py seed_paquetes
 python manage.py runserver
 ```
 
