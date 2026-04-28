@@ -10,11 +10,16 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
 import time
 import json
+import calendar
 import os
+import csv
+import io
+import openpyxl
+from django.http import HttpResponse
 from django.conf import settings
 from django.http import JsonResponse
 from django.db.models import Count, Q, Sum, Avg, F
-from django.db.models.functions import TruncDate
+from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 from datetime import date, timedelta
 from decimal import Decimal
@@ -115,6 +120,10 @@ class Actividades(APIView):
 
 class NewPack(APIView):
     def post(self, request):
+        nombre = request.data.get('nombre')
+        if nombre and PaqueteTuristico.objects.filter(agencia_id=request.user.pk, nombre__iexact=nombre).exists():
+            return Response({"nombre": ["Ya tienes un paquete con este nombre."]}, status=status.HTTP_400_BAD_REQUEST)
+            
         serializer = SerializersCreateNewPack(data=request.data)
         if serializer.is_valid():
             try:
@@ -139,6 +148,10 @@ class UpdatePack(APIView):
             paquete = PaqueteTuristico.objects.get(pk=pk)
         except PaqueteTuristico.DoesNotExist:
             return Response({"error": "Paquete no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        nombre = request.data.get('nombre')
+        if nombre and PaqueteTuristico.objects.filter(agencia_id=request.user.pk, nombre__iexact=nombre).exclude(pk=pk).exists():
+            return Response({"nombre": ["Ya tienes un paquete con este nombre."]}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = SerializersCreateNewPack(paquete, data=request.data, partial=True)
         if serializer.is_valid():
@@ -184,6 +197,232 @@ class PaquetesTuristicos(APIView):
             return Response(serializers.data)
         except Exception as e:
             return Response({'mensaje': 'Hubo un error al obtener los paquetes', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CargaMasivaPaquetesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Generar plantilla Excel
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Plantilla Tours"
+        
+        # Cabeceras
+        headers = [
+            "nombre", "descripcion", "precio", "duracion", "capacidad", 
+            "tipo_paquete", "ubicacion", "categoria_id"
+        ]
+        ws.append(headers)
+        
+        # Fila de ejemplo
+        ejemplo = [
+            "Expedición Selva", "Un viaje increíble por el Amazonas", 150000, "3 días", 10, 
+            "flexible", "Leticia", 1
+        ]
+        ws.append(ejemplo)
+        
+        # Ajustar ancho de columnas
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = (max_length + 2)
+            ws.column_dimensions[column].width = adjusted_width
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="plantilla_tours.xlsx"'
+        wb.save(response)
+        return response
+
+    def post(self, request):
+        try:
+            if not hasattr(request.user, 'agencia'):
+                return Response({"error": "No tienes una cuenta de agencia activa."}, status=status.HTTP_403_FORBIDDEN)
+            
+            agencia = request.user.agencia
+            archivo = request.FILES.get('archivo')
+            
+            if not archivo:
+                return Response({"error": "No se ha proporcionado ningún archivo."}, status=status.HTTP_400_BAD_REQUEST)
+
+            nombre_archivo = archivo.name.lower()
+            paquetes_a_crear = []
+            paquetes_a_actualizar = []
+            errores = []
+            nombres_en_lote = set()
+
+            def procesar_fila(fila, numero_fila):
+                try:
+                    # Limpiar las llaves y los valores de la fila
+                    cleaned_fila = {}
+                    for k, v in fila.items():
+                        if k:
+                            key_clean = str(k).strip().lower()
+                            val_clean = str(v).strip() if v is not None else ""
+                            if val_clean.lower() == 'none':
+                                val_clean = ""
+                            cleaned_fila[key_clean] = val_clean
+
+                    nombre = cleaned_fila.get('nombre', '')
+                    descripcion = cleaned_fila.get('descripcion', '')
+                    precio_str = cleaned_fila.get('precio', '0')
+                    duracion = cleaned_fila.get('duracion', '')
+                    capacidad_str = cleaned_fila.get('capacidad', '1')
+                    tipo_paquete = cleaned_fila.get('tipo_paquete', 'flexible').lower()
+                    ubicacion = cleaned_fila.get('ubicacion', '')
+                    categoria_id_str = cleaned_fila.get('categoria_id', '')
+
+                    # Procesar atributos dinámicos (columnas extra no contempladas en base)
+                    campos_base = ['nombre', 'descripcion', 'precio', 'duracion', 'capacidad', 'tipo_paquete', 'ubicacion', 'categoria_id']
+                    incluido = []
+                    for key, value in cleaned_fila.items():
+                        if key not in campos_base and value:
+                            # Añadir a la lista de "incluido"
+                            incluido.append({"item": f"{key.capitalize()}: {value}"})
+
+                    # Limpieza de datos y manejo de vacíos sin arrojar error
+                    if not nombre:
+                        nombre = f"Tour importado {numero_fila}"
+                    if not descripcion:
+                        descripcion = "Sin descripción"
+                    if not duracion:
+                        duracion = "No especificada"
+                    if not ubicacion:
+                        ubicacion = "No especificada"
+
+                    if nombre.lower() in nombres_en_lote:
+                        errores.append(f"Fila {numero_fila}: El paquete '{nombre}' está repetido en el archivo. Se ignoró.")
+                        return
+                    
+                    nombres_en_lote.add(nombre.lower())
+
+                    try:
+                        precio = float(precio_str) if precio_str else 0.0
+                        if precio < 0: precio = 0.0
+                    except ValueError:
+                        precio = 0.0
+
+                    try:
+                        capacidad = int(float(capacidad_str)) if capacidad_str else 1
+                        if capacidad < 1: capacidad = 1
+                    except ValueError:
+                        capacidad = 1
+
+                    if tipo_paquete not in ['fijo', 'flexible']:
+                        tipo_paquete = 'flexible'
+
+                    # Manejar categoría de forma segura
+                    categoria = None
+                    if categoria_id_str:
+                        try:
+                            cat_id = int(float(categoria_id_str))
+                            categoria = CategoriaPaquete.objects.filter(id=cat_id).first()
+                        except ValueError:
+                            pass
+                    
+                    if not categoria:
+                        categoria = CategoriaPaquete.objects.first()
+                        if not categoria:
+                            categoria = CategoriaPaquete.objects.create(grupo="General", nombre="General")
+
+                    paquete_existente = PaqueteTuristico.objects.filter(agencia=agencia, nombre__iexact=nombre).first()
+
+                    if paquete_existente:
+                        # Comparar valores
+                        son_iguales = (
+                            paquete_existente.descripcion == descripcion and
+                            float(paquete_existente.precio) == float(precio) and
+                            paquete_existente.duracion == duracion and
+                            paquete_existente.capacidad == capacidad and
+                            paquete_existente.tipo_paquete == tipo_paquete and
+                            paquete_existente.ubicacion == ubicacion and
+                            paquete_existente.categoria_paquete_id == (categoria.id if categoria else None) and
+                            paquete_existente.incluido == incluido
+                        )
+                        
+                        if son_iguales:
+                            errores.append(f"Fila {numero_fila}: El paquete '{nombre}' no tiene cambios. Se omitió.")
+                            return
+                        else:
+                            # Actualizar
+                            paquete_existente.descripcion = descripcion
+                            paquete_existente.precio = precio
+                            paquete_existente.duracion = duracion
+                            paquete_existente.capacidad = capacidad
+                            paquete_existente.tipo_paquete = tipo_paquete
+                            paquete_existente.ubicacion = ubicacion
+                            paquete_existente.categoria_paquete = categoria
+                            paquete_existente.incluido = incluido
+                            paquetes_a_actualizar.append(paquete_existente)
+                    else:
+                        paquetes_a_crear.append(PaqueteTuristico(
+                            nombre=nombre,
+                            descripcion=descripcion,
+                            precio=precio,
+                            duracion=duracion,
+                            capacidad=capacidad,
+                            tipo_paquete=tipo_paquete,
+                            ubicacion=ubicacion,
+                            agencia=agencia,
+                            categoria_paquete=categoria,
+                            incluido=incluido,
+                            itinerario=[],
+                            activo=True
+                        ))
+                except Exception as e:
+                    errores.append(f"Fila {numero_fila}: Error inesperado - {str(e)}")
+
+            if nombre_archivo.endswith('.csv'):
+                decoded_file = archivo.read().decode('utf-8-sig')
+                io_string = io.StringIO(decoded_file)
+                reader = csv.DictReader(io_string, delimiter=',')
+                
+                for i, row in enumerate(reader, start=2):
+                    if not any(str(v).strip() for v in row.values() if v is not None):
+                        continue
+                    procesar_fila(row, i)
+                    
+            elif nombre_archivo.endswith('.xlsx') or nombre_archivo.endswith('.xls'):
+                wb = openpyxl.load_workbook(archivo, data_only=True)
+                ws = wb.active
+                rows = list(ws.iter_rows(values_only=True))
+                
+                if not rows:
+                    return Response({"error": "El archivo Excel está vacío."}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                headers = [str(h).strip() if h else f"col_{idx}" for idx, h in enumerate(rows[0])]
+                
+                for i, row in enumerate(rows[1:], start=2):
+                    if not any(str(v).strip() for v in row if v is not None):
+                        continue
+                    row_dict = dict(zip(headers, row))
+                    procesar_fila(row_dict, i)
+            else:
+                return Response({"error": "Formato de archivo no soportado. Use .csv o .xlsx"}, status=status.HTTP_400_BAD_REQUEST)
+
+            if paquetes_a_crear:
+                PaqueteTuristico.objects.bulk_create(paquetes_a_crear)
+            
+            if paquetes_a_actualizar:
+                PaqueteTuristico.objects.bulk_update(paquetes_a_actualizar, fields=[
+                    'descripcion', 'precio', 'duracion', 'capacidad', 
+                    'tipo_paquete', 'ubicacion', 'categoria_paquete', 'incluido'
+                ])
+
+            return Response({
+                "mensaje": f"Se crearon {len(paquetes_a_crear)} y se actualizaron {len(paquetes_a_actualizar)} tours exitosamente.",
+                "errores": errores,
+                "creados": len(paquetes_a_crear)
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': f"Error al procesar el archivo: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CatalogoTours(APIView):
@@ -485,65 +724,113 @@ class DashboardKPIsView(APIView):
 
     def get(self, request):
         user = request.user
+        months_range = int(request.query_params.get('months', 24))
+        filter_month = request.query_params.get('month')
+        filter_year = request.query_params.get('year')
+        
+        # Valores por defecto para el filtro (Mes actual si no se especifica)
+        now = timezone.now()
+        month = int(filter_month) if filter_month else now.month
+        year = int(filter_year) if filter_year else now.year
         
         if hasattr(user, 'agencia'):
-            return self._get_agencia_kpis(user)
+            return self._get_agencia_kpis(user, months_range, month, year)
         elif hasattr(user, 'proveedor'):
-            return self._get_proveedor_kpis(user)
+            return self._get_proveedor_kpis(user, months_range, month, year)
         else:
             return Response({'error': 'Rol no soportado para este dashboard.'}, status=status.HTTP_403_FORBIDDEN)
 
-    def _get_agencia_kpis(self, user):
+    def _get_agencia_kpis(self, user, range_months=24, month=None, year=None):
         from .models import PaqueteTuristico, Detalles_Venta, ExperienciaCalificacion
+        from datetime import date
         
+        # Rango del mes seleccionado
+        start_date = date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        end_date = date(year, month, last_day)
+
         paquetes_ids = PaqueteTuristico.objects.filter(agencia_id=user.id).values_list('id', flat=True)
-        detalles = Detalles_Venta.objects.filter(paquete__in=paquetes_ids)
+        detalles_base = Detalles_Venta.objects.filter(paquete__in=paquetes_ids)
         
-        # 1. Ingresos Totales
-        # Solo consideramos ventas que no estén canceladas o rechazadas
-        ingresos_total = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+        # Filtrar detalles por el mes seleccionado para los KPIs
+        detalles_mes = detalles_base.filter(venta__fecha__date__range=[start_date, end_date])
+        
+        # 1. Ingresos del Mes
+        ingresos_total = detalles_mes.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
             total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
         )['total'] or Decimal('0.00')
         
-        # 2. Tours Vendidos (Cantidad total de personas)
-        tours_vendidos = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+        # 2. Tours Vendidos en el Mes
+        tours_vendidos = detalles_mes.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
             total=Sum('cantidad')
         )['total'] or 0
         
-        # 3. Satisfacción Promedio
+        # 3. Satisfacci├│n Promedio del Mes
         satisfaccion = ExperienciaCalificacion.objects.filter(
-            detalle_venta__paquete__in=paquetes_ids
+            detalle_venta__paquete__in=paquetes_ids,
+            detalle_venta__venta__fecha__date__range=[start_date, end_date]
         ).aggregate(avg=Avg('puntuacion'))['avg'] or 0
         
-        # 4. Reservas Pendientes (Confirmado)
-        pendientes = detalles.filter(estado='Confirmado').count()
+        # 4. Reservas Pendientes del Mes
+        pendientes = detalles_mes.filter(estado='Confirmado').count()
         
-        # Tendencias (Simuladas por ahora, o podrías comparar con el mes anterior si tuvieras datos temporales)
-        # Para este ejemplo, usaremos datos reales para el valor y una tendencia neutral/positiva genérica
-        
-        # 5. Datos para el gráfico (Ventas de los últimos 15 días)
-        fifteen_days_ago = (timezone.now() - timedelta(days=15)).date()
-        ventas_historico = Detalles_Venta.objects.filter(
-            paquete__in=paquetes_ids,
-            venta__fecha__date__gte=fifteen_days_ago
+        # 5. Datos para el gr├ífico diario (D├¡as del mes seleccionado)
+        ventas_historico = detalles_base.filter(
+            venta__fecha__date__range=[start_date, end_date]
         ).exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
             dia=TruncDate('venta__fecha')
         ).values('dia').annotate(
             total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
         ).order_by('dia')
 
-        # Formatear datos para el gráfico
+        # Formatear datos para el gr├ífico
         labels = []
         series = []
-        
-        # Llenar huecos con ceros para una visualización continua
-        current_day = fifteen_days_ago
         stats_dict = { v['dia']: float(v['total']) for v in ventas_historico }
         
-        while current_day <= timezone.now().date():
+        # Iterar todos los d├¡as del mes seleccionado
+        current_day = start_date
+        # Solo mostrar hasta el d├¡a actual si es el mes actual, sino todo el mes
+        today_date = timezone.now().date()
+        limit_date = end_date if end_date < today_date else today_date
+        
+        while current_day <= limit_date:
             labels.append(current_day.strftime('%d %b'))
             series.append(stats_dict.get(current_day, 0.0))
             current_day += timedelta(days=1)
+
+
+        # 6. Datos para el gr├ífico de barras (Rango variable relativo al mes seleccionado)
+        # Calculamos la fecha de inicio del rango (X meses atr├ís desde el mes seleccionado)
+        rel_year = year
+        rel_month = month - (range_months - 1)
+        while rel_month <= 0:
+            rel_month += 12
+            rel_year -= 1
+        
+        start_date_range = date(rel_year, rel_month, 1)
+        ventas_mensuales = detalles_base.exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
+            mes_trunc=TruncMonth('venta__fecha')
+        ).filter(mes_trunc__gte=start_date_range).values('mes_trunc').annotate(
+            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
+        ).order_by('mes_trunc')
+
+        monthly_labels = []
+        monthly_series = []
+        stats_monthly_dict = { v['mes_trunc'].strftime('%Y-%m'): float(v['total']) for v in ventas_mensuales }
+        
+        for i in range(range_months - 1, -1, -1):
+            y = year
+            m = month - i
+            while m <= 0:
+                m += 12
+                y -= 1
+            
+            key = f"{y}-{m:02d}"
+            import datetime
+            d_obj = datetime.date(y, m, 1)
+            monthly_labels.append(d_obj.strftime('%b %Y'))
+            monthly_series.append(stats_monthly_dict.get(key, 0.0))
 
         return Response({
             'kpis': [
@@ -580,63 +867,117 @@ class DashboardKPIsView(APIView):
                         'data': series
                     }
                 ]
+            },
+            'monthly_chart_data': {
+                'labels': monthly_labels,
+                'series': [
+                    {
+                        'name': 'Ganancias Mensuales',
+                        'data': monthly_series
+                    }
+                ]
             }
         })
 
-    def _get_proveedor_kpis(self, user):
+    def _get_proveedor_kpis(self, user, range_months=24, month=None, year=None):
         from .models import Productos, Detalles_Venta, ExperienciaCalificacion, Venta
+        from datetime import date
         
+        # Rango del mes seleccionado
+        start_date = date(year, month, 1)
+        last_day = calendar.monthrange(year, month)[1]
+        end_date = date(year, month, last_day)
+
         productos_qs = Productos.objects.filter(proveedor_id=user.id)
         productos_ids = productos_qs.values_list('id', flat=True)
-        detalles = Detalles_Venta.objects.filter(producto__in=productos_ids)
+        detalles_base = Detalles_Venta.objects.filter(producto__in=productos_ids)
         
-        # 1. Total Productos Vendidos
-        vendidos_cont = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+        # Filtrar detalles por el mes seleccionado
+        detalles_mes = detalles_base.filter(venta__fecha__date__range=[start_date, end_date])
+        
+        # 1. Total Productos Vendidos en el Mes
+        vendidos_cont = detalles_mes.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
             total=Sum('cantidad')
         )['total'] or 0
         
-        # 2. Ingresos Totales
-        ingresos_total = detalles.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
+        # 2. Ingresos del Mes
+        ingresos_total = detalles_mes.exclude(estado__in=['Cancelado', 'Rechazado']).aggregate(
             total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
         )['total'] or Decimal('0.00')
         
-        # 3. Productos Activos
+        # 3. Productos Activos (Este es absoluto, pero podr├¡amos filtrarlo si fuera necesario)
         activos = productos_qs.filter(disponible=True).count()
         
-        # 4. Pedidos Pendientes
-        pendientes = detalles.filter(estado='Pendiente de Empaque').count()
+        # 4. Pedidos Pendientes del Mes
+        pendientes = detalles_mes.filter(estado='Pendiente de Empaque').count()
         
-        # 5. Calificación Promedio
+        # 5. Calificaci├│n Promedio del Mes
         satisfaccion = ExperienciaCalificacion.objects.filter(
-            detalle_venta__producto__in=productos_ids
+            detalle_venta__producto__in=productos_ids,
+            detalle_venta__venta__fecha__date__range=[start_date, end_date]
         ).aggregate(avg=Avg('puntuacion'))['avg'] or 0
         
-        # 6. Total Clientes
-        clientes = Venta.objects.filter(detalles_venta__producto__in=productos_ids).distinct().count()
+        # 6. Total Clientes del Mes
+        clientes = Venta.objects.filter(
+            detalles_venta__producto__in=productos_ids,
+            fecha__date__range=[start_date, end_date]
+        ).distinct().count()
         
-        # 7. Datos para el gráfico (Ventas de los últimos 15 días)
-        fifteen_days_ago = (timezone.now() - timedelta(days=15)).date()
-        ventas_historico = Detalles_Venta.objects.filter(
-            producto__in=productos_ids,
-            venta__fecha__date__gte=fifteen_days_ago
+        # 7. Datos para el gr├ífico diario (D├¡as del mes seleccionado)
+        ventas_historico = detalles_base.filter(
+            venta__fecha__date__range=[start_date, end_date]
         ).exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
             dia=TruncDate('venta__fecha')
         ).values('dia').annotate(
             total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
         ).order_by('dia')
 
-        # Formatear datos para el gráfico
+        # Formatear datos para el gr├ífico
         labels = []
         series = []
-        
-        # Llenar huecos con ceros
-        current_day = fifteen_days_ago
         stats_dict = { v['dia']: float(v['total']) for v in ventas_historico }
         
-        while current_day <= timezone.now().date():
+        # Iterar todos los d├¡as del mes
+        current_day = start_date
+        today_date = timezone.now().date()
+        limit_date = end_date if end_date < today_date else today_date
+        
+        while current_day <= limit_date:
             labels.append(current_day.strftime('%d %b'))
             series.append(stats_dict.get(current_day, 0.0))
             current_day += timedelta(days=1)
+
+
+        # 8. Datos para el gr├ífico de barras (Rango variable relativo al mes seleccionado)
+        rel_year = year
+        rel_month = month - (range_months - 1)
+        while rel_month <= 0:
+            rel_month += 12
+            rel_year -= 1
+        
+        start_date_range = date(rel_year, rel_month, 1)
+        ventas_mensuales = detalles_base.exclude(estado__in=['Cancelado', 'Rechazado']).annotate(
+            mes_trunc=TruncMonth('venta__fecha')
+        ).filter(mes_trunc__gte=start_date_range).values('mes_trunc').annotate(
+            total=Sum(models.F('precio_unitario') * models.F('cantidad'), output_field=models.DecimalField())
+        ).order_by('mes_trunc')
+
+        monthly_labels = []
+        monthly_series = []
+        stats_monthly_dict = { v['mes_trunc'].strftime('%Y-%m'): float(v['total']) for v in ventas_mensuales }
+        
+        for i in range(range_months - 1, -1, -1):
+            y = year
+            m = month - i
+            while m <= 0:
+                m += 12
+                y -= 1
+            
+            key = f"{y}-{m:02d}"
+            import datetime
+            d_obj = datetime.date(y, m, 1)
+            monthly_labels.append(d_obj.strftime('%b %Y'))
+            monthly_series.append(stats_monthly_dict.get(key, 0.0))
 
         return Response({
             'kpis': [
@@ -683,6 +1024,15 @@ class DashboardKPIsView(APIView):
                     {
                         'name': 'Ingresos por Venta',
                         'data': series
+                    }
+                ]
+            },
+            'monthly_chart_data': {
+                'labels': monthly_labels,
+                'series': [
+                    {
+                        'name': 'Ganancias Mensuales',
+                        'data': monthly_series
                     }
                 ]
             }

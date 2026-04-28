@@ -25,6 +25,13 @@ Amazonia viva nace de la idea de integrar uns plataforma donde los turistas pued
 > - **MAYOR** — cambio funcional significativo o rediseño arquitectónico
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
+ 
+ ### 4.4.1 — Corrección de Codificación y Estabilización de Textos (Hotfix)
+ > Archivos: `dashboard.vue`, `autenticacion/views.py`
+ 
+ - **[Fix] Estabilización de Codificación (Frontend)**: Implementación de escapes Unicode (`\u00E1`, `\u00FA`) en las configuraciones estáticas del dashboard para prevenir errores de renderizado de caracteres especiales en entornos Windows.
+ - **[Fix] Saneamiento de API (Backend)**: Corrección de moji-bake en los endpoints de estadísticas del dashboard. Se reemplazaron las cadenas mal codificadas (`cat├ílogo`, `├║nicos`, `rese├▒as`, etc.) por sus equivalentes correctos en UTF-8, asegurando la integridad visual de los KPIs y gráficas para todos los roles.
+ - **[Fix] Paridad de Símbolos**: Restauración del símbolo de estrella (`★`) en las métricas de calificación, eliminando artefactos visuales de codificación previa.
 
 ### 4.4.0 — Módulo de Liquidación y Billetera Virtual (SCRUM-69)
 > Archivos: `vistas_liquidacion.py`, `liquidacion.vue`, `urls.py`, `router/index.js`

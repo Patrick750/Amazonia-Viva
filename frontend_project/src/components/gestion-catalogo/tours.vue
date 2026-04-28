@@ -1,6 +1,10 @@
 <script setup>
 
+<<<<<<< HEAD
     import { ref, computed } from 'vue';
+=======
+    import { ref, computed, watch } from 'vue';
+>>>>>>> SCRUM-70-Carga-masiva-productos-y-paquetes
 
     const props = defineProps(['datos'])
     const emit = defineEmits(['editar', 'eliminar', 'verDetalles'])
@@ -28,6 +32,56 @@
         emit('eliminar', id);
     };
 
+    const searchQuery = ref('');
+    const estadoFiltro = ref('todos');
+    const currentPage = ref(1);
+    const itemsPerPage = 12;
+
+    const filteredDatos = computed(() => {
+        if (!props.datos) return [];
+        
+        return props.datos.filter(tour => {
+            // Filtro de estado
+            if (estadoFiltro.value === 'activo' && !tour.activo) return false;
+            if (estadoFiltro.value === 'inactivo' && tour.activo) return false;
+            
+            // Filtro de búsqueda
+            if (searchQuery.value) {
+                const query = searchQuery.value.toLowerCase();
+                return (
+                    tour.nombre.toLowerCase().includes(query) ||
+                    tour.ubicacion?.toLowerCase().includes(query) ||
+                    tour.categoria_paquete_nombre?.toLowerCase().includes(query)
+                );
+            }
+            return true;
+        });
+    });
+
+    const totalPages = computed(() => Math.ceil(filteredDatos.value.length / itemsPerPage));
+
+    const paginatedDatos = computed(() => {
+        const start = (currentPage.value - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        return filteredDatos.value.slice(start, end);
+    });
+
+    watch([estadoFiltro, searchQuery, () => props.datos], () => {
+        currentPage.value = 1;
+    });
+
+    const nextPage = () => {
+        if (currentPage.value < totalPages.value) currentPage.value++;
+    };
+
+    const prevPage = () => {
+        if (currentPage.value > 1) currentPage.value--;
+    };
+
+    const goToPage = (page) => {
+        currentPage.value = page;
+    };
+
 </script>
 
 <template>
@@ -35,21 +89,47 @@
         <!-- Decorative background glow -->
         <div class="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none"></div>
 
-        <div class="mb-10 flex items-center justify-between">
+        <div class="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
                 <h2 class="text-[11px] font-black text-white/20 uppercase tracking-[0.2em] mb-1">Inventario de Experiencias</h2>
                 <div class="flex items-center gap-3">
                     <h3 class="text-2xl font-black text-white">Mis Tours</h3>
                     <span class="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest">
-                        {{ datos.length }} Total
+                        {{ filteredDatos.length }} Total
                     </span>
+                </div>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                <!-- Buscador -->
+                <div class="relative w-full sm:w-64">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="w-4 h-4 text-emerald-500/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                    <input type="text" v-model="searchQuery" placeholder="Buscar tour o destino..." 
+                        class="w-full bg-black/20 border border-white/5 text-white text-xs font-bold rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all placeholder:text-white/20">
+                </div>
+
+                <!-- Filtro de estado -->
+                <div class="flex items-center gap-3 bg-white/5 px-4 py-3 rounded-xl border border-white/5 w-full sm:w-auto">
+                    <label for="filtro-estado" class="text-[10px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap">Estado:</label>
+                    <select id="filtro-estado" v-model="estadoFiltro" class="text-xs font-bold bg-transparent border-none text-emerald-400 focus:ring-0 py-0 pl-0 pr-8 cursor-pointer appearance-none w-full">
+                        <option value="todos" class="bg-[#0d2114] text-white">Todos</option>
+                        <option value="activo" class="bg-[#0d2114] text-white">Activos</option>
+                        <option value="inactivo" class="bg-[#0d2114] text-white">Inactivos</option>
+                    </select>
+                    <svg class="w-3.5 h-3.5 text-emerald-500/50 -ml-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
                 </div>
             </div>
         </div>
 
         <!-- VISTA MÓVIL (Tarjetas) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 md:hidden">
+<<<<<<< HEAD
             <div v-for="tour in paginatedData" :key="tour.id" class="bg-white/5 rounded-3xl border border-white/5 p-5 relative flex flex-col gap-4 transition-all hover:bg-white/10 hover:border-white/10 group">
+=======
+            <div v-for="tour in paginatedDatos" :key="tour.id" class="bg-white/5 rounded-3xl border border-white/5 p-5 relative flex flex-col gap-4 transition-all hover:bg-white/10 hover:border-white/10 group">
+>>>>>>> SCRUM-70-Carga-masiva-productos-y-paquetes
                 
                 <!-- Indicador de estado móvil -->
                 <span class="absolute top-4 right-4 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-xl"
@@ -100,7 +180,7 @@
                 </div>
             </div>
             
-            <div v-if="datos.length === 0" class="flex flex-col items-center justify-center py-16 px-6 text-center bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/5">
+            <div v-if="filteredDatos.length === 0" class="flex flex-col items-center justify-center py-16 px-6 text-center bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/5 col-span-full">
                 <div class="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center mb-4">
                     <svg class="w-8 h-8 text-white/10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
                 </div>
@@ -123,7 +203,11 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-white/5 text-white">
+<<<<<<< HEAD
                     <tr v-for="tour in paginatedData" :key="tour.id" class="hover:bg-white/5 transition-all group">
+=======
+                    <tr v-for="tour in paginatedDatos" :key="tour.id" class="hover:bg-white/5 transition-all group">
+>>>>>>> SCRUM-70-Carga-masiva-productos-y-paquetes
                         <!-- Columna: Tour -->
                         <td class="px-4 py-4">
                             <div class="flex items-center gap-5">
@@ -217,7 +301,7 @@
                     </tr>
 
                     <!-- Estado vacío -->
-                    <tr v-if="datos.length === 0">
+                    <tr v-if="filteredDatos.length === 0">
                         <td colspan="6" class="py-24 text-center">
                             <div class="w-20 h-20 mx-auto rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center mb-6">
                                 <svg class="w-10 h-10 text-white/5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4M20 12a8 8 0 11-16 0 8 8 0 0116 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 20V4"/></svg>
@@ -230,6 +314,7 @@
             </table>
         </div>
 
+<<<<<<< HEAD
         <!-- PAGINACIÓN -->
         <div v-if="totalPages > 1" class="mt-10 flex flex-col sm:flex-row items-center justify-between gap-6 bg-white/5 p-6 rounded-[2rem] border border-white/5">
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
@@ -268,6 +353,32 @@
                     class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
                 >
                     <svg class="w-5 h-5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+=======
+        <!-- CONTROLES DE PAGINACIÓN -->
+        <div v-if="totalPages > 1" class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10 pt-6">
+            <p class="text-xs text-white/40 font-bold">
+                Mostrando página <span class="text-white">{{ currentPage }}</span> de <span class="text-white">{{ totalPages }}</span>
+            </p>
+            <div class="flex items-center gap-2">
+                <button @click="prevPage" :disabled="currentPage === 1" 
+                    class="px-4 py-2 text-[10px] uppercase tracking-widest font-black rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    :class="currentPage === 1 ? 'border-white/5 text-white/30 bg-white/5' : 'border-emerald-500/20 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/40'">
+                    Anterior
+                </button>
+                
+                <div class="flex items-center gap-1 hidden sm:flex">
+                    <button v-for="page in totalPages" :key="page" @click="goToPage(page)"
+                        class="w-8 h-8 flex items-center justify-center rounded-xl text-xs font-black transition-all border"
+                        :class="currentPage === page ? 'bg-emerald-500 text-black border-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'">
+                        {{ page }}
+                    </button>
+                </div>
+
+                <button @click="nextPage" :disabled="currentPage === totalPages" 
+                    class="px-4 py-2 text-[10px] uppercase tracking-widest font-black rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    :class="currentPage === totalPages ? 'border-white/5 text-white/30 bg-white/5' : 'border-emerald-500/20 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/40'">
+                    Siguiente
+>>>>>>> SCRUM-70-Carga-masiva-productos-y-paquetes
                 </button>
             </div>
         </div>

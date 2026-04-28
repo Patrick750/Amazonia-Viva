@@ -1,10 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const props = defineProps(['datos', 'tipoCatalogo']);
 const emit = defineEmits(['editar', 'eliminar', 'verDetalles']);
 
 const estadoFiltro = ref('todos');
+const currentPage = ref(1);
+const itemsPerPage = 12;
 
 const filteredDatos = computed(() => {
     if (!props.datos) return [];
@@ -16,23 +18,28 @@ const filteredDatos = computed(() => {
     });
 });
 
-// --- PAGINACIÓN ---
-const currentPage = ref(1);
-const itemsPerPage = 12;
-
 const totalPages = computed(() => Math.ceil(filteredDatos.value.length / itemsPerPage));
 
-const paginatedData = computed(() => {
+const paginatedDatos = computed(() => {
     const start = (currentPage.value - 1) * itemsPerPage;
     const end = start + itemsPerPage;
     return filteredDatos.value.slice(start, end);
 });
 
-const irPagina = (p) => {
-    if (p < 1 || p > totalPages.value) return;
-    currentPage.value = p;
-    // Scroll suave al inicio de la tabla/sección
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+watch([estadoFiltro, () => props.datos], () => {
+    currentPage.value = 1;
+});
+
+const nextPage = () => {
+    if (currentPage.value < totalPages.value) currentPage.value++;
+};
+
+const prevPage = () => {
+    if (currentPage.value > 1) currentPage.value--;
+};
+
+const goToPage = (page) => {
+    currentPage.value = page;
 };
 
 const deleteProducto = (id) => {
@@ -60,7 +67,7 @@ const deleteProducto = (id) => {
 
     <!-- VISTA MÓVIL (Tarjetas) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
-        <div v-for="prod in paginatedData" :key="prod.id" class="bg-white/5 rounded-2xl shadow-sm border border-white/10 p-5 relative flex flex-col gap-4 transition-all hover:bg-white/8 hover:border-white/20 active:scale-[0.98]">
+        <div v-for="prod in paginatedDatos" :key="prod.id" class="bg-white/5 rounded-2xl shadow-sm border border-white/10 p-5 relative flex flex-col gap-4 transition-all hover:bg-white/8 hover:border-white/20 active:scale-[0.98]">
             
             <!-- Indicador de estado móvil -->
             <span class="absolute top-4 right-4 text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-widest"
@@ -128,7 +135,7 @@ const deleteProducto = (id) => {
             </tr>
         </thead>
         <tbody>
-            <tr v-for="prod in paginatedData" :key="prod.id" class="border-b border-white/5 hover:bg-white/5 transition-all duration-200 group">
+            <tr v-for="prod in paginatedDatos" :key="prod.id" class="border-b border-white/5 hover:bg-white/5 transition-all duration-200 group">
             <td class="py-5 pl-2">
                 <div class="flex items-center gap-4">
                     <div class="relative flex-shrink-0">
@@ -198,44 +205,30 @@ const deleteProducto = (id) => {
         </table>
     </div>
 
-    <!-- PAGINACIÓN -->
-    <div v-if="totalPages > 1" class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-6 bg-white/5 p-5 rounded-2xl border border-white/5">
-        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
-            Página <span class="text-emerald-400">{{ currentPage }}</span> de {{ totalPages }} 
-            <span class="mx-2 text-white/10">|</span> 
-            {{ filteredDatos.length }} Total
+    <!-- CONTROLES DE PAGINACIÓN -->
+    <div v-if="totalPages > 1" class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10 pt-4">
+        <p class="text-xs text-white/40 font-bold">
+            Mostrando página <span class="text-white">{{ currentPage }}</span> de <span class="text-white">{{ totalPages }}</span>
         </p>
-        
         <div class="flex items-center gap-2">
-            <button 
-                @click="irPagina(currentPage - 1)" 
-                :disabled="currentPage === 1"
-                class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
-            >
-                <svg class="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+            <button @click="prevPage" :disabled="currentPage === 1" 
+                class="px-4 py-2 text-[10px] uppercase tracking-widest font-black rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                :class="currentPage === 1 ? 'border-white/5 text-white/30 bg-white/5' : 'border-emerald-500/20 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/40'">
+                Anterior
             </button>
-
-            <div class="flex items-center gap-1.5">
-                <button 
-                    v-for="p in totalPages" :key="p"
-                    @click="irPagina(p)"
-                    :class="[
-                        'w-9 h-9 rounded-xl text-[10px] font-black transition-all border',
-                        currentPage === p 
-                            ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
-                            : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
-                    ]"
-                >
-                    {{ p }}
+            
+            <div class="flex items-center gap-1 hidden sm:flex">
+                <button v-for="page in totalPages" :key="page" @click="goToPage(page)"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-black transition-all border"
+                    :class="currentPage === page ? 'bg-emerald-500 text-black border-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'">
+                    {{ page }}
                 </button>
             </div>
 
-            <button 
-                @click="irPagina(currentPage + 1)" 
-                :disabled="currentPage === totalPages"
-                class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all disabled:opacity-20 disabled:cursor-not-allowed group"
-            >
-                <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            <button @click="nextPage" :disabled="currentPage === totalPages" 
+                class="px-4 py-2 text-[10px] uppercase tracking-widest font-black rounded-lg border transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                :class="currentPage === totalPages ? 'border-white/5 text-white/30 bg-white/5' : 'border-emerald-500/20 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/40'">
+                Siguiente
             </button>
         </div>
     </div>
