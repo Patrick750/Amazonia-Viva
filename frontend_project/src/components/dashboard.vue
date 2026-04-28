@@ -108,7 +108,7 @@ const roleConfigs = {
       },
       {
         title: "Productos Activos", value: "4",
-        trend: "En el catálogo actual", trendType: "neutral",
+        trend: "En el cat\u00E1logo actual", trendType: "neutral",
         icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
         watermark: '<path d="M12 2L2 20h20L12 2zm0 4.5l5.5 10h-11L12 6.5z"/>'
       },
@@ -127,7 +127,7 @@ const roleConfigs = {
       },
       {
         title: "Total Clientes", value: "42",
-        trend: "Clientes únicos atendidos", trendType: "neutral",
+        trend: "Clientes \u00FAnicos atendidos", trendType: "neutral",
         icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
         watermark: '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>'
       }

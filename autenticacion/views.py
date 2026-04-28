@@ -847,15 +847,15 @@ class DashboardKPIsView(APIView):
                     'trendType': "up"
                 },
                 {
-                    'title': "Satisfacci├│n Promedio", 
-                    'value': f"{satisfaccion:.1f} Ôÿà",
-                    'trend': f"Basado en {ExperienciaCalificacion.objects.filter(detalle_venta__paquete__in=paquetes_ids).count()} rese├▒as", 
+                    'title': "Satisfacción Promedio", 
+                    'value': f"{satisfaccion:.1f} ★",
+                    'trend': f"Basado en {ExperienciaCalificacion.objects.filter(detalle_venta__paquete__in=paquetes_ids).count()} reseñas", 
                     'trendType': "neutral"
                 },
                 {
                     'title': "Reservas Pendientes", 
                     'value': f"{pendientes}",
-                    'trend': "Requieren atenci├│n log├¡stica", 
+                    'trend': "Requieren atención logística", 
                     'trendType': "down" if pendientes > 0 else "neutral"
                 }
             ],
@@ -996,7 +996,7 @@ class DashboardKPIsView(APIView):
                 {
                     'title': "Productos Activos", 
                     'value': f"{activos}",
-                    'trend': "En el cat├ílogo actual", 
+                    'trend': "En el catálogo actual", 
                     'trendType': "neutral"
                 },
                 {
@@ -1006,15 +1006,15 @@ class DashboardKPIsView(APIView):
                     'trendType': "neutral"
                 },
                 {
-                    'title': "Calificaci├│n Promedio", 
-                    'value': f"{satisfaccion:.1f} Ôÿà",
-                    'trend': "Basado en todas las rese├▒as", 
+                    'title': "Calificación Promedio", 
+                    'value': f"{satisfaccion:.1f} ★",
+                    'trend': "Basado en todas las reseñas", 
                     'trendType': "neutral"
                 },
                 {
                     'title': "Total Clientes", 
                     'value': f"{clientes}",
-                    'trend': "Clientes ├║nicos atendidos", 
+                    'trend': "Clientes únicos atendidos", 
                     'trendType': "neutral"
                 }
             ],
