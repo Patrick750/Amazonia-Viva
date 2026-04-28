@@ -256,7 +256,7 @@
             <div class="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
             </div>
-            <span class="text-xl font-bold tracking-tight">Travel<span class="text-teal-300">Hub</span></span>
+            <span class="text-xl font-bold tracking-tight">Amazonia<span class="text-teal-300">Viva</span></span>
           </div>
         </div>
 
@@ -266,7 +266,7 @@
         </div>
         
         <div class="relative z-10 text-sm text-gray-400">
-            © 2026 TravelHub Global. Todos los derechos reservados.
+            © 2026 Amazonia viva. Todos los derechos reservados.
         </div>
       </div>
 
@@ -422,7 +422,7 @@
         </form>
     
         <div class="mt-10 text-center text-sm text-gray-600 font-medium">
-          ¿Ya eres parte de TravelHub? 
+          ¿Ya eres parte de Amazonia viva? 
           <router-link to="/auth/login" class="text-teal-700 font-bold hover:text-teal-500 transition-colors hover:underline underline-offset-4">Inicia sesión aquí</router-link>
         </div>
         

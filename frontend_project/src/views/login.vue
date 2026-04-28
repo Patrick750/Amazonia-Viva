@@ -48,7 +48,7 @@ const procesarLogin = async () => {
 <template>
   <div 
     class="min-h-screen flex items-center justify-center p-4 font-sans relative bg-cover bg-center bg-no-repeat"
-    style="background-image: url('https://images.unsplash.com/photo-1499678329028-101435549a4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80');"
+    style="background-image: url('/src/assets/public/IMG_2820.JPG')"
   >
     <div class="absolute inset-0 bg-black/30"></div>
     
