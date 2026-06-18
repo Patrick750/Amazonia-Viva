@@ -16,6 +16,7 @@ import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 import os
+from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,25 +36,16 @@ DEFAULT_FROM_EMAIL = f"Amazonia Viva <{EMAIL_HOST_USER}>"
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-9(2v#levi0=u6r#0%-#-^b6c7l%!jvkd2@t@+g+%8euuo=pi05'
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-9(2v#levi0=u6r#0%-#-^b6c7l%!jvkd2@t@+g+%8euuo=pi05')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = 'RENDER' not in os.environ
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',    
-    'amazonia-viva-web.onrender.com',
-    'amazonia-viva.onrender.com' # Agregado para coincidir con la URL de producción real
-]
-
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,amazonia-viva-web.onrender.com,amazonia-viva.onrender.com', cast=Csv())
 
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-if RENDER_EXTERNAL_HOSTNAME:
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-else:
-    # Permite todas temporalmente localmente si no estamos en Render
-    ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -70,12 +62,13 @@ INSTALLED_APPS = [
     'cloudinary',
     'corsheaders',
     'rest_framework',
-    'rest_framework_simplejwt.token_blacklist'
+    'rest_framework_simplejwt.token_blacklist',
+    'drf_spectacular'
 ]
 cloudinary.config( 
-  cloud_name = "dv4oizzf1", 
-  api_key = "281574654467419", 
-  api_secret = "JQVTkO9f3Fg71-fAaJowIevx2hc",
+  cloud_name = config('CLOUDINARY_CLOUD_NAME', default="dv4oizzf1"), 
+  api_key = config('CLOUDINARY_API_KEY', default="281574654467419"), 
+  api_secret = config('CLOUDINARY_API_SECRET', default="JQVTkO9f3Fg71-fAaJowIevx2hc"),
   secure = True
 )
 
@@ -130,7 +123,8 @@ DATABASES = {
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1), # El usuario tendrá que loguearse cada 24 horas
@@ -182,3 +176,28 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # Modelos propios
 # Le dice a Django: "Olvida tu usuario por defecto y usa el mío"
 AUTH_USER_MODEL = 'autenticacion.Usuario'
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'autenticacion': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

@@ -26,6 +26,11 @@ from decimal import Decimal
 from django.db import transaction, models
 from django.core.mail import send_mail
 from .serializers import calcular_cupos_disponibles
+import logging
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
+
+logger = logging.getLogger('autenticacion')
 
 # Create your views here.
 
@@ -70,6 +75,7 @@ class RegistroTurista(APIView):
 
 #verificacion de correo existente
 class VerificarEmail(APIView):
+    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
     def post(self, request):
         formEmail = request.data.get('email')
         formUsername = request.data.get('username')
@@ -104,7 +110,7 @@ class Logout(APIView):
             refresh_token = request.data.get('refresh_token')
             token = RefreshToken(refresh_token)
             token.blacklist()
-            print('Logout exitoso')
+            logger.info('Logout exitoso')
             return Response ({'mensaje': 'Sesion cerrada exitosamente'}, status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return Response({'mensaje': f'Hubo un error{e}'},status=status.HTTP_400_BAD_REQUEST)
@@ -139,7 +145,7 @@ class NewPack(APIView):
             except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:   
-            print('Error en los serializers: ', serializer.errors)
+            logger.error('Error en los serializers: %s', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class UpdatePack(APIView):
@@ -161,7 +167,7 @@ class UpdatePack(APIView):
             except Exception as e:
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:   
-            print('Error en update serializers: ', serializer.errors)
+            logger.error('Error en update serializers: %s', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class DeletePack(APIView):
@@ -184,10 +190,10 @@ class PaquetesTuristicos(APIView):
             
             # Si se solicita una agencia específica (uso público/previsualización)
             if agencia_id:
-                paquetes = PaqueteTuristico.objects.filter(agencia_id=agencia_id)
+                paquetes = PaqueteTuristico.objects.filter(agencia_id=agencia_id).select_related('agencia', 'categoria_paquete').prefetch_related('actividades', 'imagen_paquete')
             # Si no hay ID, pero el usuario es una agencia, mostrar solo SUS paquetes
             elif hasattr(request.user, 'agencia'):
-                paquetes = PaqueteTuristico.objects.filter(agencia=request.user.agencia)
+                paquetes = PaqueteTuristico.objects.filter(agencia=request.user.agencia).select_related('agencia', 'categoria_paquete').prefetch_related('actividades', 'imagen_paquete')
             else:
                 # Para otros roles sin ID específico, no mostramos nada por seguridad
                 # O podríamos mostrar todos si es admin, pero por ahora aislamos.
@@ -304,15 +310,21 @@ class CargaMasivaPaquetesAPIView(APIView):
 
                     try:
                         precio = float(precio_str) if precio_str else 0.0
-                        if precio < 0: precio = 0.0
+                        if precio < 0:
+                            errores.append(f"Fila {numero_fila}: El precio no puede ser negativo.")
+                            return
                     except ValueError:
-                        precio = 0.0
+                        errores.append(f"Fila {numero_fila}: El precio debe ser un número.")
+                        return
 
                     try:
                         capacidad = int(float(capacidad_str)) if capacidad_str else 1
-                        if capacidad < 1: capacidad = 1
+                        if capacidad < 1:
+                            errores.append(f"Fila {numero_fila}: Los cupos deben ser al menos 1.")
+                            return
                     except ValueError:
-                        capacidad = 1
+                        errores.append(f"Fila {numero_fila}: Los cupos deben ser un entero.")
+                        return
 
                     if tipo_paquete not in ['fijo', 'flexible']:
                         tipo_paquete = 'flexible'
@@ -547,7 +559,7 @@ class FavoritoView(APIView):
             serializer = FavoritoDetailSerializer(favoritos, many=True)
             return Response(serializer.data)
         except Exception as e:
-            print(f"ERROR EN GET FAVORITOS: {e}")
+            logger.error(f"ERROR EN GET FAVORITOS: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):
@@ -577,7 +589,7 @@ class FavoritoView(APIView):
             serializer = FavoritoSerializer(favorito)
             return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         except Exception as e:
-            print(f"ERROR EN FAVORITOS: {str(e)}")
+            logger.error(f"ERROR EN FAVORITOS: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
@@ -643,7 +655,7 @@ class CarritoView(APIView):
             serializer = CarritoItemSerializer(item)
             return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
         except Exception as e:
-            print(f"ERROR EN CARRITO: {str(e)}")
+            logger.error(f"ERROR EN CARRITO: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def patch(self, request, pk=None):
@@ -1140,7 +1152,7 @@ class PerfilFotoView(APIView):
             tipo = request.query_params.get('tipo', 'perfil')
             archivo = request.FILES.get('foto') or request.FILES.get('portada')
             
-            print(f"DEBUG: Intento de carga de imagen - Tipo: {tipo}, Usuario: {request.user.email}")
+            logger.debug(f"DEBUG: Intento de carga de imagen - Tipo: {tipo}, Usuario: {request.user.email}")
             
             if not archivo:
                 return Response(
@@ -1158,7 +1170,7 @@ class PerfilFotoView(APIView):
                 instance = request.user.turista
 
             if not instance:
-                print(f"ERROR: Perfil no encontrado para el usuario {request.user.id}")
+                logger.error(f"ERROR: Perfil no encontrado para el usuario {request.user.id}")
                 return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
             # Decidir qué campo actualizar
@@ -1188,7 +1200,7 @@ class PerfilFotoView(APIView):
 
         except Exception as e:
             msg_error = str(e)
-            print(f"CRITICAL ERROR EN CARGA DE IMAGEN: {msg_error}")
+            logger.critical(f"CRITICAL ERROR EN CARGA DE IMAGEN: {msg_error}")
             return Response({
                 'error': 'Error interno al procesar la imagen.',
                 'detalle': msg_error
@@ -1394,7 +1406,7 @@ class ProcesarPagoView(APIView):
         except ValueError as ve:
             return Response({'error': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            print(f"CRITICAL ERROR EN PAGO: {str(e)}")
+            logger.critical(f"CRITICAL ERROR EN PAGO: {str(e)}")
             return Response({
                 'error': 'Error interno al procesar el pago.',
                 'detalle': str(e)
@@ -1516,7 +1528,7 @@ class MisReservasView(APIView):
             return Response(resultado, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f"ERROR EN MisReservasView: {e}")
+            logger.error(f"ERROR EN MisReservasView: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1584,7 +1596,7 @@ class CancelarReservaView(APIView):
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f"ERROR EN CancelarReservaView: {e}")
+            logger.error(f"ERROR EN CancelarReservaView: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1784,7 +1796,7 @@ class GestionLogisticaAgenciaAPIView(APIView):
                 'cancelaciones': cancelaciones_list
             }, status=status.HTTP_200_OK)
         except Exception as e:
-            print(f"Error en GestionAgenciaLogisticaAPIView: {e}")
+            logger.error(f"Error en GestionAgenciaLogisticaAPIView: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GestionLogisticaProveedorAPIView(APIView):
@@ -1899,7 +1911,7 @@ class GestionLogisticaProveedorAPIView(APIView):
                 'cancelaciones': cancelaciones_list
             }, status=status.HTTP_200_OK)
         except Exception as e:
-            print(f"Error en GestionProveedorLogisticaAPIView: {e}")
+            logger.error(f"Error en GestionProveedorLogisticaAPIView: {e}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -2103,7 +2115,7 @@ class MisProductosTuristaView(APIView):
             return Response(result, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f'ERROR MisProductosTuristaView: {e}')
+            logger.error(f'ERROR MisProductosTuristaView: {e}')
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SolicitarDevolucionAPIView(APIView):

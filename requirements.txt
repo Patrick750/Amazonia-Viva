@@ -34,3 +34,6 @@ zope.interface==8.2
 gunicorn
 openpyxl==3.1.2
 reportlab==4.1.0
+python-decouple
+django-ratelimit
+drf-spectacular
