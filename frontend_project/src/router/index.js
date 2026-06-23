@@ -193,7 +193,7 @@ router.beforeEach((to, from, next) => {
   const rol = localStorage.getItem('rol')
 
   const publicPaths = ['/', '/auth/login', '/auth/signup', '/catalogo']
-  const isPublic = publicPaths.includes(to.path) || to.path.startsWith('/catalogo/')
+  const isPublic = publicPaths.includes(to.path) || to.path.startsWith('/catalogo/') || to.name === 'perfil_publico'
 
   // Si no está autenticado y no es una ruta pública, al inicio
   if (!token || !rol) {

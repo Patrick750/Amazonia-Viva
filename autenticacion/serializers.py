@@ -600,6 +600,7 @@ class CarritoItemDetailSerializer(serializers.ModelSerializer):
 class SerializerDetalleTour(serializers.ModelSerializer):
     imagen_paquete = SerializersImages(many=True, read_only=True)
     nombre_agencia = serializers.CharField(source='agencia.nombre_agencia', read_only=True)
+    agencia_id = serializers.ReadOnlyField(source='agencia.id')
     categoria_paquete_nombre = serializers.CharField(source='categoria_paquete.nombre', read_only=True)
     actividades_detalle = SerializersActividades(source='actividades', many=True, read_only=True)
     reservas_totales = serializers.SerializerMethodField()
@@ -618,7 +619,7 @@ class SerializerDetalleTour(serializers.ModelSerializer):
             'id', 'activo', 'nombre', 'descripcion', 'precio', 'duracion', 
             'ubicacion', 'latitud', 'longitud', 'capacidad', 
             'itinerario', 'incluido', 'rating',
-            'imagen_paquete', 'nombre_agencia', 'categoria_paquete_nombre',
+            'imagen_paquete', 'nombre_agencia', 'agencia_id', 'categoria_paquete_nombre',
             'actividades_detalle', 'reservas_totales',
             'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles'
         ]
