@@ -69,7 +69,7 @@
       <MenuLateralPerfil v-model="currentView" />
 
       <!-- CONTENIDO DINÁMICO -->
-      <div class="flex-1">
+      <div class="flex-1 min-w-0">
         <transition name="fade" mode="out-in">
           
           <!-- ── INFORMACIÓN CUENTA (Consolida las tabs existentes) ── -->

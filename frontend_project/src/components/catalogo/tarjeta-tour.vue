@@ -40,10 +40,10 @@ const alertaCupos = (cupos) => cupos !== null && cupos !== undefined && cupos <=
 </script>
 
 <template>
-  <article class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg border border-gray-100 transition-all duration-300 hover:-translate-y-0.5 flex flex-col">
+  <article class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg border border-gray-100 transition-all duration-300 hover:-translate-y-0.5 flex flex-col h-full min-w-0">
 
     <!-- ── MITAD SUPERIOR: Fotografía ── -->
-    <div class="relative h-52 bg-gray-100 overflow-hidden flex-shrink-0">
+    <div class="relative h-44 bg-gray-100 overflow-hidden flex-shrink-0">
       <img
         v-if="tour.imagen_portada"
         :src="tour.imagen_portada"
@@ -79,20 +79,20 @@ const alertaCupos = (cupos) => cupos !== null && cupos !== undefined && cupos <=
     </div>
 
     <!-- ── MITAD INFERIOR: Info ── -->
-    <div class="flex flex-col flex-1 p-5 gap-2.5">
+    <div class="flex flex-col flex-1 p-4 gap-2.5">
 
       <!-- Agencia -->
-      <div class="flex items-center justify-between">
-        <router-link :to="{ name: 'perfil_publico', params: { id: tour.agencia_id }, query: { tipo: 'agencia' } }" class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-emerald-600 transition-colors w-max">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-          <span class="font-medium text-gray-500 hover:text-emerald-700 transition-colors">{{ tour.nombre_agencia }}</span>
+      <div class="flex items-center justify-between gap-2">
+        <router-link :to="{ name: 'perfil_publico', params: { id: tour.agencia_id }, query: { tipo: 'agencia' } }" class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-emerald-600 transition-colors min-w-0">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          <span class="font-medium text-gray-500 hover:text-emerald-700 transition-colors truncate">{{ tour.nombre_agencia }}</span>
         </router-link>
         
-        <span v-if="tour.proveedor_validado" class="flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full" title="Toda la documentación legal de esta agencia está verificada.">
+        <span v-if="tour.proveedor_validado" class="shrink-0 flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full" title="Toda la documentación legal de esta agencia está verificada.">
           <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
           Verificación legal
         </span>
-        <span v-else class="flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-rose-500 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full" title="Esta agencia aún no adjunta su RNT o RUT oficial.">
+        <span v-else class="shrink-0 flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-rose-500 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full" title="Esta agencia aún no adjunta su RNT o RUT oficial.">
           <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
           Sin verificar
         </span>
@@ -120,10 +120,10 @@ const alertaCupos = (cupos) => cupos !== null && cupos !== undefined && cupos <=
       </div>
 
       <!-- 2. Título destacado -->
-      <h3 class="font-bold text-gray-900 text-base leading-snug line-clamp-2">{{ tour.nombre }}</h3>
+      <h3 class="font-bold text-gray-900 text-sm leading-snug line-clamp-2 break-words">{{ tour.nombre }}</h3>
 
       <!-- 3. Breve descripción -->
-      <p class="text-sm text-gray-500 line-clamp-2 leading-relaxed">{{ tour.descripcion }}</p>
+      <p class="text-xs text-gray-500 line-clamp-2 leading-relaxed break-words">{{ tour.descripcion }}</p>
 
       <!-- Fecha (paquete fijo) + Cupos disponibles -->
       <div class="flex flex-wrap items-center gap-2">
@@ -172,12 +172,12 @@ const alertaCupos = (cupos) => cupos !== null && cupos !== undefined && cupos <=
       <!-- 5. Pie de tarjeta: Precio + Botón -->
       <div class="flex items-center justify-between pt-3 mt-auto border-t border-gray-100">
         <div>
-          <span class="text-xs text-gray-400 block">Desde</span>
-          <span class="text-xl font-black text-emerald-700">${{ Number(tour.precio).toLocaleString('es-CO') }}</span>
+          <span class="text-[10px] text-gray-400 block uppercase font-bold tracking-wider mb-0.5">Desde</span>
+          <span class="text-lg font-black text-emerald-700 leading-none">${{ Number(tour.precio).toLocaleString('es-CO') }}</span>
         </div>
         <button
           @click="router.push({ name: 'detalle_tour', params: { id: tour.id } })"
-          class="px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors shadow-sm"
+          class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-sm"
         >
           Ver detalles
         </button>

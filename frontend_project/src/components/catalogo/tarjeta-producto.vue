@@ -18,9 +18,9 @@ const estrellas = (rating) => {
 </script>
 
 <template>
-  <article class="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-slate-100 transition-all duration-300 hover:-translate-y-1 flex flex-col">
+  <article class="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-slate-100 transition-all duration-300 hover:-translate-y-1 flex flex-col h-full min-w-0">
     <!-- Imagen -->
-    <div class="relative h-48 bg-slate-100 overflow-hidden flex-shrink-0">
+    <div class="relative h-40 bg-slate-100 overflow-hidden flex-shrink-0">
       <img v-if="producto.imagen_portada" :src="producto.imagen_portada" :alt="producto.nombre"
            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
       <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-teal-50 to-emerald-100">
@@ -37,32 +37,32 @@ const estrellas = (rating) => {
     </div>
 
     <!-- Contenido -->
-    <div class="p-5 flex flex-col flex-1 gap-3">
+    <div class="p-4 flex flex-col flex-1 gap-3">
       <!-- Proveedor -->
-      <div class="flex items-center justify-between">
-        <router-link :to="{ name: 'perfil_publico', params: { id: producto.proveedor_id }, query: { tipo: 'proveedor' } }" class="flex items-center gap-1.5 text-xs text-slate-400 hover:text-teal-600 transition-colors w-max">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-          <span class="font-medium text-slate-500 hover:text-teal-700 transition-colors">{{ producto.nombre_proveedor }}</span>
+      <div class="flex items-center justify-between gap-2">
+        <router-link :to="{ name: 'perfil_publico', params: { id: producto.proveedor_id }, query: { tipo: 'proveedor' } }" class="flex items-center gap-1.5 text-xs text-slate-400 hover:text-teal-600 transition-colors min-w-0">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          <span class="font-medium text-slate-500 hover:text-teal-700 transition-colors truncate">{{ producto.nombre_proveedor }}</span>
         </router-link>
 
-        <span v-if="producto.proveedor_validado" class="flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full" title="Toda la documentación legal de este proveedor está verificada.">
+        <span v-if="producto.proveedor_validado" class="shrink-0 flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full" title="Toda la documentación legal de este proveedor está verificada.">
           <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
           Verificación legal
         </span>
-        <span v-else class="flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-rose-500 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full" title="Este proveedor aún no adjunta su RUT oficial oficial.">
+        <span v-else class="shrink-0 flex items-center gap-1 text-[9px] uppercase font-bold tracking-wider text-rose-500 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full" title="Este proveedor aún no adjunta su RUT oficial oficial.">
           <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
           Sin verificar
         </span>
       </div>
 
       <!-- Nombre -->
-      <h3 class="font-bold text-slate-800 text-base leading-snug group-hover:text-teal-700 transition-colors line-clamp-2">
+      <h3 class="font-bold text-slate-800 text-sm leading-snug group-hover:text-teal-700 transition-colors line-clamp-2 break-words">
         {{ producto.nombre }}
         <span v-if="producto.marca || producto.modelo" class="text-slate-400 font-medium"> - {{ [producto.marca, producto.modelo].filter(Boolean).join(' ') }}</span>
       </h3>
 
       <!-- Descripción -->
-      <p class="text-sm text-slate-500 line-clamp-2 flex-1">{{ producto.descripcion_corta }}</p>
+      <p class="text-xs text-slate-500 line-clamp-2 flex-1 break-words">{{ producto.descripcion_corta }}</p>
 
       <!-- Rating -->
       <div class="flex items-center gap-1.5">
@@ -86,12 +86,12 @@ const estrellas = (rating) => {
       <!-- Precio + Acciones -->
       <div class="flex items-center justify-between pt-1">
         <div>
-          <span class="text-xs text-slate-400">Precio</span>
-          <p class="text-xl font-bold text-teal-700">${{ Number(producto.precio).toLocaleString('es-CO') }}</p>
+          <span class="text-[10px] text-slate-400 block uppercase font-bold tracking-wider mb-0.5">Precio</span>
+          <p class="text-lg font-bold text-teal-700 leading-none">${{ Number(producto.precio).toLocaleString('es-CO') }}</p>
         </div>
         <div class="flex gap-2">
           <button @click="router.push(`/catalogo/producto/${producto.id}`)"
-            class="px-3 py-2 text-sm border border-teal-200 text-teal-700 rounded-xl hover:bg-teal-50 transition-colors font-medium">
+            class="px-3.5 py-1.5 text-xs border border-teal-200 text-teal-700 rounded-lg hover:bg-teal-50 transition-colors font-bold">
             Ver +
           </button>
         </div>
