@@ -2,7 +2,7 @@ import axios from 'axios';
 console.log("Intentando conectar a:", import.meta.env.VITE_API_URL);
 
 // 1. Configuramos la URL base para no tener que escribir 'http://127.0.0.1:8000' en cada petición
-const baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/';
+const baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:9000/';
 const clienteAxios = axios.create({
     baseURL: baseURL
 });
@@ -33,7 +33,16 @@ clienteAxios.interceptors.response.use(
     },
     (error) => {
         // Si el servidor responde con 401 (No autorizado), significa que el token expiró o es inválido
+        // IMPORTANTE: No interceptamos errores del endpoint de login para permitir
+        // que el componente login.vue muestre el mensaje de error al usuario
         if (error.response && error.response.status === 401) {
+            const url = error.config?.url || '';
+            
+            // Saltar la redirección si es una petición al login
+            if (url.includes('/login/')) {
+                return Promise.reject(error);
+            }
+            
             console.warn("Sesión expirada. Redirigiendo al inicio de sesión...");
             
             // Limpiamos los datos de autenticación del navegador
