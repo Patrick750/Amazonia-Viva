@@ -1,0 +1,57 @@
+# ==========================================
+# Etapa 1: Compilación de dependencias
+# ==========================================
+FROM python:3.12-slim AS builder
+WORKDIR /app
+
+# Evitar que Python escriba archivos .pyc y forzar salida estándar (logs en vivo)
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Instalar dependencias del sistema necesarias para compilar paquetes (ej. psycopg2 para PostgreSQL)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instalar dependencias de Python en un directorio aislado
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+
+# ==========================================
+# Etapa 2: Producción (Runtime)
+# ==========================================
+FROM python:3.12-slim
+WORKDIR /app
+
+# Instalar solo las librerías de ejecución necesarias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crear usuario no root
+RUN useradd -m -r appuser && chown -R appuser /app
+
+# Copiar wheels de la etapa builder e instalarlos
+COPY --from=builder /app/wheels /wheels
+COPY --from=builder /app/requirements.txt .
+RUN pip install --no-cache /wheels/*
+
+# Copiar el código de la aplicación
+COPY . .
+
+# Asignar permisos al usuario de la aplicación
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Variables de entorno
+ENV DJANGO_SETTINGS_MODULE=core.settings.production
+ENV PORT=8000
+
+EXPOSE 8000
+
+# Ejecutar Gunicorn (Ajustar 'core.wsgi:application' según el nombre de tu proyecto principal)
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "core.wsgi:amazoniaviva"]
+
+    
+
