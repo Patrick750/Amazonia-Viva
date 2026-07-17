@@ -9,6 +9,8 @@ const isUploading = ref(false);
 const selectedDetalle = ref(null);
 const fileInput = ref(null);
 const uploadProgress = ref(0);
+const currentFileIndex = ref(0);
+const totalFilesCount = ref(0);
 
 const mostrarModalTuristas = ref(false);
 const selectedTour = ref(null);
@@ -55,23 +57,36 @@ const handleFileUpload = async (event) => {
     const files = event.target.files;
     if (!files || files.length === 0 || !selectedDetalle.value) return;
 
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-        formData.append('imagenes', files[i]);
-    }
-
     isUploading.value = true;
     uploadProgress.value = 0;
+    
     try {
-        await axios.post(`api/experiencias/${selectedDetalle.value.id}/evidencia/`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress: (progressEvent) => {
-                const total = progressEvent.total;
-                if (total) {
-                    uploadProgress.value = Math.round((progressEvent.loaded * 100) / total);
+        totalFilesCount.value = files.length;
+        currentFileIndex.value = 1;
+
+        for (let i = 0; i < totalFilesCount.value; i++) {
+            currentFileIndex.value = i + 1;
+            const formData = new FormData();
+            formData.append('imagenes', files[i]);
+
+            await axios.post(`api/experiencias/${selectedDetalle.value.id}/evidencia/`, formData, {
+                onUploadProgress: (progressEvent) => {
+                    const total = progressEvent.total;
+                    if (total) {
+                        const fileProgress = progressEvent.loaded / total;
+                        const baseProgress = (i / totalFilesCount.value) * 100;
+                        // Reservamos un 50% del progreso de este archivo para la subida de red,
+                        // y el otro 50% para el procesamiento del servidor (Cloudinary)
+                        const currentFileSlice = (fileProgress * 0.5) * (100 / totalFilesCount.value);
+                        uploadProgress.value = Math.min(99, Math.round(baseProgress + currentFileSlice));
+                    }
                 }
-            }
-        });
+            });
+            
+            // Al terminar la petición, el archivo está completamente procesado (100% de su porción)
+            uploadProgress.value = Math.round(((i + 1) / totalFilesCount.value) * 100);
+        }
+
         await fetchData();
         // Si el modal está abierto, actualizar el selectedTour para reflejar las nuevas fotos
         if (mostrarModalTuristas.value && selectedTour.value) {
@@ -83,7 +98,12 @@ const handleFileUpload = async (event) => {
     } finally {
         isUploading.value = false;
         uploadProgress.value = 0;
+        currentFileIndex.value = 0;
+        totalFilesCount.value = 0;
         selectedDetalle.value = null;
+        if (fileInput.value) {
+            fileInput.value.value = '';
+        }
     }
 };
 
@@ -139,7 +159,8 @@ onMounted(() => {
             <div v-if="isUploading" class="flex flex-col items-end gap-1 w-full lg:w-auto">
               <div class="flex items-center gap-3 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20 w-full lg:w-auto justify-center lg:justify-start">
                 <svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-                <span class="text-[10px] font-black uppercase tracking-widest">Subiendo {{ uploadProgress }}%</span>
+                <span class="text-[10px] font-black uppercase tracking-widest" v-if="totalFilesCount > 1">Subiendo {{ currentFileIndex }} de {{ totalFilesCount }} ({{ uploadProgress }}%)</span>
+                <span class="text-[10px] font-black uppercase tracking-widest" v-else>Subiendo {{ uploadProgress }}%</span>
               </div>
               <div class="w-full lg:w-48 h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
                 <div class="h-full bg-emerald-500 transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]" :style="{ width: uploadProgress + '%' }"></div>

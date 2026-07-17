@@ -29,7 +29,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-from .models import Venta, Detalles_Venta, Agencia, Proveedor, Productos, PaqueteTuristico
+from .models import Venta, Detalles_Venta, Agencia, Proveedor, Productos, PaqueteTuristico, SolicitudRetiro
 
 # ─── Tasa de comisión de la plataforma (%) ────────────────────────────────────
 COMISION_PLATAFORMA = Decimal("8.00")   # 8 % sobre ventas brutas
@@ -297,23 +297,54 @@ class SolicitarRetiroView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # En una implementación real aquí se crearía un modelo SolicitudRetiro.
-        # Para este MVP respondemos con confirmación optimista.
         referencia = f"RET-{timezone.now().strftime('%Y%m%d%H%M%S')}-{request.user.pk}"
+
+        solicitud = SolicitudRetiro.objects.create(
+            usuario=request.user,
+            monto=monto_decimal,
+            metodo=metodo,
+            banco=datos_bancarios.get("banco", ""),
+            cuenta=datos_bancarios.get("cuenta", ""),
+            tipo_cuenta=datos_bancarios.get("tipo_cuenta", ""),
+            titular=datos_bancarios.get("titular", ""),
+            numero_documento=datos_bancarios.get("numero", ""),
+            referencia=referencia,
+            estado="Pendiente"
+        )
 
         return Response(
             {
                 "mensaje": "Solicitud de retiro registrada exitosamente.",
-                "referencia": referencia,
-                "monto": float(monto_decimal),
-                "metodo": metodo,
-                "estado": "Pendiente de procesamiento",
-                "estimado": _tiempo_estimado(metodo),
-                "fecha_solicitud": timezone.now().isoformat(),
+                "referencia": solicitud.referencia,
+                "monto": float(solicitud.monto),
+                "metodo": solicitud.metodo,
+                "estado": solicitud.estado,
+                "estimado": _tiempo_estimado(solicitud.metodo),
+                "fecha_solicitud": solicitud.fecha_solicitud.isoformat(),
             },
             status=status.HTTP_201_CREATED,
         )
 
+class RetirosView(APIView):
+    """GET /api/liquidacion/retiros/ — Historial de retiros."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        retiros = SolicitudRetiro.objects.filter(usuario=request.user).order_by("-fecha_solicitud")
+        data = [
+            {
+                "id": r.id,
+                "monto": float(r.monto),
+                "metodo": r.metodo,
+                "referencia": r.referencia,
+                "estado": r.estado,
+                "fecha": r.fecha_solicitud.isoformat(),
+                "banco": r.banco,
+                "cuenta": r.cuenta,
+            }
+            for r in retiros
+        ]
+        return Response(data)
 
 def _tiempo_estimado(metodo):
     tiempos = {

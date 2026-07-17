@@ -334,3 +334,20 @@ class ExperienciaCalificacion(models.Model):
     class Meta:
         verbose_name = "Calificación de Experiencia"
         verbose_name_plural = "Calificaciones de Experiencias"
+
+class SolicitudRetiro(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='retiros')
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    metodo = models.CharField(max_length=50)
+    banco = models.CharField(max_length=100, blank=True, null=True)
+    cuenta = models.CharField(max_length=100, blank=True, null=True)
+    tipo_cuenta = models.CharField(max_length=50, blank=True, null=True)
+    titular = models.CharField(max_length=150, blank=True, null=True)
+    numero_documento = models.CharField(max_length=50, blank=True, null=True)
+    referencia = models.CharField(max_length=100, unique=True)
+    estado = models.CharField(max_length=50, default='Pendiente')
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Solicitud de Retiro"
+        verbose_name_plural = "Solicitudes de Retiro"

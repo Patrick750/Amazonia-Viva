@@ -142,6 +142,7 @@ async function confirmarRetiro() {
     setTimeout(() => {
       cerrarRetiro();
       cargarSaldos();
+      cargarRetiros();
     }, 3500);
   } catch (e) {
     retiroError.value = e.response?.data?.error || 'Error al procesar el retiro.';

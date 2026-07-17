@@ -289,24 +289,20 @@ const anularPedido = async (order) => {
 async function ejecutarDescarga() {
   if (exporting.value) return
   
-  // En esta vista, intentamos sacar el paquete_id de la primera orden visible
-  const firstOrder = pageRows.value[0]
-  if (!firstOrder) {
-    alert('No hay datos para exportar en esta vista.')
+  if (filtered.value.length === 0) {
+    alert('No hay datos para exportar con los filtros actuales.')
     return
   }
 
   exporting.value = true
   try {
     const payload = {
-      paquete_id: firstOrder.paquete.id,
-      fecha: currentTab.value === 'todos' ? null : firstOrder.fecha_pedido,
-      mes: selectedMonth.value,
+      detalles_ids: filtered.value.map(o => o.id_detalle),
       formato: exportFormat.value
     }
     
     const response = await axios.post('/api/proveedor/gestion-logistica/exportar/', payload, { responseType: 'blob' })
-    descargarArchivo(response.data, `Reporte_Despacho_${firstOrder.producto_nombre.replace(/\s+/g,'_')}`)
+    descargarArchivo(response.data, `Reporte_Despacho_Personalizado`)
   } catch (err) {
     console.error(err)
     alert('Error al exportar el reporte.')

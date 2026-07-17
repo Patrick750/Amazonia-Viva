@@ -127,26 +127,31 @@ class ExportarDespachoProveedorAPIView(APIView):
         fecha = request.data.get('fecha')
         mes = request.data.get('mes') # Formato YYYY-MM
         formato = request.data.get('formato', 'XLS').upper()
+        detalles_ids = request.data.get('detalles_ids')
 
-        if not producto_id or (not fecha and not mes):
-            return HttpResponse(json.dumps({'error': 'Producto y periodo (fecha o mes) son requeridos.'}), status=400, content_type='application/json')
-
-        producto = get_object_or_404(Productos, pk=producto_id, proveedor_id=request.user.pk)
-        
-        if mes:
-            try:
-                y, m = map(int, mes.split('-'))
-                detalles = Detalles_Venta.objects.filter(producto=producto_id, venta__fecha__year=y, venta__fecha__month=m).select_related('venta', 'venta__usuario')
-                periodo_label = f"Mes_{mes}"
-            except:
-                return HttpResponse(json.dumps({'error': 'Formato de mes inválido.'}), status=400, content_type='application/json')
+        if detalles_ids:
+            detalles = Detalles_Venta.objects.filter(id__in=detalles_ids, producto__proveedor_id=request.user.pk).select_related('venta', 'venta__usuario', 'producto')
+            periodo_label = "Personalizado"
+            producto = None
         else:
-            detalles = Detalles_Venta.objects.filter(producto=producto_id, venta__fecha__date=fecha).select_related('venta', 'venta__usuario')
-            periodo_label = f"Fecha_{fecha}"
+            if not producto_id or (not fecha and not mes):
+                return HttpResponse(json.dumps({'error': 'Producto y periodo (fecha o mes) son requeridos.'}), status=400, content_type='application/json')
+
+            producto = get_object_or_404(Productos, pk=producto_id, proveedor_id=request.user.pk)
+            
+            if mes:
+                try:
+                    y, m = map(int, mes.split('-'))
+                    detalles = Detalles_Venta.objects.filter(producto=producto_id, venta__fecha__year=y, venta__fecha__month=m).select_related('venta', 'venta__usuario', 'producto')
+                    periodo_label = f"Mes_{mes}"
+                except:
+                    return HttpResponse(json.dumps({'error': 'Formato de mes inválido.'}), status=400, content_type='application/json')
+            else:
+                detalles = Detalles_Venta.objects.filter(producto=producto_id, venta__fecha__date=fecha).select_related('venta', 'venta__usuario', 'producto')
+                periodo_label = f"Fecha_{fecha}"
 
         if not detalles.exists():
-            return HttpResponse(json.dumps({'error': f'No hay pedidos para este periodo ({mes if mes else fecha}).'}), status=404, content_type='application/json')
-
+            return HttpResponse(json.dumps({'error': f'No hay pedidos para exportar.'}), status=404, content_type='application/json')
 
         clientes_data = []
         for det in detalles:
@@ -166,32 +171,7 @@ class ExportarDespachoProveedorAPIView(APIView):
                 id_u = usr.turista.numero_identidad
                 telefono = usr.turista.numero_telefonico or 'S/R'
             
-            clientes_data.append({
-                'nombre': nombre_u,
-                'identificacion': id_u,
-                'correo': usr.email,
-                'telefono': telefono,
-                'rol': f"Cliente ({tipo_u})",
-                'referencia': f"TRX-{det.venta.id} (Cant: {det.cantidad})"
-            })
-
-        clientes_data = []
-        for det in detalles:
-            usr = det.venta.usuario
-            tipo_u = 'Turista'
-            id_u = 'N/A'
-            nombre_u = f"{usr.first_name} {usr.last_name}".strip() or usr.username
-            telefono = 'S/R'
-
-            if hasattr(usr, 'agencia'):
-                tipo_u = 'Agencia'
-                id_u = usr.agencia.nit or 'N/A'
-                nombre_u = usr.agencia.nombre_agencia
-                telefono = usr.agencia.numero_telefonico or 'S/R'
-            elif hasattr(usr, 'turista'):
-                tipo_u = 'Turista'
-                id_u = usr.turista.numero_identidad
-                telefono = usr.turista.numero_telefonico or 'S/R'
+            item_nombre = det.producto.nombre if hasattr(det, 'producto') and det.producto else (producto.nombre if producto else 'Varios Productos')
             
             clientes_data.append({
                 'fecha': det.venta.fecha.strftime('%Y-%m-%d %H:%M') if det.venta.fecha else 'S/F',
@@ -201,15 +181,21 @@ class ExportarDespachoProveedorAPIView(APIView):
                 'tipo': tipo_u,
                 'correo': usr.email,
                 'telefono': telefono,
-                'item': producto.nombre,
+                'item': item_nombre,
                 'cantidad': det.cantidad,
                 'precio_unitario': float(det.precio_unitario or 0),
                 'total': float((det.precio_unitario or 0) * det.cantidad),
                 'estado': det.estado
             })
 
-        filename = f"Despacho_{producto.nombre.replace(' ', '_')}_{periodo_label}"
-        return self._generar_reporte(clientes_data, filename, formato, producto.nombre, mes if mes else fecha)
+        if detalles_ids:
+            filename = f"Despacho_Personalizado_{len(detalles_ids)}_regs"
+            service_name = "Varios Productos"
+        else:
+            filename = f"Despacho_{producto.nombre.replace(' ', '_')}_{periodo_label}"
+            service_name = producto.nombre
+
+        return self._generar_reporte(clientes_data, filename, formato, service_name, mes if mes else fecha or "N/A")
 
     def _generar_reporte(self, data, filename, formato, service_name, fecha):
         if formato == 'CSV': return ExportarManifiestoBase()._export_csv(data, filename)
