@@ -48,6 +48,7 @@ jobs:
         script: |
           # Asegúrate de que esta sea la ruta real en tu servidor VPS
           cd ~/Amazonia-Viva
+          git pull origin main
           docker compose pull
           docker compose up -d
           docker image prune -f
