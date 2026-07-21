@@ -41,7 +41,8 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-9(2v#levi0=u6r#0%-#-^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = 'RENDER' not in os.environ
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,amazonia-viva-web.onrender.com,amazonia-viva.onrender.com', cast=Csv())
+# settings.py
+ALLOWED_HOSTS = ['amazoniaviva.adsoproject.dev', 'www.amazoniaviva.adsoproject.dev', '163.245.192.239']
 
 RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
