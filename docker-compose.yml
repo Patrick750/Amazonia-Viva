@@ -1,18 +1,72 @@
 services:
-  backend:
-    image: patrick190/amazoniaviva_backend:v1
-    container_name: amazoniaviva_backend
-    restart: always
-    env_file:
-      - .env
-    ports:
-      - "8000:8000"
-
+  # Frontend / Web Server
   frontend:
+    container_name: amazoniaviva-frontend
     image: patrick190/amazoniaviva_frontend:v1
-    container_name: amazoniaviva_frontend
-    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
     ports:
       - "80:80"
     depends_on:
       - backend
+    networks:
+      - amazoniaviva-network
+      - proxy-network
+    restart: always
+
+  # Django Application (Backend)
+  backend:
+    container_name: amazoniaviva-backend
+    image: patrick190/amazoniaviva_backend:v1
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    # Si decides usar la base de datos local SQLite o mapear variables como volumen en el futuro:
+    # volumes:
+    #   - ./.env:/app/.env
+    #   - amazoniaviva_db_data:/app/db_data
+    networks:
+      - amazoniaviva-network
+      - proxy-network
+    restart: always
+
+  # Opcional: Database (si en algún momento decides migrar de SQLite a MySQL/PostgreSQL como en tu ejemplo)
+  # db:
+  #   container_name: amazoniaviva-mysql
+  #   image: mysql:8.0
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 1G
+  #       reservations:
+  #         memory: 512M
+  #   restart: always
+  #   environment:
+  #     MYSQL_DATABASE: ${DB_DATABASE}
+  #     MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+  #     MYSQL_USER: ${DB_USERNAME}
+  #     MYSQL_PASSWORD: ${DB_PASSWORD}
+  #   volumes:
+  #     - amazoniaviva_db_data:/var/lib/mysql
+  #   networks:
+  #     - amazoniaviva-network
+
+networks:
+  amazoniaviva-network:
+    driver: bridge
+  proxy-network:
+    external: true
+
+volumes:
+  amazoniaviva_db_data:

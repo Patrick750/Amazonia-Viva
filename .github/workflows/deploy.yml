@@ -47,7 +47,7 @@ jobs:
         # Estos son los comandos que GitHub ejecutará dentro de tu VPS:
         script: |
           # Asegúrate de que esta sea la ruta real en tu servidor VPS
-          cd ~/amazoniaviva
+          cd ~/Amazonia-Viva
           docker compose pull
           docker compose up -d
           docker image prune -f
