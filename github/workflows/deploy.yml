@@ -1,0 +1,53 @@
+name: Despliegue Automático Amazonia Viva
+
+# 1. ¿Cuándo se activa?
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 2. Clona tu código en el servidor de GitHub
+    - name: Obtener el código
+      uses: actions/checkout@v3
+
+    # 3. Inicia sesión en Docker Hub
+    - name: Login en Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    # 4. Construye y sube el Backend a Docker Hub
+    - name: Build y Push Backend
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: ${{ secrets.DOCKER_USERNAME }}/amazoniaviva_backend:latest
+
+    # 5. Construye y sube el Frontend a Docker Hub
+    - name: Build y Push Frontend
+      uses: docker/build-push-action@v4
+      with:
+        context: ./frontend_project
+        push: true
+        tags: ${{ secrets.DOCKER_USERNAME }}/amazoniaviva_frontend:latest
+
+    # 6. Se conecta al VPS y actualiza los contenedores
+    - name: Desplegar en el VPS
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        # Estos son los comandos que GitHub ejecutará dentro de tu VPS:
+        script: |
+          # Asegúrate de que esta sea la ruta real en tu servidor VPS
+          cd ~/Amazonia-Viva
+          docker compose pull
+          docker compose up -d
+          docker image prune -f
