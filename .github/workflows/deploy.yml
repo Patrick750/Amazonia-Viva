@@ -48,6 +48,6 @@ jobs:
         script: |
           # Asegúrate de que esta sea la ruta real en tu servidor VPS
           cd ~/amazoniaviva
-          sudo docker compose pull
-          sudo docker compose up -d
-          sudo docker image prune -f
+          docker compose pull
+          docker compose up -d
+          docker image prune -f
