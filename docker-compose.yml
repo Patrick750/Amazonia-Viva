@@ -1,0 +1,18 @@
+services:
+  backend:
+    image: patrick190/amazoniaviva_backend:v1
+    container_name: amazoniaviva_backend
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+
+  frontend:
+    image: patrick190/amazoniaviva_frontend:v1
+    container_name: amazoniaviva_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
