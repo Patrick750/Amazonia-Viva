@@ -2,7 +2,7 @@ services:
   # Frontend / Web Server
   frontend:
     container_name: amazoniaviva-frontend
-    image: patrick190/amazoniaviva_frontend:v1
+    image: patrick190/amazoniaviva_frontend:latest
     deploy:
       resources:
         limits:
@@ -21,7 +21,10 @@ services:
   # Django Application (Backend)
   backend:
     container_name: amazoniaviva-backend
-    image: patrick190/amazoniaviva_backend:v1
+    build:
+      context: .
+      dockerfile: amazoniaviva/Dockerfile
+    image: patrick190/amazoniaviva_backend:latest
     deploy:
       resources:
         limits:
