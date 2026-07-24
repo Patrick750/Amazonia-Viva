@@ -2,6 +2,9 @@ services:
   # Frontend / Web Server
   frontend:
     container_name: amazoniaviva-frontend
+    build:                             
+      context: ./frontend_project   
+      dockerfile: Dockerfile
     image: patrick190/amazoniaviva_frontend:latest
     deploy:
       resources:
@@ -10,7 +13,7 @@ services:
         reservations:
           memory: 64M
     ports:
-      - "8080:8080"
+      - "8080:80"
     depends_on:
       - backend
     networks:

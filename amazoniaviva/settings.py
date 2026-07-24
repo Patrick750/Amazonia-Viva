@@ -39,8 +39,7 @@ DEFAULT_FROM_EMAIL = f"Amazonia Viva <{EMAIL_HOST_USER}>"
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-9(2v#levi0=u6r#0%-#-^b6c7l%!jvkd2@t@+g+%8euuo=pi05')
 
 
-# settings.py
-ALLOWED_HOSTS = ['amazoniaviva.adsoproject.dev', 'www.amazoniaviva.adsoproject.dev', 'VPS']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend']
 
 
 # Application definition
@@ -82,6 +81,11 @@ MIDDLEWARE = [
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
 
 
 ROOT_URLCONF = 'amazoniaviva.urls'
