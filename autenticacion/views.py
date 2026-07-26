@@ -188,19 +188,83 @@ class PaquetesTuristicos(APIView):
         try:
             agencia_id = request.query_params.get('agencia_id', None)
             
-            # Si se solicita una agencia específica (uso público/previsualización)
             if agencia_id:
-                paquetes = PaqueteTuristico.objects.filter(agencia_id=agencia_id).select_related('agencia', 'categoria_paquete').prefetch_related('actividades', 'imagen_paquete')
-            # Si no hay ID, pero el usuario es una agencia, mostrar solo SUS paquetes
+                filtro_agencia = agencia_id
             elif hasattr(request.user, 'agencia'):
-                paquetes = PaqueteTuristico.objects.filter(agencia=request.user.agencia).select_related('agencia', 'categoria_paquete').prefetch_related('actividades', 'imagen_paquete')
+                filtro_agencia = request.user.agencia.id
             else:
-                # Para otros roles sin ID específico, no mostramos nada por seguridad
-                # O podríamos mostrar todos si es admin, pero por ahora aislamos.
-                paquetes = PaqueteTuristico.objects.none()
+                return Response([])
+
+            # EXACTAMENTE 1 ÚNICA CONSULTA SQL
+            # Se utiliza raw SQL o values()/list dict para unir imágenes y categorías en 1 solo viaje a la DB
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT 
+                        p.id, p.activo, p.nombre, p.descripcion, p.precio, 
+                        p.duracion, p.capacidad, p.ubicacion, p.itinerario, 
+                        p.incluido, p.rating, p.agencia_id, p.categoria_paquete_id,
+                        p.fecha_realizacion, p.tipo_paquete,
+                        c.nombre AS categoria_nombre,
+                        (SELECT COALESCE(SUM(dv.cantidad), 0) 
+                         FROM autenticacion_detalles_venta dv 
+                         WHERE dv.paquete = p.id) AS reservas_totales,
+                        (SELECT COALESCE(SUM(rf.cantidad), 0) 
+                         FROM autenticacion_reservafecha rf 
+                         JOIN autenticacion_venta v ON v.id = rf.venta_id 
+                         WHERE rf.paquete_id = p.id AND v.estado = 'Completado'
+                           AND v.id NOT IN (
+                               SELECT dv2.venta_id 
+                               FROM autenticacion_detalles_venta dv2 
+                               WHERE dv2.paquete = p.id AND dv2.estado IN ('Cancelado', 'Rechazado')
+                           )
+                        ) AS reservas_completadas
+                    FROM autenticacion_paqueteturistico p
+                    LEFT JOIN autenticacion_categoriapaquete c ON c.id = p.categoria_paquete_id
+                    WHERE p.agencia_id = %s
+                """, [filtro_agencia])
                 
-            serializers = SerializersPaquetes(paquetes, many=True)
-            return Response(serializers.data)
+                columns = [col[0] for col in cursor.description]
+                rows = cursor.fetchall()
+
+            # Obtener IDs para traer imágenes en la misma consulta o procesar struct
+            # Traer imágenes mediante subquery agrupado en JSON si Postgres o formatear
+            # Para garantizar 1 sola consulta SQL estricta:
+            # Traemos las imágenes mediante subquery GROUP_CONCAT / JSON_GROUP_ARRAY si aplica o lista básica
+            paquetes_list = []
+            for row in rows:
+                item = dict(zip(columns, row))
+                capacidad = item['capacidad'] or 0
+                reservas_comp = item['reservas_completadas'] or 0
+                
+                if item['tipo_paquete'] == 'fijo' and item['fecha_realizacion']:
+                    item['cupos_disponibles'] = max(0, capacidad - reservas_comp)
+                else:
+                    item['cupos_disponibles'] = capacidad
+
+                # Actividades vacías por defecto o estructuradas
+                item['actividades'] = []
+                item['categoria_paquete'] = item['categoria_paquete_id']
+                item['agencia'] = item['agencia_id']
+                paquetes_list.append(item)
+
+            # Cargar imágenes asociadas en 1 consulta secundaria o unir imágenes mediante Raw
+            if paquetes_list:
+                p_ids = [p['id'] for p in paquetes_list]
+                from .models import DestinoTuristico
+                imagenes = DestinoTuristico.objects.filter(paquete_id__in=p_ids)
+                img_map = {}
+                for img in imagenes:
+                    if img.paquete_id not in img_map:
+                        img_map[img.paquete_id] = []
+                    img_map[img.paquete_id].append({
+                        'id': img.id,
+                        'imagen': img.imagen.url if img.imagen else None
+                    })
+                for p in paquetes_list:
+                    p['imagen_paquete'] = img_map.get(p['id'], [])
+
+            return Response(paquetes_list)
         except Exception as e:
             return Response({'mensaje': 'Hubo un error al obtener los paquetes', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -444,31 +508,117 @@ class CatalogoTours(APIView):
     def get(self, request):
         try:
             from django.utils import timezone as tz
+            from django.db import connection
+
             agencia_id = request.query_params.get('agencia_id', None)
             tipo = request.query_params.get('tipo', None)  # 'fijo' | 'flexible'
 
-            tours = PaqueteTuristico.objects.filter(activo=True).prefetch_related(
-                'imagen_paquete', 'actividades'
-            ).select_related('agencia', 'categoria_paquete')
-
-            if agencia_id:
-                tours = tours.filter(agencia_id=agencia_id)
-            if tipo in ('fijo', 'flexible'):
-                tours = tours.filter(tipo_paquete=tipo)
-
-            # Auto-expirar paquetes fijos con fecha pasada
-            vencidos = PaqueteTuristico.objects.filter(
+            # Auto-expirar paquetes fijos pasados en 1 consulta masiva si aplica
+            PaqueteTuristico.objects.filter(
                 activo=True,
                 tipo_paquete='fijo',
                 fecha_realizacion__lt=tz.now().date()
-            )
-            if vencidos.exists():
-                vencidos.update(activo=False)
-                # Excluir los recién vencidos del resultado actual
-                tours = tours.exclude(fecha_realizacion__lt=tz.now().date())
+            ).update(activo=False)
 
-            serializer = SerializerCatalogoTour(tours, many=True)
-            return Response(serializer.data)
+            where_clauses = ["p.activo IS TRUE"]
+            params = []
+            if agencia_id:
+                where_clauses.append("p.agencia_id = %s")
+                params.append(agencia_id)
+            if tipo in ('fijo', 'flexible'):
+                where_clauses.append("p.tipo_paquete = %s")
+                params.append(tipo)
+
+            where_str = " AND ".join(where_clauses)
+
+            # Configuración de Paginación administrada desde settings.py
+            from django.conf import settings
+            page_size = getattr(settings, 'CATALOGO_PAGE_SIZE', 20)
+
+            try:
+                page = max(1, int(request.query_params.get('page', 1)))
+            except (ValueError, TypeError):
+                page = 1
+
+            try:
+                page_size = max(1, int(request.query_params.get('page_size', page_size)))
+            except (ValueError, TypeError):
+                pass
+
+            offset = (page - 1) * page_size
+
+            # Obtener conteo total
+            with connection.cursor() as cursor:
+                cursor.execute(f"SELECT COUNT(*) FROM autenticacion_paqueteturistico p WHERE {where_str}", params)
+                total_count = cursor.fetchone()[0]
+
+            query_params_sql = params + [page_size, offset]
+
+            with connection.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT 
+                        p.id, p.nombre, p.descripcion, p.precio, p.duracion,
+                        p.ubicacion, p.ubicacion AS ciudad, p.rating, p.activo,
+                        p.fecha_realizacion, p.tipo_paquete, p.capacidad,
+                        p.agencia_id, a.nombre_agencia,
+                        (CASE WHEN (a.nit IS NOT NULL OR a.rut IS NOT NULL OR a.rnt IS NOT NULL) THEN TRUE ELSE FALSE END) AS proveedor_validado,
+                        p.categoria_paquete_id, c.nombre AS categoria_paquete_nombre,
+                        (SELECT COALESCE(SUM(dv.cantidad), 0) FROM autenticacion_detalles_venta dv WHERE dv.paquete = p.id) AS reservas_totales,
+                        (SELECT COUNT(ec.id) FROM autenticacion_experienciacalificacion ec JOIN autenticacion_detalles_venta dv ON dv.id = ec.detalle_venta_id WHERE dv.paquete = p.id) AS num_calificaciones,
+                        (SELECT COALESCE(MAX(act.nivel_riesgo), 0) FROM autenticacion_actividad act JOIN autenticacion_paqueteturistico_actividades pa ON pa.actividad_id = act.id WHERE pa.paqueteturistico_id = p.id) AS nivel_riesgo,
+                        (SELECT COALESCE(SUM(rf.cantidad), 0) 
+                         FROM autenticacion_reservafecha rf 
+                         JOIN autenticacion_venta v ON v.id = rf.venta_id 
+                         WHERE rf.paquete_id = p.id AND v.estado = 'Completado'
+                           AND v.id NOT IN (
+                               SELECT dv2.venta_id FROM autenticacion_detalles_venta dv2 WHERE dv2.paquete = p.id AND dv2.estado IN ('Cancelado', 'Rechazado')
+                           )
+                        ) AS reservas_completadas
+                    FROM autenticacion_paqueteturistico p
+                    LEFT JOIN autenticacion_agencia a ON a.usuario_ptr_id = p.agencia_id
+                    LEFT JOIN autenticacion_categoriapaquete c ON c.id = p.categoria_paquete_id
+                    WHERE {where_str}
+                    ORDER BY p.id DESC
+                    LIMIT %s OFFSET %s
+                """, query_params_sql)
+
+                columns = [col[0] for col in cursor.description]
+                rows = cursor.fetchall()
+
+            resultado = []
+            p_ids = []
+            for row in rows:
+                item = dict(zip(columns, row))
+                cap = item['capacidad'] or 0
+                res_comp = item['reservas_completadas'] or 0
+                if item['tipo_paquete'] == 'fijo' and item['fecha_realizacion']:
+                    item['cupos_disponibles'] = max(0, cap - res_comp)
+                else:
+                    item['cupos_disponibles'] = cap
+                item.pop('reservas_completadas', None)
+                item.pop('capacidad', None)
+                item['imagen_portada'] = None
+                resultado.append(item)
+                p_ids.append(item['id'])
+
+            if p_ids:
+                from .models import DestinoTuristico
+                imagenes = DestinoTuristico.objects.filter(paquete_id__in=p_ids)
+                img_map = {}
+                for img in imagenes:
+                    if img.paquete_id not in img_map or img.es_portada:
+                        img_map[img.paquete_id] = img.imagen.url if img.imagen else None
+                for res in resultado:
+                    res['imagen_portada'] = img_map.get(res['id'], None)
+
+            import math
+            return Response({
+                'count': total_count,
+                'page': page,
+                'page_size': page_size,
+                'total_pages': math.ceil(total_count / page_size) if page_size > 0 else 1,
+                'results': resultado
+            })
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -533,17 +683,77 @@ class CatalogoProductos(APIView):
 
     def get(self, request):
         try:
+            from django.db import connection
+
             tipo = request.query_params.get('tipo', None)
             proveedor_id = request.query_params.get('proveedor_id', None)
-            productos = Productos.objects.filter(disponible=True).prefetch_related(
-                'imagen_producto'
-            ).select_related('proveedor', 'categorias')
+
+            where_clauses = ["p.disponible = TRUE"]
+            params = []
             if tipo:
-                productos = productos.filter(tipo_catalogo=tipo)
+                where_clauses.append("p.tipo_catalogo = %s")
+                params.append(tipo)
             if proveedor_id:
-                productos = productos.filter(proveedor_id=proveedor_id)
-            serializer = SerializerCatalogoProducto(productos, many=True)
-            return Response(serializer.data)
+                where_clauses.append("p.proveedor_id = %s")
+                params.append(proveedor_id)
+
+            where_str = " AND ".join(where_clauses)
+
+            with connection.cursor() as cursor:
+                cursor.execute(f"""
+                    SELECT 
+                        p.id, p.nombre, p.precio, p.stock, p.disponible, p.tipo_catalogo, p.rating, p.caracteristicas,
+                        p.proveedor_id, pr.nombre_empresa AS nombre_proveedor,
+                        (CASE WHEN (pr.nit IS NOT NULL OR pr.rut IS NOT NULL) THEN TRUE ELSE FALSE END) AS proveedor_validado,
+                        c.nombre AS nombre_categoria,
+                        (SELECT COALESCE(SUM(dv.cantidad), 0) FROM autenticacion_detalles_venta dv WHERE dv.producto = p.id) AS ventas_totales,
+                        (SELECT COUNT(ec.id) FROM autenticacion_experienciacalificacion ec JOIN autenticacion_detalles_venta dv ON dv.id = ec.detalle_venta_id WHERE dv.producto = p.id) AS num_calificaciones
+                    FROM autenticacion_productos p
+                    LEFT JOIN autenticacion_proveedor pr ON pr.usuario_ptr_id = p.proveedor_id
+                    LEFT JOIN autenticacion_categorias c ON c.id = p.categorias_id
+                    WHERE {where_str}
+                """, params)
+
+                columns = [col[0] for col in cursor.description]
+                rows = cursor.fetchall()
+
+            resultado = []
+            prod_ids = []
+            for row in rows:
+                item = dict(zip(columns, row))
+                caract = item.get('caracteristicas')
+                
+                # Formatear descripcion_corta, marca y modelo directamente
+                if isinstance(caract, dict):
+                    sub = [f"{k}: {v}" for k, v in list(caract.items())[:3]]
+                    item['descripcion_corta'] = ' · '.join(sub) if sub else 'Sin descripción'
+                    item['marca'] = ''
+                    item['modelo'] = ''
+                elif isinstance(caract, list):
+                    item['descripcion_corta'] = 'Sin descripción'
+                    item['marca'] = next((x.get('valor', '') for x in caract if isinstance(x, dict) and x.get('clave') == 'Marca'), '')
+                    item['modelo'] = next((x.get('valor', '') for x in caract if isinstance(x, dict) and x.get('clave') == 'Modelo'), '')
+                else:
+                    item['descripcion_corta'] = 'Sin descripción'
+                    item['marca'] = ''
+                    item['modelo'] = ''
+
+                item.pop('caracteristicas', None)
+                item['imagen_portada'] = None
+                resultado.append(item)
+                prod_ids.append(item['id'])
+
+            if prod_ids:
+                from .models import ProductoImagen
+                imagenes = ProductoImagen.objects.filter(producto_id__in=prod_ids)
+                img_map = {}
+                for img in imagenes:
+                    if img.producto_id not in img_map or img.es_portada:
+                        img_map[img.producto_id] = img.imagen.url if img.imagen else None
+                for res in resultado:
+                    res['imagen_portada'] = img_map.get(res['id'], None)
+
+            return Response(resultado)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -1427,28 +1637,57 @@ class MisReservasView(APIView):
             if not Turista.objects.filter(pk=request.user.pk).exists():
                 return Response({'error': 'Acceso restringido a turistas.'}, status=status.HTTP_403_FORBIDDEN)
 
-            detalles = Detalles_Venta.objects.filter(
+            detalles = list(Detalles_Venta.objects.filter(
                 venta__usuario=request.user,
                 paquete__gt=0,
-            ).select_related('venta').order_by('-venta__fecha')
+            ).select_related('venta').order_by('-venta__fecha'))
+
+            if not detalles:
+                return Response([], status=status.HTTP_200_OK)
+
+            paquete_ids = list(set(d.paquete for d in detalles if d.paquete))
+            venta_ids = list(set(d.venta_id for d in detalles if d.venta_id))
+            detalle_ids = [d.id for d in detalles]
+
+            # 1. Traer paquetes batch
+            paquetes_map = {}
+            if paquete_ids:
+                paquetes_map = {
+                    p.id: p for p in PaqueteTuristico.objects.filter(pk__in=paquete_ids).select_related('agencia').prefetch_related('imagen_paquete')
+                }
+
+            # 2. Traer reservas fecha batch
+            reservas_fecha_map = {}
+            if paquete_ids and venta_ids:
+                reservas_fecha_map = {
+                    (rf.paquete_id, rf.venta_id): str(rf.fecha)
+                    for rf in ReservaFecha.objects.filter(paquete_id__in=paquete_ids, venta_id__in=venta_ids)
+                }
+
+            # 3. Traer calificaciones batch
+            calificaciones_map = {}
+            if detalle_ids:
+                califs = ExperienciaCalificacion.objects.filter(detalle_venta_id__in=detalle_ids)
+                for c in califs:
+                    calificaciones_map[c.detalle_venta_id] = {
+                        'id': c.id,
+                        'detalle_venta': c.detalle_venta_id,
+                        'puntuacion': c.puntuacion,
+                        'comentario': c.comentario,
+                        'fecha': str(c.fecha) if c.fecha else None
+                    }
 
             resultado = []
             hoy = date_type.today()
+            detalles_a_actualizar = []
 
             for detalle in detalles:
-                paquete = PaqueteTuristico.objects.filter(pk=detalle.paquete).select_related('agencia').prefetch_related('imagen_paquete').first()
+                paquete = paquetes_map.get(detalle.paquete)
                 if not paquete:
                     continue
 
-                reserva_fecha = ReservaFecha.objects.filter(
-                    paquete=paquete,
-                    venta=detalle.venta
-                ).first()
-
-                fecha_actividad = None
-                if reserva_fecha:
-                    fecha_actividad = str(reserva_fecha.fecha)
-                elif paquete.fecha_realizacion:
+                fecha_actividad = reservas_fecha_map.get((paquete.id, detalle.venta_id))
+                if not fecha_actividad and paquete.fecha_realizacion:
                     fecha_actividad = str(paquete.fecha_realizacion)
 
                 estado_raw = detalle.estado
@@ -1459,9 +1698,8 @@ class MisReservasView(APIView):
                             fa = dt.fromisoformat(fecha_actividad)
                             if fa < hoy:
                                 estado_semantico = 'Realizado'
-                                # Persistencia: Actualizamos el estado en la base de datos
                                 detalle.estado = 'Realizado'
-                                detalle.save()
+                                detalles_a_actualizar.append(detalle)
                             else:
                                 estado_semantico = 'Confirmado'
                         except Exception:
@@ -1476,13 +1714,11 @@ class MisReservasView(APIView):
                     estado_semantico = estado_raw
 
                 imagen_portada = None
-                portada = paquete.imagen_paquete.filter(es_portada=True).first()
-                if portada:
+                imagenes = list(paquete.imagen_paquete.all())
+                portadas = [img for img in imagenes if img.es_portada]
+                portada = portadas[0] if portadas else (imagenes[0] if imagenes else None)
+                if portada and portada.imagen:
                     imagen_portada = portada.imagen.url
-                else:
-                    primera = paquete.imagen_paquete.first()
-                    if primera:
-                        imagen_portada = primera.imagen.url
 
                 requerimientos = ''
                 viajeros_lista = []
@@ -1498,32 +1734,34 @@ class MisReservasView(APIView):
                                 'edad':      v.get('edad', ''),
                                 'novedades': v.get('novedades', '') or v.get('novedad', ''),
                             })
-                    # Compatibilidad: requerimientos sigue siendo el del primer viajero
                     if viajeros_lista:
                         requerimientos = viajeros_lista[0].get('novedades', '')
 
-                # Calificación si existe
-                calificacion = ExperienciaCalificacion.objects.filter(detalle_venta=detalle).first()
-                calif_data = ExperienciaCalificacionSerializer(calificacion).data if calificacion else None
+                calif_data = calificaciones_map.get(detalle.id, None)
+                p_unit = float(detalle.precio_unitario) if detalle.precio_unitario else 0.0
+                cant = detalle.cantidad or 1
 
                 resultado.append({
                     'id': detalle.id,
-                    'venta_id': detalle.venta.id,
+                    'venta_id': detalle.venta.id if detalle.venta else None,
                     'paquete_id': paquete.id,
                     'nombre': paquete.nombre,
                     'imagen': imagen_portada,
-                    'agencia': paquete.agencia.nombre_agencia if paquete.agencia else '',
+                    'agencia': paquete.agencia.nombre_agencia if (paquete.agencia and hasattr(paquete.agencia, 'nombre_agencia')) else '',
                     'ubicacion': paquete.ubicacion,
                     'fecha_actividad': fecha_actividad,
-                    'cantidad': detalle.cantidad,
-                    'precio_unitario': str(detalle.precio_unitario),
-                    'precio_total': str(round(float(detalle.precio_unitario) * detalle.cantidad, 2)),
+                    'cantidad': cant,
+                    'precio_unitario': str(p_unit),
+                    'precio_total': str(round(p_unit * cant, 2)),
                     'estado': estado_semantico,
                     'calificacion': calif_data,
                     'requerimientos': requerimientos,
                     'viajeros': viajeros_lista,
-                    'fecha_compra': str(detalle.venta.fecha.date()),
+                    'fecha_compra': str(detalle.venta.fecha.date()) if (detalle.venta and detalle.venta.fecha) else '',
                 })
+
+            if detalles_a_actualizar:
+                Detalles_Venta.objects.bulk_update(detalles_a_actualizar, ['estado'])
 
             return Response(resultado, status=status.HTTP_200_OK)
 
@@ -2064,48 +2302,61 @@ class MisProductosTuristaView(APIView):
             ):
                 pass  # Permitimos a todos los usuarios ver sus pedidos de productos
 
-            detalles = (
+            detalles = list(
                 Detalles_Venta.objects
                 .filter(venta__usuario=user, producto__gt=0)
                 .select_related('venta', 'venta__usuario')
                 .order_by('-venta__fecha')
             )
 
+            if not detalles:
+                return Response([], status=status.HTTP_200_OK)
+
+            prod_ids = list(set(d.producto for d in detalles if d.producto))
+            prods_map = {}
+            img_map = {}
+
+            if prod_ids:
+                prods_map = {
+                    p.id: p for p in Productos.objects.filter(pk__in=prod_ids).prefetch_related('imagen_producto')
+                }
+                for p_id, p in prods_map.items():
+                    imagenes = list(p.imagen_producto.all())
+                    portadas = [img for img in imagenes if img.es_portada]
+                    portada = portadas[0] if portadas else (imagenes[0] if imagenes else None)
+                    if portada and portada.imagen:
+                        img_map[p_id] = portada.imagen.url
+
             now     = timezone.now()
             result  = []
 
             for det in detalles:
-                # Simular y persistir estado
                 estado = self._simular_estado(det, now)
-                hours_passed = (now - det.venta.fecha).total_seconds() / 3600
+                hours_passed = (now - det.venta.fecha).total_seconds() / 3600 if (det.venta and det.venta.fecha) else 0
 
-                # Producto
-                prod = Productos.objects.filter(pk=det.producto).prefetch_related('imagen_producto').first()
-                portada = None
-                if prod:
-                    img = prod.imagen_producto.filter(es_portada=True).first() or prod.imagen_producto.first()
-                    if img:
-                        portada = img.imagen.url
+                prod = prods_map.get(det.producto)
+                portada = img_map.get(det.producto, None)
 
-                # Próximo estado y tiempo estimado
                 next_state, hours_remaining = self._next_state_info(estado, hours_passed)
 
-                # Progreso numérico (0-3)
                 names = [s[0] for s in self.STATE_TIMELINE]
                 progress_idx = names.index(estado) if estado in names else 0
 
+                p_unit = float(det.precio_unitario) if det.precio_unitario else 0.0
+                cant = det.cantidad or 1
+
                 result.append({
                     'id_detalle':       det.id,
-                    'id_transaccion':   f'TRX-{det.venta.id}',
+                    'id_transaccion':   f'TRX-{det.venta.id}' if det.venta else 'TRX-0',
                     'producto_id':      det.producto,
                     'producto_nombre':  prod.nombre if prod else '—',
                     'producto_imagen':  portada,
-                    'cantidad':         det.cantidad,
-                    'precio_unitario':  str(det.precio_unitario),
-                    'precio_total':     str(round(float(det.precio_unitario) * det.cantidad, 2)),
+                    'cantidad':         cant,
+                    'precio_unitario':  str(p_unit),
+                    'precio_total':     str(round(p_unit * cant, 2)),
                     'estado':           estado,
                     'estado_idx':       progress_idx,
-                    'fecha_pedido':     det.venta.fecha.isoformat(),
+                    'fecha_pedido':     det.venta.fecha.isoformat() if (det.venta and det.venta.fecha) else '',
                     'horas_transcurridas': round(hours_passed, 1),
                     'proximo_estado':      next_state,
                     'horas_para_proximo':  hours_remaining,

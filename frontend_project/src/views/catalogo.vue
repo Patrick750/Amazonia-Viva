@@ -16,7 +16,8 @@ const tabActivo = computed(() => route.path.includes('/productos') ? 'productos'
 const {
   tours, productos, categoriasTours,
   cargandoTours, cargandoProductos,
-  cargarTours, cargarProductos, cargarCategorias
+  cargarTours, cargarProductos, cargarCategorias,
+  totalTours, totalPaginasTours
 } = useCatalogo();
 
 const ultimoScrollY = ref(0);
@@ -27,8 +28,7 @@ const paginaActual = ref(1);
 const ITEMS_POR_PAGINA = 20;
 
 const toursMostrados = computed(() => {
-  const inicio = (paginaActual.value - 1) * ITEMS_POR_PAGINA;
-  return toursFiltrados.value.slice(inicio, inicio + ITEMS_POR_PAGINA);
+  return toursFiltrados.value;
 });
 
 const productosMostrados = computed(() => {
@@ -37,13 +37,18 @@ const productosMostrados = computed(() => {
 });
 
 const totalPaginas = computed(() => {
-  const total = tabActivo.value === 'tours' ? toursFiltrados.value.length : productosFiltrados.value.length;
-  return Math.ceil(total / ITEMS_POR_PAGINA);
+  if (tabActivo.value === 'tours') {
+    return totalPaginasTours.value;
+  }
+  return Math.ceil(productosFiltrados.value.length / ITEMS_POR_PAGINA);
 });
 
 const cambiarPagina = (p) => {
   if (p < 1 || p > totalPaginas.value) return;
   paginaActual.value = p;
+  if (tabActivo.value === 'tours') {
+    cargarTours(p);
+  }
   window.scrollTo({ top: 400, behavior: 'smooth' });
 };
 

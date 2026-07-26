@@ -19,13 +19,23 @@ export function useCatalogo() {
     const { mostrarNotificacion } = useNotificacion();
     const { agregarItem } = useCarrito();
 
-    const cargarTours = async () => {
-        if (tours.value.length > 0) return; // Evitar recargar
+    const totalTours = ref(0);
+    const totalPaginasTours = ref(1);
+
+    const cargarTours = async (page = 1) => {
         cargandoTours.value = true;
         errorTours.value = null;
         try {
-            const res = await axios.get('api/catalogo/tours/');
-            tours.value = res.data;
+            const res = await axios.get('api/catalogo/tours/', { params: { page } });
+            if (res.data && Array.isArray(res.data.results)) {
+                tours.value = res.data.results;
+                totalTours.value = res.data.count;
+                totalPaginasTours.value = res.data.total_pages;
+            } else {
+                tours.value = Array.isArray(res.data) ? res.data : [];
+                totalTours.value = tours.value.length;
+                totalPaginasTours.value = 1;
+            }
         } catch (e) {
             errorTours.value = 'No se pudieron cargar los tours.';
         } finally {
@@ -174,7 +184,7 @@ export function useCatalogo() {
     return { 
         tours, productos, categoriasTours,
         cargandoTours, cargandoProductos, cargandoCategorias,
-        errorTours, errorProductos, 
+        errorTours, errorProductos, totalTours, totalPaginasTours,
         cargarTours, cargarProductos, cargarCategorias,
         obtenerTourPorId, obtenerProductoPorId, toggleFavorito,
         agregarAlCarrito, obtenerCuposDisponibles, actualizarStockLocal

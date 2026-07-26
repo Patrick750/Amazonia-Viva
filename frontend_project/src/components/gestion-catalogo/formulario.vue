@@ -91,8 +91,23 @@ watch(() => props.paquete, (paqueteAEditar) => {
     if (paqueteAEditar) {
         Object.assign(newTour, JSON.parse(JSON.stringify(paqueteAEditar)));
         if (paqueteAEditar.ubicacion) searchQuery.value = paqueteAEditar.ubicacion;
-        if (!newTour.itinerario || newTour.itinerario.length === 0) newTour.itinerario = [{ time: '', activity: '' }];
-        if (!newTour.incluido || newTour.incluido.length === 0) newTour.incluido = [{ item: '' }];
+
+        // Garantizar que itinerario sea un Arreglo
+        if (typeof newTour.itinerario === 'string') {
+            try { newTour.itinerario = JSON.parse(newTour.itinerario); } catch { newTour.itinerario = []; }
+        }
+        if (!Array.isArray(newTour.itinerario) || newTour.itinerario.length === 0) {
+            newTour.itinerario = [{ time: '', activity: '' }];
+        }
+
+        // Garantizar que incluido sea un Arreglo
+        if (typeof newTour.incluido === 'string') {
+            try { newTour.incluido = JSON.parse(newTour.incluido); } catch { newTour.incluido = []; }
+        }
+        if (!Array.isArray(newTour.incluido) || newTour.incluido.length === 0) {
+            newTour.incluido = [{ item: '' }];
+        }
+
         newTour.imagen = [];
         newTour.fecha_realizacion = paqueteAEditar.fecha_realizacion || '';
         // Cargar imágenes existentes
@@ -156,10 +171,24 @@ const validarFormulario = () => {
 };
 
 // --- ITINERARIO E INCLUIDO ---
-const addItineraryItem = () => newTour.itinerario.push({ time: '', activity: '' });
-const removeItineraryItem = (index) => { if (newTour.itinerario.length > 1) newTour.itinerario.splice(index, 1); };
-const addIncludedItem = () => newTour.incluido.push({ item: '' });
-const removeIncludedItem = (index) => { if (newTour.incluido.length > 1) newTour.incluido.splice(index, 1); };
+const addItineraryItem = () => {
+    if (!Array.isArray(newTour.itinerario)) newTour.itinerario = [];
+    newTour.itinerario.push({ time: '', activity: '' });
+};
+const removeItineraryItem = (index) => {
+    if (Array.isArray(newTour.itinerario) && newTour.itinerario.length > 1) {
+        newTour.itinerario.splice(index, 1);
+    }
+};
+const addIncludedItem = () => {
+    if (!Array.isArray(newTour.incluido)) newTour.incluido = [];
+    newTour.incluido.push({ item: '' });
+};
+const removeIncludedItem = (index) => {
+    if (Array.isArray(newTour.incluido) && newTour.incluido.length > 1) {
+        newTour.incluido.splice(index, 1);
+    }
+};
 
 // --- IMÁGENES LOCALES (nuevas) ---
 const handleDrop = (e) => {

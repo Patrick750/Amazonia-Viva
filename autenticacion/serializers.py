@@ -224,11 +224,45 @@ class SerializersPaquetes(serializers.ModelSerializer):
     cupos_disponibles = serializers.SerializerMethodField()
 
     def get_reservas_totales(self, obj):
-        resultado = Detalles_Venta.objects.filter(paquete=obj.id).aggregate(total=Sum('cantidad'))
-        return resultado['total'] or 0
+        if 'ventas_map' not in self.context:
+            from django.db.models import Sum
+            paquete_ids = [p.id for p in self.instance] if isinstance(self.instance, list) else [obj.id]
+            ventas = Detalles_Venta.objects.filter(paquete__in=paquete_ids).values('paquete').annotate(total=Sum('cantidad'))
+            self.context['ventas_map'] = {v['paquete']: v['total'] for v in ventas}
+        return self.context['ventas_map'].get(obj.id, 0)
 
     def get_cupos_disponibles(self, obj):
-        return calcular_cupos_disponibles(obj)
+        if 'reservas_fecha_map' not in self.context:
+            from django.db.models import Sum
+            paquete_ids = [p.id for p in self.instance] if isinstance(self.instance, list) else [obj.id]
+            
+            # Obtener ventas canceladas/rechazadas por id de paquete
+            detalles_cancelados = set(
+                Detalles_Venta.objects.filter(
+                    paquete__in=paquete_ids,
+                    estado__in=['Cancelado', 'Rechazado']
+                ).values_list('venta_id', flat=True)
+            )
+
+            # Consultar reservas por fecha agregadas
+            reservas = ReservaFecha.objects.filter(
+                paquete_id__in=paquete_ids,
+                venta__estado='Completado'
+            ).exclude(venta_id__in=detalles_cancelados).values('paquete_id', 'fecha').annotate(total=Sum('cantidad'))
+
+            res_map = {}
+            for r in reservas:
+                pid = r['paquete_id']
+                if pid not in res_map:
+                    res_map[pid] = {}
+                res_map[pid][r['fecha']] = r['total']
+            self.context['reservas_fecha_map'] = res_map
+
+        # Calcular cupos sin peticiones extra por iteración
+        if obj.tipo_paquete == 'fijo' and obj.fecha_realizacion:
+            reservado = self.context['reservas_fecha_map'].get(obj.id, {}).get(obj.fecha_realizacion, 0)
+            return max(0, obj.capacidad - reservado)
+        return obj.capacidad
 
     class Meta:
         model = PaqueteTuristico

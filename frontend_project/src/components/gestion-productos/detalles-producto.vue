@@ -19,6 +19,26 @@ const formatedPrice = computed(() => {
     return parseFloat(props.producto.precio).toLocaleString('es-CO');
 });
 
+const listaCaracteristicas = computed(() => {
+    const c = props.producto?.caracteristicas;
+    if (!c) return [];
+    if (Array.isArray(c)) {
+        return c.map(item => {
+            if (typeof item === 'object' && item !== null) {
+                return {
+                    clave: item.clave || item.key || 'Atributo',
+                    valor: item.valor || item.value || ''
+                };
+            }
+            return { clave: 'Atributo', valor: String(item) };
+        }).filter(item => item.clave || item.valor);
+    }
+    if (typeof c === 'object') {
+        return Object.entries(c).map(([clave, valor]) => ({ clave, valor }));
+    }
+    return [];
+});
+
 // --- Carrusel infinito (clone-and-jump) ---
 const internalIndex = ref(1);
 const isTransitioning = ref(true);
@@ -204,13 +224,13 @@ onUnmounted(stopAuto);
             </div>
             
             <!-- Atributos -->
-            <div v-if="producto.caracteristicas && producto.caracteristicas.length > 0 && (producto.caracteristicas[0].clave || producto.caracteristicas[0].valor)" class="bg-white/5 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
+            <div v-if="listaCaracteristicas.length > 0" class="bg-white/5 rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
                 <div class="px-8 py-6 bg-white/3 border-b border-white/5 flex items-center gap-4">
                     <div class="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
                     <h3 class="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Ficha Técnica Especializada</h3>
                 </div>
                 <ul class="divide-y divide-white/5">
-                    <li v-for="(carac, i) in producto.caracteristicas" :key="i" class="px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-2 hover:bg-white/3 transition-all">
+                    <li v-for="(carac, i) in listaCaracteristicas" :key="i" class="px-8 py-5 flex flex-col md:flex-row md:items-center justify-between gap-2 hover:bg-white/3 transition-all">
                         <span class="font-black text-white/20 text-[10px] uppercase tracking-[0.15em] font-mono">{{ carac.clave }}:</span>
                         <span class="text-emerald-400/80 font-black text-sm md:text-right tracking-tight">{{ carac.valor }}</span>
                     </li>

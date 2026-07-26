@@ -47,6 +47,21 @@ services:
       - proxy-network
     restart: always
 
+  db:
+    image: postgres:15-alpine
+    container_name: amazoniaviva_db
+    restart:  always
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - proxy-network
+
   # Opcional: Database (si en algún momento decides migrar de SQLite a MySQL/PostgreSQL como en tu ejemplo)
   # db:
   #   container_name: amazoniaviva-mysql
@@ -73,6 +88,8 @@ networks:
     driver: bridge
   proxy-network:
     external: true
+  
 
 volumes:
   amazoniaviva_db_data:
+  postgres_data:

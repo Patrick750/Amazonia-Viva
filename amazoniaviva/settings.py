@@ -41,6 +41,9 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-9(2v#levi0=u6r#0%-#-^
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend']
 
+# Configuración de paginación del catálogo
+CATALOGO_PAGE_SIZE = 20
+
 
 # Application definition
 
@@ -81,10 +84,14 @@ MIDDLEWARE = [
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = ['*']
+CORS_ALLOW_METHODS = ['*']
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",
     "http://127.0.0.1:8080",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 
@@ -112,9 +119,14 @@ WSGI_APPLICATION = 'amazoniaviva.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL')
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB'),
+        'USER': os.environ.get('POSTGRES_USER'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),  # Apunta al servicio "db"
+        'PORT': os.environ.get('DB_PORT', '5432'),
+    }
 }
 
 REST_FRAMEWORK = {
@@ -124,7 +136,7 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1), # El usuario tendrá que loguearse cada 24 horas
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=2), # El usuario tendrá que loguearse cada 24 horas
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': False,
     'ALGORITHM': 'HS256',
