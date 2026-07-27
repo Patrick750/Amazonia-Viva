@@ -3,7 +3,7 @@ name: Despliegue Automático Amazonia Viva
 # 1. ¿Cuándo se activa?
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "deploybackend" ]
 
 jobs:
   build-and-deploy:
