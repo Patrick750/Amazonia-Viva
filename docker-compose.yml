@@ -48,7 +48,6 @@ services:
   db:
     image: postgres:15-alpine
     container_name: amazoniaviva_db
-
     restart:  always
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
