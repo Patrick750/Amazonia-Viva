@@ -17,7 +17,6 @@ services:
     depends_on:
       - backend
     networks:
-      - amazoniaviva-network
       - proxy-network
     restart: always
 
@@ -43,7 +42,6 @@ services:
     #   - ./.env:/app/.env
     #   - amazoniaviva_db_data:/app/db_data
     networks:
-      - amazoniaviva-network
       - proxy-network
     restart: always
 
@@ -91,5 +89,4 @@ networks:
   
 
 volumes:
-  amazoniaviva_db_data:
   postgres_data:
