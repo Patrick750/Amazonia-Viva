@@ -39,7 +39,13 @@ DEFAULT_FROM_EMAIL = f"Amazonia Viva <{EMAIL_HOST_USER}>"
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-9(2v#levi0=u6r#0%-#-^b6c7l%!jvkd2@t@+g+%8euuo=pi05')
 
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'backend',                  
+    'api.adsoproject.dev',      
+    '.adsoproject.dev'
+]
 
 # Configuración de paginación del catálogo
 CATALOGO_PAGE_SIZE = 20
@@ -92,6 +98,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8080",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://amazoniaviva.adsoproject.dev/"
 ]
 
 
