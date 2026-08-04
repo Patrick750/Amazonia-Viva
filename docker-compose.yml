@@ -12,8 +12,8 @@ services:
           memory: 128M
         reservations:
           memory: 64M
-    ports:
-      - "8080:80"
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:
@@ -35,8 +35,8 @@ services:
           memory: 512M
     env_file:
       - .env
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     # Si decides usar la base de datos local SQLite o mapear variables como volumen en el futuro:
     # volumes:
     #   - ./.env:/app/.env
