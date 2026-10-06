@@ -8,6 +8,10 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.0.1 — 2026-10-06 — chore(versioning): parch [0.0.1] probar versionamiento desde 5.0.0
+
+- Commit de origen: `405f91c2ae3c73d0e8dde3b507c74e33c86e8216`. Versión calculada automáticamente desde VERSION.
+
 ### Sin publicar — Automatización del versionamiento
 
 - **[Tooling]** Integración del esquema high/low/parch de Patrick750/versionamiento, con VERSION=5.0.0 como punto de partida y validación de commits en PR.
