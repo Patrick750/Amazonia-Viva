@@ -26,6 +26,7 @@ const procesarLogin = async () => {
     })
 
     localStorage.setItem('token', response.data.access)
+    localStorage.setItem('refresh_token', response.data.refresh)
     localStorage.setItem('nombre', response.data.usuario.nombre)
     localStorage.setItem('apellido', response.data.usuario.apellido)
     localStorage.setItem('nombre_usuario', response.data.usuario.username)

@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.core.management.base import CommandError
 import random
 from decimal import Decimal
 from django.core.management.base import BaseCommand
@@ -12,6 +14,8 @@ class Command(BaseCommand):
     help = 'Seeds the Venta and Detalles_Venta tables with realistic data.'
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or settings.CHECKOUT_MODE != 'demo':
+            raise CommandError('Datos de demostración requieren DEBUG=true y CHECKOUT_MODE=demo en una base aislada.')
         self.stdout.write(self.style.SUCCESS("Iniciando sembrado de ventas y detalles..."))
 
         turistas = list(Turista.objects.all())

@@ -6,7 +6,47 @@ on:
     branches: [ "main" ]
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: amazonia_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SECRET_KEY: ci-only-placeholder-key-with-more-than-fifty-characters-for-tests
+      DEBUG: 'true'
+      DATABASE_URL: postgresql://postgres:test-only-password@localhost:5432/amazonia_test
+      CHECKOUT_MODE: disabled
+      ALLOW_WITHDRAWALS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test autenticacion --noinput
+      - run: DEBUG=false python manage.py check --deploy --tag security --fail-level WARNING
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend_project/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: frontend_project
+
   build-and-deploy:
+    needs: verify
     runs-on: ubuntu-latest
 
     steps:
@@ -52,4 +92,6 @@ jobs:
           git pull origin main
           docker compose pull
           docker compose up -d --build
+          docker compose exec -T backend python manage.py check --deploy --tag security --fail-level WARNING
+          docker compose exec -T backend python manage.py migrate --noinput
           docker image prune -f

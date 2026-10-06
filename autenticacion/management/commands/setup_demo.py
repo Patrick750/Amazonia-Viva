@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.core.management.base import CommandError
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
@@ -5,6 +7,8 @@ class Command(BaseCommand):
     help = 'Ejecuta todos los comandos de sembrado para una configuración completa de la demo'
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or settings.CHECKOUT_MODE != 'demo':
+            raise CommandError('Datos de demostración requieren DEBUG=true y CHECKOUT_MODE=demo en una base aislada.')
         self.stdout.write(self.style.SUCCESS("=== INICIANDO CONFIGURACIÓN COMPLETA DE DEMO ==="))
         
         self.stdout.write("\n--- Paso 1: Sembrado de Usuarios ---")

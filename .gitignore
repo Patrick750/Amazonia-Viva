@@ -6,3 +6,8 @@ env/
 Thumbs.db
 __pycache__
 db.sqlite3
+
+.env.*
+!.env.example
+frontend_project/dist/
+frontend_project/node_modules/

@@ -3,6 +3,8 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db.models.signals import post_migrate
 from django.dispatch import receiver
 from cloudinary.models import CloudinaryField
+from django.utils import timezone
+import uuid
 
 # Create your models here.
 class Usuario(AbstractUser):
@@ -258,6 +260,17 @@ class Favoritos(models.Model):
     paquetes = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE,  related_name='favorito_paquetes', null=True, blank=True)
 
 class Venta(models.Model):
+    referencia_pago = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    ambiente_pago = models.CharField(max_length=4, blank=True)
+    clave_operacion = models.UUIDField(null=True, blank=True)
+    huella_operacion = models.CharField(max_length=64, blank=True)
+    estado_pago = models.CharField(max_length=20, default='Pendiente', choices=[('Pendiente', 'Pendiente'), ('Pagado', 'Pagado'), ('Simulado', 'Simulado'), ('Fallido', 'Fallido'), ('Reembolsado', 'Reembolsado'), ('Revision', 'Revision')])
+    moneda = models.CharField(max_length=3, default='COP')
+    vence_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['usuario', 'clave_operacion'], name='venta_operacion_unica')]
+
     fecha = models.DateTimeField(auto_now_add=True)
     total = models.DecimalField(max_digits=12, decimal_places=2, null=False, blank=False)
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='venta_usuario')
@@ -351,3 +364,29 @@ class SolicitudRetiro(models.Model):
     class Meta:
         verbose_name = "Solicitud de Retiro"
         verbose_name_plural = "Solicitudes de Retiro"
+
+
+class IntentosCredenciales(models.Model):
+    clave = models.CharField(max_length=64, unique=True)
+    inicio = models.DateTimeField(default=timezone.now)
+    intentos = models.PositiveIntegerField(default=0)
+
+
+class CambioEstadoRetiro(models.Model):
+    solicitud = models.ForeignKey(SolicitudRetiro, on_delete=models.PROTECT, related_name='cambios')
+    anterior = models.CharField(max_length=50)
+    nuevo = models.CharField(max_length=50)
+    fecha = models.DateTimeField(auto_now_add=True)
+    actor = models.ForeignKey(Usuario, on_delete=models.PROTECT, null=True)
+
+
+class EventoPago(models.Model):
+    venta = models.ForeignKey(Venta, on_delete=models.PROTECT, related_name='eventos_pago')
+    checksum = models.CharField(max_length=64, unique=True)
+    transaccion = models.CharField(max_length=100)
+    ambiente = models.CharField(max_length=4)
+    estado = models.CharField(max_length=20)
+    importe_centavos = models.BigIntegerField()
+    moneda = models.CharField(max_length=3)
+    resultado = models.CharField(max_length=30)
+    recibido_en = models.DateTimeField(auto_now_add=True)

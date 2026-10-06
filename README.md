@@ -1,5 +1,7 @@
 # 🌿 Amazonia Viva
 
+Versión: **5.0.0** — cambios preparados localmente, pendientes de despliegue.
+
 Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias, proveedores y turistas mediante una interfaz multi-rol con autenticación, paquetes turísticos y gestión de ventas.
 
 ## Problema y objetivos
@@ -34,17 +36,11 @@ source venv/bin/activate
 # Instalar dependencias
 pip install -r requirements.txt
 
-# Aplicar migraciones
-python manage.py makemigrations
+# Configurar .env a partir de .env.example (SECRET_KEY nueva y PostgreSQL).
+# Para desarrollo local: DEBUG=true. Compras y retiros deshabilitados por defecto.
 python manage.py migrate
-
-# Iniciar servidor
-python manage.py seed_actividades
-python manage.py seed_groups
-python manage.py seed_categorias_paquetes
-python manage.py seed_users
-python manage.py seed_productos
-python manage.py seed_paquetes
+python manage.py check
+python manage.py test autenticacion
 python manage.py runserver
 ```
 
@@ -64,3 +60,7 @@ npm run dev
 ## 📄 Licencia
 
 Este proyecto fue desarrollado como parte de un proyecto académico/estudiantil.
+
+## Seguridad y operación
+
+Ver [implementación y procedimiento operativo](documentacion/seguridad-implementada.md). El despliegue no carga datos de prueba. Wompi está integrado con checkout firmado y webhook verificado; su activación requiere claves de comercio y una validación real en sandbox. Para una demo aislada, usar DEBUG=true y CHECKOUT_MODE=demo y ejecutar `python manage.py setup_demo` explícitamente.

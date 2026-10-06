@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsProveedor
 from django.shortcuts import get_object_or_404
 import json
 from .models import Productos, Proveedor
@@ -12,11 +13,11 @@ import openpyxl
 from django.http import HttpResponse
 from .models import Categorias
 class ProductosAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsProveedor]
 
     def get(self, request):
         tipo_catalogo = request.query_params.get('tipo_catalogo', None)
-        proveedor_id = request.query_params.get('proveedor_id', None)
+        proveedor_id = request.user.pk
         
         # Filtro base
         if proveedor_id:
@@ -64,17 +65,17 @@ class ProductosAPIView(APIView):
 
             serializer = ProductoSerializer(data=data)
             if serializer.is_valid():
-                serializer.save()
+                serializer.save(proveedor=proveedor)
                 return Response({'mensaje': 'Producto guardado exitosamente.', 'producto': serializer.data}, status=status.HTTP_201_CREATED)
             return Response({'errores': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ProductoDetalleAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsProveedor]
 
     def put(self, request, pk):
-        producto = get_object_or_404(Productos, pk=pk)
+        producto = get_object_or_404(Productos, pk=pk, proveedor_id=request.user.pk)
         
         # Verificar propiedad
         if hasattr(request.user, 'proveedor') and producto.proveedor != request.user.proveedor:
@@ -95,22 +96,23 @@ class ProductoDetalleAPIView(APIView):
         
         serializer = ProductoSerializer(producto, data=data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(proveedor=producto.proveedor)
             return Response({'mensaje': 'Producto actualizado con éxito.', 'producto': serializer.data}, status=status.HTTP_200_OK)
         return Response({'errores': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        producto = get_object_or_404(Productos, pk=pk)
+        producto = get_object_or_404(Productos, pk=pk, proveedor_id=request.user.pk)
         
         # Verificar propiedad
         if hasattr(request.user, 'proveedor') and producto.proveedor != request.user.proveedor:
             return Response({"error": "No tienes permiso para eliminar este producto."}, status=status.HTTP_403_FORBIDDEN)
             
-        producto.delete()
+        producto.disponible = False
+        producto.save(update_fields=['disponible'])
         return Response({'mensaje': 'Producto eliminado correctamente.'}, status=status.HTTP_204_NO_CONTENT)
 
 class CargaMasivaProductosAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsProveedor]
 
     def get(self, request):
         # Generar plantilla Excel
@@ -241,7 +243,7 @@ class CargaMasivaProductosAPIView(APIView):
                         caracteristicas=caracteristicas
                     ))
                 except Exception as e:
-                    errores.append(f"Fila {numero_fila}: Error inesperado - {str(e)}")
+                    errores.append(f"Fila {numero_fila}: Error inesperado - {'Error interno; contacte al soporte.'}")
 
             if nombre_archivo.endswith('.csv'):
                 decoded_file = archivo.read().decode('utf-8-sig')
@@ -281,5 +283,5 @@ class CargaMasivaProductosAPIView(APIView):
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({'error': f"Error al procesar el archivo: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': f"Error al procesar el archivo: {'Error interno; contacte al soporte.'}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

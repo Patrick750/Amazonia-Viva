@@ -7,6 +7,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsAgencia, IsTurista
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import MultiPartParser
 from django.shortcuts import get_object_or_404
 from .models import Detalles_Venta, ExperienciaEvidencia, ExperienciaCalificacion, PaqueteTuristico, Venta, Usuario
@@ -14,7 +16,7 @@ from .serializers import ExperienciaEvidenciaSerializer, ExperienciaCalificacion
 from django.db.models import Count, Q
 
 class ExperienciasDashboardView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgencia]
 
     def get(self, request):
         user = request.user
@@ -111,11 +113,13 @@ class ExperienciasDashboardView(APIView):
         })
 
 class SubirEvidenciaView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgencia]
     parser_classes = [MultiPartParser]
 
     def post(self, request, pk):
         detalle = get_object_or_404(Detalles_Venta, pk=pk)
+        if not PaqueteTuristico.objects.filter(pk=detalle.paquete, agencia_id=request.user.pk).exists():
+            raise PermissionDenied('La evidencia pertenece a otra agencia.')
         archivos = request.FILES.getlist('imagenes')
         
         if not archivos:
@@ -137,10 +141,10 @@ class SubirEvidenciaView(APIView):
 
 class DetalleFeedbackView(APIView):
     """Vista para que el turista vea las fotos y califique"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsTurista]
 
     def get(self, request, pk):
-        detalle = get_object_or_404(Detalles_Venta, pk=pk)
+        detalle = get_object_or_404(Detalles_Venta, pk=pk, venta__usuario=request.user)
         evidencias = detalle.evidencias.all()
         calificacion = detalle.calificacion.first()
         
@@ -153,10 +157,12 @@ class DetalleFeedbackView(APIView):
         })
 
     def post(self, request, pk):
-        detalle = get_object_or_404(Detalles_Venta, pk=pk)
+        detalle = get_object_or_404(Detalles_Venta, pk=pk, venta__usuario=request.user)
         puntuacion = request.data.get('puntuacion')
         comentario = request.data.get('comentario', '')
         
+        if isinstance(puntuacion, bool) or not isinstance(puntuacion, int) or not 1 <= puntuacion <= 5:
+            raise ValidationError({'error': 'Puntuación entre 1 y 5.'})
         if not puntuacion:
             return Response({'error': 'La puntuación es obligatoria.'}, status=status.HTTP_400_BAD_REQUEST)
             
@@ -206,8 +212,9 @@ class DetalleFeedbackView(APIView):
 
 
 class MisExperienciasTuristaView(APIView):
+    permission_classes = [IsTurista]
     """Vista para que el turista vea todos sus tours realizados y pendientes de calificar"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsTurista]
 
     def get(self, request):
         from .models import ReservaFecha
@@ -278,6 +285,8 @@ class DescargarEvidenciasZipView(APIView):
 
     def get(self, request, pk):
         detalle = get_object_or_404(Detalles_Venta, pk=pk)
+        if detalle.venta.usuario_id != request.user.pk and not PaqueteTuristico.objects.filter(pk=detalle.paquete, agencia_id=request.user.pk).exists():
+            raise PermissionDenied('No puede descargar estas evidencias.')
         evidencias = detalle.evidencias.all()
         
         if not evidencias:
@@ -322,7 +331,7 @@ class DescargarEvidenciasZipView(APIView):
                         else:
                             errors.append(f"Imagen {ev.id}: error HTTP {img_resp.status_code}")
                     except Exception as e:
-                        errors.append(f"Imagen {ev.id}: error {str(e)}")
+                        errors.append(f"Imagen {ev.id}: error {'Error interno'}")
                         continue
                 
                 # Añadir manifiesto de errores si los hubo
@@ -330,7 +339,7 @@ class DescargarEvidenciasZipView(APIView):
                     zip_file.writestr("errores_log.txt", "\n".join(errors))
 
         except Exception as e:
-            return Response({'error': f'Error fatal al generar el ZIP: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': f'Error fatal al generar el ZIP: {'Error interno'}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Preparar la respuesta usando FileResponse para mayor eficiencia
         buffer.seek(0)

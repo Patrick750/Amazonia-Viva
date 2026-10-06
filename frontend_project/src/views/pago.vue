@@ -1,12 +1,13 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import axios from '@/api/axios';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useCarrito } from '@/composables/useCarrito';
 import { useCatalogo } from '@/composables/useCatalogo';
 
 
 const router = useRouter();
+const route = useRoute();
 const { 
   totalFinal, 
   subtotalProductos, 
@@ -15,8 +16,7 @@ const {
   toursSeleccionados,
   productosSeleccionados,
   itemsSeleccionados,
-  itemsCarrito,
-  vaciarCarrito
+  itemsCarrito
 } = useCarrito();
 
 const { actualizarStockLocal } = useCatalogo();
@@ -51,46 +51,51 @@ const envio = ref(savedEnvio ? JSON.parse(savedEnvio) : {
     ciudad: ''
 });
 
-const metodosPago = [
-    { 
-      id: 'billeteras', 
-      titulo: 'Nequi / DaviPlata', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>' 
-    },
-    { 
-      id: 'pse', 
-      titulo: 'PSE (Transferencia Bancaria)', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>' 
-    },
-    { 
-      id: 'tarjeta', 
-      titulo: 'Tarjeta de Crédito / Débito', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>' 
+// La pasarela pendiente de integración no recopila datos de tarjetas.
+sessionStorage.removeItem('checkout_forms_pago');
+watch(envio, value => sessionStorage.setItem('checkout_envio', JSON.stringify(value)), { deep: true });
+const resultadoPedido = ref(null);
+const errorPago = ref('');
+const consultarPedido = async () => {
+    const ventaId = route.query.venta_id || resultadoPedido.value?.venta_id;
+    if (!ventaId) return;
+    try {
+        const { data } = await axios.get(`api/venta/${encodeURIComponent(ventaId)}/estado/`);
+        const mensajes = {
+            Pagado: 'Pago confirmado por Wompi.',
+            Simulado: 'Pago de prueba, sin cobro real.',
+            Pendiente: 'Aún esperamos confirmación del pago.',
+            Fallido: 'Pago fallido o pedido vencido. El inventario fue liberado.',
+            Revision: 'El pago requiere revisión. Contacta al equipo con el número del pedido.',
+            Reembolsado: 'Pago anulado o reembolsado.'
+        };
+        resultadoPedido.value = {...data, mensaje: mensajes[data.estado_pago]};
+        mostrarModalExito.value = true;
+    } catch {
+        errorPago.value = 'No se pudo consultar el pedido. Inicia sesión con la cuenta que lo creó.';
     }
-];
+};
+const cancelarPedidoPendiente = async () => {
+    try {
+        await axios.post(`api/venta/${resultadoPedido.value.venta_id}/cancelar/`);
+        await consultarPedido();
+    } catch {
+        errorPago.value = 'No se pudo cancelar el pedido. Consulta el estado del pago.';
+    }
+};
+onMounted(() => { if (route.query.venta_id) consultarPedido(); });
 
-const savedMetodo = sessionStorage.getItem('checkout_metodo');
-const metodoSeleccionado = ref(savedMetodo || '');
-
-const savedFormsPago = sessionStorage.getItem('checkout_forms_pago');
-const formsPago = ref(savedFormsPago ? JSON.parse(savedFormsPago) : {
-    billeteras: { celular: '' },
-    pse: { banco: '' },
-    tarjeta: { numero: '', expiracion: '', cvv: '', titular: '' }
-});
-
-// Observadores para guardar automáticamente en el sessionStorage cada cambio
-watch(envio, (newVal) => {
-    sessionStorage.setItem('checkout_envio', JSON.stringify(newVal));
-}, { deep: true });
-
-watch(metodoSeleccionado, (newVal) => {
-    sessionStorage.setItem('checkout_metodo', newVal);
-});
-
-watch(formsPago, (newVal) => {
-    sessionStorage.setItem('checkout_forms_pago', JSON.stringify(newVal));
-}, { deep: true });
+const huellaPedido = computed(() => JSON.stringify({items: itemsSeleccionados.value.map(i => ({
+    id: i.id, tipo: i.tipo, cantidad: i.cantidad, fecha_reserva: i.fecha_reserva
+})), novedades: sessionStorage.getItem('checkout_viajeros') || '[]'}));
+const obtenerClaveOperacion = () => {
+    const actual = sessionStorage.getItem('checkout_operacion');
+    const guardada = actual ? JSON.parse(actual) : null;
+    if (guardada?.huella === huellaPedido.value) return guardada.clave;
+    const clave = crypto.randomUUID();
+    sessionStorage.setItem('checkout_operacion', JSON.stringify({huella: huellaPedido.value, clave}));
+    return clave;
+};
 
 // --- LÓGICA DE VALIDACIÓN ---
 const esEnvioValido = computed(() => {
@@ -103,25 +108,8 @@ const esEnvioValido = computed(() => {
            envio.value.ciudad !== '';
 });
 
-const esPagoValido = computed(() => {
-    if (metodoSeleccionado.value === 'billeteras') {
-        return formsPago.value.billeteras.celular.trim().length >= 10;
-    }
-    if (metodoSeleccionado.value === 'pse') {
-        return formsPago.value.pse.banco !== '';
-    }
-    if (metodoSeleccionado.value === 'tarjeta') {
-        const { numero, expiracion, cvv, titular } = formsPago.value.tarjeta;
-        return numero.trim().length >= 15 &&
-               expiracion.trim().length >= 4 &&
-               cvv.trim().length >= 3 &&
-               titular.trim().length >= 3;
-    }
-    return false;
-});
-
 const todoValido = computed(() => {
-    if (!esEnvioValido.value || !esPagoValido.value) return false;
+    if (!esEnvioValido.value || itemsSeleccionados.value.length === 0) return false;
     
     // Validar solo los tours que el usuario ha SELECCIONADO para pagar ahora
     const toursSinFecha = toursSeleccionados.value.filter(t => !t.fecha_reserva);
@@ -143,6 +131,7 @@ const getClassInput = (esValido) => {
 const cargandoPago = ref(false);
 
 const confirmarYPagar = () => {
+    if (cargandoPago.value) return;
     formTocado.value = true;
     if (todoValido.value) {
         // Verificar si el usuario ha marcado "No volver a mostrar" anteriormente
@@ -168,28 +157,31 @@ const aceptarTerminosYProceder = () => {
 
 
 const finalizarProcesoDePago = async () => {
+    if (cargandoPago.value) return;
+    errorPago.value = '';
     cargandoPago.value = true;
     try {
         const payload = {
-            total: totalFinal.value,
+            clave_operacion: obtenerClaveOperacion(),
             novedades_turistas: JSON.parse(sessionStorage.getItem('checkout_viajeros') || '[]'),
             items: itemsSeleccionados.value.map(i => ({
                 id: i.id,
                 tipo: i.tipo,
                 cantidad: i.cantidad,
-                precio: i.precio,
                 fecha_reserva: i.fecha_reserva
             }))
         };
 
-        await axios.post('api/venta/procesar/', payload);
+        const { data } = await axios.post('api/venta/procesar/', payload);
+        resultadoPedido.value = data;
         
         // Actualizar stock y ventas en el frontend para feedback inmediato (UX)
         actualizarStockLocal(itemsSeleccionados.value);
 
         // Limpieza local de frontend
 
-        vaciarCarrito();
+        itemsCarrito.value = itemsCarrito.value.filter(i => !i.seleccionado);
+        sessionStorage.removeItem('checkout_operacion');
         sessionStorage.removeItem('checkout_viajeros');
         sessionStorage.removeItem('checkout_envio');
         sessionStorage.removeItem('checkout_metodo');
@@ -200,7 +192,7 @@ const finalizarProcesoDePago = async () => {
 
     } catch (error) {
         console.error("Error al procesar el pago:", error);
-        alert("Hubo un error procesando el pago. Inténtalo de nuevo.");
+        errorPago.value = error.response?.data?.error || 'No se pudo registrar el pedido. Puedes reintentar.';
     } finally {
         cargandoPago.value = false;
     }
@@ -275,7 +267,7 @@ const volverInicio = () => {
             <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-lime-300"> Compra</span>
           </h1>
           <p class="text-white/50 text-base max-w-xl mx-auto mb-6 leading-relaxed">
-            Estás a un solo paso de asegurar las reservas. Por favor completa los métodos de pago electrónico.
+            Revisa los artículos antes de registrar tu pedido. El servidor calculará el importe definitivo.
           </p>
 
           <!-- Trust badge -->
@@ -283,7 +275,7 @@ const volverInicio = () => {
             <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
             </svg>
-            <span>Conexión cifrada SSL 256 bits.</span>
+            <span>Pago mediante checkout alojado de Wompi.</span>
           </div>
 
         </div><!-- /text-center -->
@@ -366,92 +358,10 @@ const volverInicio = () => {
             </div>
           </section>
 
-          <!-- SECCIÓN 2: Método de Pago -->
-          <section class="bg-white/5 rounded-2xl shadow-sm border border-white/10 p-6 sm:p-8 backdrop-blur-sm">
-            <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-3">
-               <span class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-xs border border-emerald-500/40">{{ requiereEnvio ? '2' : '1' }}</span>
-               Método de Pago
-            </h2>
-            <p class="text-sm text-white/50 mb-6 pl-10">Selecciona tu medio electrónico preferido.</p>
-            
-            <div class="space-y-4">
-               
-               <!-- Iterador de Opciones de Pago (Radio Buttons estilizados) -->
-               <div v-for="metodo in metodosPago" :key="metodo.id" 
-                    :class="['border rounded-xl transition-all overflow-hidden', metodoSeleccionado === metodo.id ? 'border-emerald-500/60 ring-1 ring-emerald-500/60 bg-emerald-500/10' : 'border-white/10 bg-white/5 hover:border-white/20']">
-                 
-                 <label class="flex items-center gap-4 p-4 cursor-pointer select-none">
-                    <input type="radio" name="pago" :value="metodo.id" v-model="metodoSeleccionado" class="w-4 h-4 text-emerald-500 border-white/20 focus:ring-emerald-500 bg-white/10 cursor-pointer">
-                    <span class="text-emerald-400" v-html="metodo.svg"></span>
-                    <span class="font-bold text-sm text-white">{{ metodo.titulo }}</span>
-                 </label>
-
-                 <!-- CONTENIDO DINÁMICO DESPLEGABLE -->
-                 <div v-if="metodoSeleccionado === metodo.id" class="px-4 pb-5 border-t border-white/10 pt-4 bg-white/5">
-                    
-                    <!-- Formulario Billeteras -->
-                    <div v-if="metodo.id === 'billeteras'" class="pl-8">
-                        <label class="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Número de Celular *</label>
-                        <input type="tel" v-model="formsPago.billeteras.celular" 
-                               :class="['w-full max-w-sm rounded-xl px-4 py-3 text-sm outline-none transition-all border ring-4 ring-transparent placeholder-white/30', getClassInput(formsPago.billeteras.celular.trim().length >= 10)]" 
-                               placeholder="Ej: 300 123 4567">
-                        <p class="text-white/30 text-xs mt-2 font-medium">Recibirás una notificación push en Nequi/DaviPlata.</p>
-                    </div>
-
-                    <!-- Formulario PSE -->
-                    <div v-if="metodo.id === 'pse'" class="pl-8">
-                        <label class="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Banco *</label>
-                        <div class="relative max-w-sm">
-                            <select v-model="formsPago.pse.banco" 
-                                    :class="['w-full rounded-xl px-4 py-3 text-sm outline-none transition-all border ring-4 ring-transparent appearance-none cursor-pointer', getClassInput(formsPago.pse.banco !== '')]">
-                                <option value="" disabled class="bg-[#0f2318] text-white">Selecciona tu banco</option>
-                                <option value="Bancolombia" class="bg-[#0f2318]">Bancolombia</option>
-                                <option value="Banco de Bogota" class="bg-[#0f2318]">Banco de Bogotá</option>
-                                <option value="Davivienda" class="bg-[#0f2318]">Davivienda</option>
-                                <option value="BBVA" class="bg-[#0f2318]">BBVA Colombia</option>
-                                <option value="AV Villas" class="bg-[#0f2318]">Banco AV Villas</option>
-                                <option value="Scotiabank" class="bg-[#0f2318]">Scotiabank Colpatria</option>
-                            </select>
-                            <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/40">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                            </div>
-                        </div>
-                        <p class="text-white/30 text-[11px] mt-2 font-medium">Serás redirigido a la pasarela segura de PSE al confirmar.</p>
-                    </div>
-
-                    <!-- Formulario Tarjeta -->
-                    <div v-if="metodo.id === 'tarjeta'" class="pl-8 grid grid-cols-2 gap-4">
-                        <div class="col-span-2">
-                            <label class="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Número de Tarjeta *</label>
-                            <input type="text" v-model="formsPago.tarjeta.numero" 
-                                   :class="['w-full rounded-xl px-4 py-3 text-sm font-mono tracking-widest outline-none transition-all border ring-4 ring-transparent placeholder-white/30', getClassInput(formsPago.tarjeta.numero.trim().length >= 15)]" 
-                                   placeholder="0000 0000 0000 0000" maxlength="19">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Expiración *</label>
-                            <input type="text" v-model="formsPago.tarjeta.expiracion" 
-                                   :class="['w-full rounded-xl px-4 py-3 text-sm outline-none transition-all border ring-4 ring-transparent placeholder-white/30', getClassInput(formsPago.tarjeta.expiracion.trim().length >= 4)]" 
-                                   placeholder="MM/AA" maxlength="5">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">CVV *</label>
-                            <input type="text" v-model="formsPago.tarjeta.cvv" 
-                                   :class="['w-full rounded-xl px-4 py-3 text-sm outline-none transition-all border ring-4 ring-transparent placeholder-white/30', getClassInput(formsPago.tarjeta.cvv.trim().length >= 3)]" 
-                                   placeholder="123" maxlength="4">
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-[11px] font-bold text-white/50 uppercase tracking-wider mb-2">Titular de la Tarjeta *</label>
-                            <input type="text" v-model="formsPago.tarjeta.titular" 
-                                   :class="['w-full rounded-xl px-4 py-3 text-sm outline-none transition-all border ring-4 ring-transparent placeholder-white/30', getClassInput(formsPago.tarjeta.titular.trim().length >= 3)]" 
-                                   placeholder="Nombre como aparece en la tarjeta">
-                        </div>
-                    </div>
-                 </div>
-               </div>
-               
-               <p v-if="formTocado && !esPagoValido" class="text-red-400 text-sm mt-3 font-semibold pl-2">Selecciona y completa un método de pago.</p>
-               
-            </div>
+          <section class="bg-white/5 rounded-2xl border border-white/10 p-6 sm:p-8">
+            <h2 class="text-lg font-bold mb-3">Confirmación del pedido</h2>
+            <p class="text-white/60 text-sm">El pago se realiza en el checkout de Wompi cuando está habilitado. El pedido se confirma después de recibir la notificación verificada. Las demostraciones se identifican como pagos de prueba.</p>
+            <p v-if="errorPago" role="alert" class="text-red-400 mt-4">{{ errorPago }}</p>
           </section>
 
         </div>
@@ -526,7 +436,7 @@ const volverInicio = () => {
 
                  <!-- TOTAL (Destacado) -->
                  <div class="flex justify-between items-end">
-                     <span class="text-sm font-bold text-white/50 uppercase tracking-widest">Total a Pagar</span>
+                     <span class="text-sm font-bold text-white/50 uppercase tracking-widest">Total estimado</span>
                      <span class="text-3xl font-black text-white leading-none">{{ formatPrecio(totalFinal) }}</span>
                  </div>
                  <p class="text-[10px] text-white/40 text-right mt-1 w-full">Incluye impuestos locales (IVA)</p>
@@ -557,7 +467,7 @@ const volverInicio = () => {
                       </template>
                       <template v-else>
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> 
-                          Confirmar y Pagar
+                          Registrar Pedido
                       </template>
                   </button>
 
@@ -573,7 +483,7 @@ const volverInicio = () => {
 
 
                   <p class="text-center text-[10px] font-medium text-white/30 mt-4 leading-relaxed">
-                      Tus transacciones están encriptadas con seguridad SSL de 256 bits. No guardamos información de tus tarjetas sensibles.
+                      Los datos de tarjetas se introducen únicamente en el checkout de Wompi.
                   </p>
               </div>
 
@@ -676,7 +586,7 @@ const volverInicio = () => {
                 </button>
                 <button @click="aceptarTerminosYProceder" 
                         class="flex-1 px-8 py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all order-1 sm:order-2">
-                    Aceptar y Proceder al Pago
+                    Aceptar y Registrar Pedido
                 </button>
             </div>
             
@@ -698,11 +608,14 @@ const volverInicio = () => {
                 </svg>
             </div>
             
-            <h3 class="text-2xl font-black text-white mb-2">¡Compra Exitosa!</h3>
+            <h3 class="text-2xl font-black text-white mb-2">Pedido registrado</h3>
             <p class="text-white/60 text-sm mb-8 leading-relaxed">
-                Tu transacción se procesó de manera segura y tus reservas han quedado guardadas. ¡Gracias por tu compra!
+                {{ resultadoPedido?.mensaje }} Total calculado: {{ formatPrecio(resultadoPedido?.total) }}
             </p>
             
+            <a v-if="resultadoPedido?.checkout_url" :href="resultadoPedido.checkout_url" class="block mb-4 rounded-xl bg-emerald-600 py-3 font-bold">Continuar en Wompi</a>
+            <button v-if="resultadoPedido?.estado_pago === 'Pendiente'" @click="cancelarPedidoPendiente" class="block w-full mb-4 text-white/60">Cancelar pedido pendiente</button>
+            <button v-if="resultadoPedido?.estado_pago === 'Pendiente'" @click="consultarPedido" class="block w-full mb-4 text-emerald-300">Consultar estado del pago</button>
             <button @click="volverInicio"
                     class="w-full bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 text-white py-4 rounded-xl font-bold transition-colors">
                 Volver al Incio

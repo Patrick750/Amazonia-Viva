@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.core.management.base import CommandError
 import json
 import random
 from django.core.management.base import BaseCommand
@@ -7,6 +9,8 @@ class Command(BaseCommand):
     help = 'Enriquece las categorías y productos con atributos detallados, valoraciones e imágenes'
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or settings.CHECKOUT_MODE != 'demo':
+            raise CommandError('Datos de demostración requieren DEBUG=true y CHECKOUT_MODE=demo en una base aislada.')
         email_proveedor = "proveer@gmail.com"
         
         # 1. Enriquecer Categorías
