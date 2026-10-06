@@ -8,6 +8,15 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### Sin publicar — Automatización del versionamiento
+
+- **[Tooling]** Integración del esquema high/low/parch de Patrick750/versionamiento, con VERSION=5.0.0 como punto de partida y validación de commits en PR.
+- **[Baseline]** La primera ejecución registra el tag anotado v5.0.0 antes de los incrementos; el commit de prueba solicita 5.0.1 mediante parch [0.0.1].
+- **[Automation]** Incrementos por commit en main/master, tags anotados, prevención de duplicados en reintentos y publicación atómica de rama/tags.
+- **[Doc]** Sincronización automática de VERSION, package.json, lockfile, README y changelog; guía en documentacion/versionamiento.md.
+- **[Deployment]** El despliegue espera al workflow de versionado y utiliza su SHA final verificado.
+- **[Test]** Pruebas en repositorios temporales y remoto bare local; no se publicaron tags ni cambios al remoto real.
+
 ### 5.0.0 — Seguridad de operaciones e integración con Wompi — 2026-10-06
 > Estado: cambios locales preparados; no desplegados. Versión mayor por cambios incompatibles en autenticación, contratos de compra y estados de pago.
 

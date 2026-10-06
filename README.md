@@ -1,6 +1,6 @@
 # 🌿 Amazonia Viva
 
-Versión: **5.0.0** — cambios preparados localmente, pendientes de despliegue.
+Versión: **5.0.0**
 
 Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias, proveedores y turistas mediante una interfaz multi-rol con autenticación, paquetes turísticos y gestión de ventas.
 
@@ -64,3 +64,15 @@ Este proyecto fue desarrollado como parte de un proyecto académico/estudiantil.
 ## Seguridad y operación
 
 Ver [implementación y procedimiento operativo](documentacion/seguridad-implementada.md). El despliegue no carga datos de prueba. Wompi está integrado con checkout firmado y webhook verificado; su activación requiere claves de comercio y una validación real en sandbox. Para una demo aislada, usar DEBUG=true y CHECKOUT_MODE=demo y ejecutar `python manage.py setup_demo` explícitamente.
+
+## Versionamiento automático
+
+`VERSION` es la fuente de verdad. Los PR a main/master se integran con merge commit o rebase, sin squash. El bot incrementa por commit, sincroniza los archivos de versión y el changelog, y crea tags anotados:
+
+| Declaración en commit | Incremento |
+| --- | --- |
+| `high [1.0.0]` | Mayor |
+| `low [0.1.0]` | Menor |
+| `parch [0.0.1]` o `patch [0.0.1]` | Parche |
+
+Ejemplo: `feat(api): low [0.1.0] añadir búsquedas`. Los commits sin declaración no incrementan la versión. Ver [flujo, configuración y verificación](documentacion/versionamiento.md).

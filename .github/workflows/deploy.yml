@@ -1,12 +1,29 @@
 name: Despliegue Automático Amazonia Viva
 
-# 1. ¿Cuándo se activa?
+# El commit del bot usa GITHUB_TOKEN y no genera otro push workflow.
+# Esperar al versionado y desplegar exactamente la referencia publicada.
 on:
-  push:
-    branches: [ "main" ]
+  workflow_run:
+    workflows: ['Version Bump on Merge']
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: deployment-main
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   verify:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    outputs:
+      release_sha: ${{ steps.release.outputs.sha }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -28,11 +45,27 @@ jobs:
       CHECKOUT_MODE: disabled
       ALLOW_WITHDRAWALS: 'false'
     steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: versioned-reference
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+          path: .versioned
+      - name: Validar referencia publicada
+        id: release
+        run: |
+          VERSIONED_SHA=$(cat .versioned/versioned-sha.txt)
+          [[ "$VERSIONED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          printf 'sha=%s\n' "$VERSIONED_SHA" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
+      - run: python scripts/versionamiento.py check
+      - run: python -m unittest discover -s tests -p 'test_versionamiento.py'
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run
       - run: python manage.py test autenticacion --noinput
@@ -53,6 +86,8 @@ jobs:
     # 2. Clona tu código en el servidor de GitHub
     - name: Obtener el código
       uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.verify.outputs.release_sha }}
 
     # 3. Inicia sesión en Docker Hub
     - name: Login en Docker Hub
@@ -89,7 +124,8 @@ jobs:
         script: |
           # Asegúrate de que esta sea la ruta real en tu servidor VPS
           cd ~/Amazonia-Viva
-          git pull origin main
+          git fetch origin main
+          git checkout --detach ${{ needs.verify.outputs.release_sha }}
           docker compose pull
           docker compose up -d --build
           docker compose exec -T backend python manage.py check --deploy --tag security --fail-level WARNING
