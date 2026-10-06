@@ -4,6 +4,7 @@ from .models import *
 from django.contrib.auth.models import Group
 from django.utils import timezone
 from datetime import timedelta
+from decimal import Decimal
 from django.db.models import Sum
 
 
@@ -27,7 +28,7 @@ def calcular_cupos_disponibles(paquete, fecha=None):
     reservas = ReservaFecha.objects.filter(
         paquete=paquete, 
         fecha=fecha,
-        venta__estado='Completado'
+        venta__estado__in=['Completado', 'Pendiente']
     ).exclude(venta_id__in=detalles_excluidos).aggregate(
         total=Sum('cantidad')
     )['total'] or 0
@@ -43,9 +44,21 @@ class CategoriaProductoSerializer(serializers.ModelSerializer):
         model = Categorias
         fields = '__all__'
 
-class AgenciaSerializer(serializers.ModelSerializer):
+class PasswordValidationMixin:
+    def validate(self, attrs):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError
+        try:
+            validate_password(attrs.get('password'), Usuario(**{k: attrs[k] for k in ('username', 'email', 'first_name', 'last_name') if k in attrs}))
+        except ValidationError as exc:
+            raise serializers.ValidationError({'password': list(exc.messages)})
+        return attrs
+
+
+class AgenciaSerializer(PasswordValidationMixin, serializers.ModelSerializer):
     class Meta:
         model = Agencia
+        extra_kwargs = {'password': {'write_only': True}}
         fields = ['id','nombre_agencia', 'username','email','numero_telefonico','password']
 
     def create(self, validated_data):
@@ -54,17 +67,15 @@ class AgenciaSerializer(serializers.ModelSerializer):
         agencia.set_password(password)
         agencia.save()
 
-        try:
-            grupo_agencia = Group.objects.get(name='agencia')   
-            agencia.groups.add(grupo_agencia)
-        except Group.DoesNotExist:
-            print("El grupo 'Agencia' no existe. Por favor, créalo en el admin de Django.")
+        grupo, _ = Group.objects.get_or_create(name='agencia')
+        agencia.groups.add(grupo)
         return agencia
     
 
-class ProveedorSerializers(serializers.ModelSerializer):
+class ProveedorSerializers(PasswordValidationMixin, serializers.ModelSerializer):
     class Meta:
         model = Proveedor
+        extra_kwargs = {'password': {'write_only': True}}
         fields = ['id','nombre_empresa','username','email','numero_telefonico','password']
 
     def create(self, validated_data):
@@ -73,16 +84,14 @@ class ProveedorSerializers(serializers.ModelSerializer):
         proveedor.set_password(password)
         proveedor.save()
 
-        try:
-            grupo_proveedor = Group.objects.get(name='proveedor')   
-            proveedor.groups.add(grupo_proveedor)
-        except Group.DoesNotExist:
-            print("El grupo 'Proveedor' no existe. Por favor, créalo en el admin de Django.")
+        grupo, _ = Group.objects.get_or_create(name='proveedor')
+        proveedor.groups.add(grupo)
         return proveedor
     
-class TuristaSerializers(serializers.ModelSerializer):
+class TuristaSerializers(PasswordValidationMixin, serializers.ModelSerializer):
     class Meta:
         model = Turista
+        extra_kwargs = {'password': {'write_only': True}}
         fields = ['id','first_name', 'last_name','username','fecha_nacimiento','numero_identidad','email','numero_telefonico','password']
     def create(self, validated_data):
         password = validated_data.pop('password')
@@ -90,11 +99,8 @@ class TuristaSerializers(serializers.ModelSerializer):
         turista.set_password(password)
         turista.save()
 
-        try:
-            group_turista = Group.objects.get(name='turista')
-            turista.groups.add(group_turista)
-        except Group.DoesNotExist:
-            print("El grupo 'Turista' no existe. Por favor, créalo en el admin de Django.")
+        grupo, _ = Group.objects.get_or_create(name='turista')
+        turista.groups.add(grupo)
         return turista
     
 #Serializador del login
@@ -150,11 +156,7 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
-    agencia = serializers.PrimaryKeyRelatedField(
-        queryset=Agencia.objects.all(),
-        write_only=True,
-        required=False
-    )
+    agencia = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = PaqueteTuristico
@@ -165,7 +167,8 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
             'imagen_paquete', 'archivos_subidos', 'imagenes_eliminar', 'agencia',
             'categoria_paquete', 'fecha_realizacion', 'tipo_paquete'
         ]
-        read_only_fields = ['tipo_paquete']
+        read_only_fields = ['tipo_paquete', 'agencia']
+        extra_kwargs = {'precio': {'min_value': Decimal('0.01')}, 'capacidad': {'min_value': 1}}
 
     def create(self, validated_data):
         archivos = validated_data.pop('archivos_subidos', [])
@@ -247,7 +250,7 @@ class SerializersPaquetes(serializers.ModelSerializer):
             # Consultar reservas por fecha agregadas
             reservas = ReservaFecha.objects.filter(
                 paquete_id__in=paquete_ids,
-                venta__estado='Completado'
+                venta__estado__in=['Completado', 'Pendiente']
             ).exclude(venta_id__in=detalles_cancelados).values('paquete_id', 'fecha').annotate(total=Sum('cantidad'))
 
             res_map = {}

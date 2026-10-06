@@ -1,7 +1,10 @@
+node_modules
+dist
+.env
+.env.*
 venv/
 env/
 .venv/
-
 .DS_Store
 Thumbs.db
 __pycache__

@@ -1,8 +1,12 @@
 from django.shortcuts import render, get_object_or_404
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
+from .schemas import CompraSerializer, CompraRespuestaSerializer
 from rest_framework.response import Response
 from rest_framework import status 
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from .permissions import IsAgencia, IsProveedor, IsTurista, IsComprador, IsEmpresa
+from .throttles import CredentialsThrottle
 from rest_framework.parsers import MultiPartParser
 from .serializers import *
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -15,7 +19,8 @@ import os
 import csv
 import io
 import openpyxl
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
+from rest_framework.exceptions import APIException
 from django.conf import settings
 from django.http import JsonResponse
 from django.db.models import Count, Q, Sum, Avg, F
@@ -36,6 +41,7 @@ logger = logging.getLogger('autenticacion')
 
 #Registro de nueva agencia
 class RegistroAgencia(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializers = AgenciaSerializer(data=request.data)
         if serializers.is_valid():
@@ -49,6 +55,7 @@ class RegistroAgencia(APIView):
 
 #registro de nuevo proveedor
 class RegistroProveedor(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         selrializers = ProveedorSerializers(data=request.data)
         if selrializers.is_valid():
@@ -62,6 +69,7 @@ class RegistroProveedor(APIView):
 
 #registro de nuevo turista
 class RegistroTurista(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializers = TuristaSerializers(data=request.data)
         if serializers.is_valid():
@@ -75,7 +83,9 @@ class RegistroTurista(APIView):
 
 #verificacion de correo existente
 class VerificarEmail(APIView):
-    @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True))
+    permission_classes = [AllowAny]
+    throttle_classes = [CredentialsThrottle]
+
     def post(self, request):
         formEmail = request.data.get('email')
         formUsername = request.data.get('username')
@@ -102,6 +112,7 @@ class VerificarEmail(APIView):
             )
 
 class Login(TokenObtainPairView):
+    throttle_classes = [CredentialsThrottle]
     serializer_class = SerializersLogin
 
 class Logout(APIView):
@@ -109,22 +120,30 @@ class Logout(APIView):
         try:
             refresh_token = request.data.get('refresh_token')
             token = RefreshToken(refresh_token)
+            if str(token['user_id']) != str(request.user.pk):
+                return Response({'error': 'Token ajeno.'}, status=403)
             token.blacklist()
             logger.info('Logout exitoso')
             return Response ({'mensaje': 'Sesion cerrada exitosamente'}, status=status.HTTP_205_RESET_CONTENT)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'mensaje': f'Hubo un error{e}'},status=status.HTTP_400_BAD_REQUEST)
+            return Response({'mensaje': 'Token de renovación inválido.'},status=status.HTTP_400_BAD_REQUEST)
 
 class Actividades(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         try:
             actividades = Actividad.objects.all()
             serializer = SerializersActividades(actividades, many=True)
             return Response(serializer.data)
+        except (Http404, APIException):
+            raise
         except Exception as e:
             return Response({'mensaje':'Hubo un error con la DB'})
 
 class NewPack(APIView):
+    permission_classes = [IsAgencia]
     def post(self, request):
         nombre = request.data.get('nombre')
         if nombre and PaqueteTuristico.objects.filter(agencia_id=request.user.pk, nombre__iexact=nombre).exists():
@@ -142,16 +161,19 @@ class NewPack(APIView):
                     {"error": "Solo las agencias pueden crear paquetes turísticos."},
                     status=status.HTTP_403_FORBIDDEN
                 )
+            except (Http404, APIException):
+                raise
             except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({"error": 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:   
-            logger.error('Error en los serializers: %s', serializer.errors)
+            logger.warning('Datos de paquete inválidos')
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class UpdatePack(APIView):
+    permission_classes = [IsAgencia]
     def put(self, request, pk):
         try:
-            paquete = PaqueteTuristico.objects.get(pk=pk)
+            paquete = PaqueteTuristico.objects.get(pk=pk, agencia_id=request.user.pk)
         except PaqueteTuristico.DoesNotExist:
             return Response({"error": "Paquete no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -162,31 +184,37 @@ class UpdatePack(APIView):
         serializer = SerializersCreateNewPack(paquete, data=request.data, partial=True)
         if serializer.is_valid():
             try:
-                serializer.save()
+                serializer.save(agencia=paquete.agencia)
                 return Response(serializer.data, status=status.HTTP_200_OK)
+            except (Http404, APIException):
+                raise
             except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({"error": 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:   
-            logger.error('Error en update serializers: %s', serializer.errors)
+            logger.warning('Datos de paquete inválidos')
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class DeletePack(APIView):
+    permission_classes = [IsAgencia]
     def delete(self, request, pk):
         try:
-            paquete = PaqueteTuristico.objects.get(pk=pk)
-            paquete.delete()
+            paquete = PaqueteTuristico.objects.get(pk=pk, agencia_id=request.user.pk)
+            paquete.activo = False
+            paquete.save(update_fields=['activo'])
             return Response({"mensaje": "Paquete eliminado exitosamente"}, status=status.HTTP_200_OK)
         except PaqueteTuristico.DoesNotExist:
             return Response({"error": "Paquete no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PaquetesTuristicos(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgencia]
 
     def get(self, request):
         try:
-            agencia_id = request.query_params.get('agencia_id', None)
+            agencia_id = request.user.pk
             
             if agencia_id:
                 filtro_agencia = agencia_id
@@ -212,7 +240,7 @@ class PaquetesTuristicos(APIView):
                         (SELECT COALESCE(SUM(rf.cantidad), 0) 
                          FROM autenticacion_reservafecha rf 
                          JOIN autenticacion_venta v ON v.id = rf.venta_id 
-                         WHERE rf.paquete_id = p.id AND v.estado = 'Completado'
+                         WHERE rf.paquete_id = p.id AND v.estado IN ('Completado', 'Pendiente')
                            AND v.id NOT IN (
                                SELECT dv2.venta_id 
                                FROM autenticacion_detalles_venta dv2 
@@ -265,12 +293,14 @@ class PaquetesTuristicos(APIView):
                     p['imagen_paquete'] = img_map.get(p['id'], [])
 
             return Response(paquetes_list)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'mensaje': 'Hubo un error al obtener los paquetes', 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'mensaje': 'Hubo un error al obtener los paquetes', 'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CargaMasivaPaquetesAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgencia]
 
     def get(self, request):
         # Generar plantilla Excel
@@ -451,8 +481,10 @@ class CargaMasivaPaquetesAPIView(APIView):
                             itinerario=[],
                             activo=True
                         ))
+                except (Http404, APIException):
+                    raise
                 except Exception as e:
-                    errores.append(f"Fila {numero_fila}: Error inesperado - {str(e)}")
+                    errores.append(f"Fila {numero_fila}: Error inesperado - {'Error interno; contacte al soporte.'}")
 
             if nombre_archivo.endswith('.csv'):
                 decoded_file = archivo.read().decode('utf-8-sig')
@@ -497,8 +529,10 @@ class CargaMasivaPaquetesAPIView(APIView):
                 "creados": len(paquetes_a_crear)
             }, status=status.HTTP_200_OK)
 
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'error': f"Error al procesar el archivo: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': f"Error al procesar el archivo: {'Error interno; contacte al soporte.'}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CatalogoTours(APIView):
@@ -569,7 +603,7 @@ class CatalogoTours(APIView):
                         (SELECT COALESCE(SUM(rf.cantidad), 0) 
                          FROM autenticacion_reservafecha rf 
                          JOIN autenticacion_venta v ON v.id = rf.venta_id 
-                         WHERE rf.paquete_id = p.id AND v.estado = 'Completado'
+                         WHERE rf.paquete_id = p.id AND v.estado IN ('Completado', 'Pendiente')
                            AND v.id NOT IN (
                                SELECT dv2.venta_id FROM autenticacion_detalles_venta dv2 WHERE dv2.paquete = p.id AND dv2.estado IN ('Cancelado', 'Rechazado')
                            )
@@ -619,8 +653,10 @@ class CatalogoTours(APIView):
                 'total_pages': math.ceil(total_count / page_size) if page_size > 0 else 1,
                 'results': resultado
             })
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CuposDisponiblesView(APIView):
@@ -653,28 +689,36 @@ class CuposDisponiblesView(APIView):
                 'fecha': fecha_str or (str(paquete.fecha_realizacion) if paquete.fecha_realizacion else None),
                 'tipo_paquete': paquete.tipo_paquete,
             })
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CategoriaPaqueteListView(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         try:
             categorias = CategoriaPaquete.objects.all()
             serializer = CategoriaPaqueteSerializer(categorias, many=True)
             return Response(serializer.data)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CategoriaProductoListView(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         try:
             categorias = Categorias.objects.all()
             serializer = CategoriaProductoSerializer(categorias, many=True)
             return Response(serializer.data)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CatalogoProductos(APIView):
@@ -754,8 +798,10 @@ class CatalogoProductos(APIView):
                     res['imagen_portada'] = img_map.get(res['id'], None)
 
             return Response(resultado)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class FavoritoView(APIView):
     permission_classes = [IsAuthenticated]
@@ -768,9 +814,11 @@ class FavoritoView(APIView):
             ).prefetch_related('producto__imagen_producto', 'paquetes__imagen_paquete')
             serializer = FavoritoDetailSerializer(favoritos, many=True)
             return Response(serializer.data)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            logger.error(f"ERROR EN GET FAVORITOS: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error('Error interno de operación')
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):
         try:
@@ -798,9 +846,11 @@ class FavoritoView(APIView):
                 
             serializer = FavoritoSerializer(favorito)
             return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            logger.error(f"ERROR EN FAVORITOS: {str(e)}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error('Error interno de operación')
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
         favorito = get_object_or_404(Favoritos, pk=pk, usuario=request.user)
@@ -808,7 +858,7 @@ class FavoritoView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class CarritoView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsComprador]
 
     def get(self, request):
         try:
@@ -820,71 +870,49 @@ class CarritoView(APIView):
             
             serializer = CarritoItemDetailSerializer(items, many=True)
             return Response(serializer.data)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):
-        try:
-            carrito, _ = Carrito.objects.get_or_create(usuario=request.user, status=True)
-            producto_id = request.data.get('producto')
-            paquetes_id = request.data.get('paquetes')
-            precio = request.data.get('precio')
-            fecha_reserva = request.data.get('fecha_reserva')  # fecha elegida por el turista
-
-            if not producto_id and not paquetes_id:
-                return Response({'error': 'Debe proporcionar un producto o un paquete.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Evitar duplicados del mismo paquete en el mismo carrito activo de forma segura
-            item = Items.objects.filter(
-                carrito=carrito,
-                producto=producto_id if producto_id else None,
-                paquetes=paquetes_id if paquetes_id else None
-            ).first()
-            
-            cantidad = request.data.get('cantidad', 1)
-            
-            created = False
-            if not item:
-                item = Items.objects.create(
-                    carrito=carrito,
-                    producto_id=producto_id if producto_id else None,
-                    paquetes_id=paquetes_id if paquetes_id else None,
-                    precio=precio,
-                    fecha_reserva=fecha_reserva if fecha_reserva else None,
-                    cantidad=cantidad
-                )
-                created = True
-            else:
-                # Actualizar campos si ya existía el item
-                if fecha_reserva:
-                    item.fecha_reserva = fecha_reserva
-                if cantidad:
-                    item.cantidad = cantidad
-                item.save()
-
-            serializer = CarritoItemSerializer(item)
-            return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"ERROR EN CARRITO: {str(e)}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        from .compras import entero_positivo, fecha_item
+        from rest_framework.exceptions import ValidationError
+        producto_id, paquete_id = request.data.get('producto'), request.data.get('paquetes')
+        if bool(producto_id) == bool(paquete_id):
+            raise ValidationError({'error': 'Seleccione exactamente un producto o paquete.'})
+        ident = entero_positivo(producto_id or paquete_id, 2147483647)
+        cantidad = entero_positivo(request.data.get('cantidad', 1))
+        fecha = None
+        if producto_id:
+            obj = get_object_or_404(Productos, pk=ident, disponible=True,
+                tipo_catalogo='agencias' if hasattr(request.user, 'agencia') else 'turistas')
+            if cantidad > obj.stock:
+                raise ValidationError({'error': 'Stock insuficiente.'})
+        else:
+            if not hasattr(request.user, 'turista'):
+                return Response({'error': 'Solo turistas pueden reservar paquetes.'}, status=403)
+            obj = get_object_or_404(PaqueteTuristico, pk=ident, activo=True)
+            fecha = fecha_item(obj, request.data.get('fecha_reserva'))
+        carrito, _ = Carrito.objects.get_or_create(usuario=request.user, status=True)
+        item, created = Items.objects.update_or_create(carrito=carrito,
+            producto_id=ident if producto_id else None, paquetes_id=ident if paquete_id else None,
+            defaults={'cantidad': cantidad, 'precio': obj.precio, 'fecha_reserva': fecha})
+        return Response(CarritoItemSerializer(item).data, status=201 if created else 200)
 
     def patch(self, request, pk=None):
-        try:
-            if not pk:
-                return Response({'error': 'ID de ítem requerido.'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            item = get_object_or_404(Items, pk=pk, carrito__usuario=request.user)
-            
-            if 'cantidad' in request.data:
-                item.cantidad = request.data['cantidad']
-            if 'fecha_reserva' in request.data:
-                item.fecha_reserva = request.data['fecha_reserva']
-            
-            item.save()
-            serializer = CarritoItemSerializer(item)
-            return Response(serializer.data)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        from .compras import entero_positivo, fecha_item
+        from rest_framework.exceptions import ValidationError
+        item = get_object_or_404(Items, pk=pk, carrito__usuario=request.user)
+        if 'cantidad' in request.data:
+            item.cantidad = entero_positivo(request.data['cantidad'])
+        if item.producto_id and item.cantidad > item.producto.stock:
+            raise ValidationError({'error': 'Stock insuficiente.'})
+        if 'fecha_reserva' in request.data and item.paquetes_id:
+            item.fecha_reserva = fecha_item(item.paquetes, request.data['fecha_reserva'])
+        item.precio = item.producto.precio if item.producto_id else item.paquetes.precio
+        item.save()
+        return Response(CarritoItemSerializer(item).data)
 
     def delete(self, request, pk=None):
         try:
@@ -899,8 +927,10 @@ class CarritoView(APIView):
                 if carrito:
                     Items.objects.filter(carrito=carrito).delete()
                 return Response(status=status.HTTP_204_NO_CONTENT)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DetalleTourPublico(APIView):
@@ -942,7 +972,7 @@ class UserStatsView(APIView):
         })
 
 class DashboardKPIsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsEmpresa]
 
     def get(self, request):
         user = request.user
@@ -1380,7 +1410,7 @@ class PerfilFotoView(APIView):
                 instance = request.user.turista
 
             if not instance:
-                logger.error(f"ERROR: Perfil no encontrado para el usuario {request.user.id}")
+                logger.error('Error interno de operación')
                 return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
             # Decidir qué campo actualizar
@@ -1408,9 +1438,11 @@ class PerfilFotoView(APIView):
                 
             return Response({'error': 'No se pudo determinar el campo de imagen para este perfil.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            msg_error = str(e)
-            logger.critical(f"CRITICAL ERROR EN CARGA DE IMAGEN: {msg_error}")
+            msg_error = 'Error interno; contacte al soporte.'
+            logger.error('Error interno de operación')
             return Response({
                 'error': 'Error interno al procesar la imagen.',
                 'detalle': msg_error
@@ -1418,6 +1450,7 @@ class PerfilFotoView(APIView):
 
 # --- VISTA MOCK PARA VALIDACIÓN DE CREDENCIALES LEGALES ---
 class VerificarCredenciales(APIView):
+    throttle_classes = [CredentialsThrottle]
     """
     Simula la validación de un NIT o RNT contra una base de datos estatal.
     """
@@ -1462,13 +1495,16 @@ class VerificarCredenciales(APIView):
                 {"error": "Base de datos de gobierno no disponible (Mock file not found)."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
+        except (Http404, APIException):
+            raise
         except Exception as e:
             return Response(
-                {"error": f"Error interno al validar: {str(e)}"},
+                {"error": f"Error interno al validar: {'Error interno; contacte al soporte.'}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class ConfirmarPasswordView(APIView):
+    throttle_classes = [CredentialsThrottle]
     """
     Verifica la contraseña del usuario antes de desbloquear secciones sensibles.
     """
@@ -1490,146 +1526,41 @@ class ConfirmarPasswordView(APIView):
             return Response({"error": "Contraseña incorrecta."}, status=status.HTTP_401_UNAUTHORIZED)
 
 class ProcesarPagoView(APIView):
-    """
-    Endpoint para procesar la transacción final, guardar en DB, reducir stock y vaciar el carrito.
-    Garantiza atomicidad total: o se procesa todo el carrito o no se guarda nada.
-    """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsComprador]
 
+    @extend_schema(request=CompraSerializer, responses={200: CompraRespuestaSerializer, 201: CompraRespuestaSerializer}, description='Crea un pedido pendiente o simulado. Los precios se calculan en el servidor. Una clave repetida con el mismo contenido devuelve la venta original.')
     def post(self, request):
-        data = request.data
-        items = data.get('items', [])
-        novedades = data.get('novedades_turistas', [])
-
-        if not items:
-            return Response({'error': 'No hay items seleccionados para procesar.'}, status=status.HTTP_400_BAD_REQUEST)
-
+        from .compras import procesar_compra
+        from rest_framework.exceptions import ValidationError
+        if settings.CHECKOUT_MODE == 'disabled':
+            return Response({'error': 'Las compras están suspendidas hasta habilitar pagos verificables.'}, status=503)
+        if settings.PAYMENT_PROVIDER == 'wompi' and settings.CHECKOUT_MODE == 'pending':
+            from .wompi import verificar_configuracion
+            verificar_configuracion()
         try:
-            with transaction.atomic():
-                # 1. Asegurar que el total sea un número decimal válido
-                try:
-                    total = round(float(data.get('total', 0)), 2)
-                except (ValueError, TypeError):
-                    total = 0
-
-                # 2. Crear la Venta principal
-                venta = Venta.objects.create(
-                    usuario=request.user,
-                    total=total,
-                    novedades_turistas=novedades,
-                    estado='Completado'
-                )
-
-                # 3. Procesar cada ítem del carrito
-                for it in items:
-                    tipo = it.get('tipo')
-                    item_id = it.get('id')
-                    cantidad = int(it.get('cantidad', 1))
-                    
-                    try:
-                        precio_unitario = round(float(it.get('precio', 0)), 2)
-                    except (ValueError, TypeError):
-                        precio_unitario = 0
-
-                    if not item_id or item_id == 0:
-                        continue
-
-                    if tipo == 'producto':
-                        producto = Productos.objects.select_for_update().filter(pk=item_id).first()
-                        if not producto:
-                            raise ValueError(f"El producto con ID {item_id} no existe.")
-
-                        if producto.stock < cantidad:
-                             raise ValueError(f"Stock insuficiente para '{producto.nombre}'. Disponibles: {producto.stock}")
-
-                        producto.stock -= cantidad
-                        producto.save()
-                        
-                        Detalles_Venta.objects.create(
-                            venta=venta,
-                            producto=int(item_id),
-                            paquete=0,
-                            cantidad=cantidad,
-                            precio_unitario=precio_unitario,
-                            estado='Pendiente de Empaque'
-                        )
-
-                    elif tipo == 'paquete' or tipo == 'tour':
-                        paquete = PaqueteTuristico.objects.select_for_update().get(pk=item_id)
-                        
-                        # Determinar y validar la fecha de reserva
-                        from datetime import date, timedelta
-                        fecha_reserva_str = it.get('fecha_reserva')
-                        fecha_reserva = None
-
-                        if fecha_reserva_str:
-                            try:
-                                fecha_reserva = date.fromisoformat(fecha_reserva_str)
-                            except (ValueError, TypeError):
-                                pass
-
-                        if not fecha_reserva and paquete.tipo_paquete == 'fijo':
-                            fecha_reserva = paquete.fecha_realizacion
-
-                        if not fecha_reserva:
-                            raise ValueError(f"Debes seleccionar una fecha para el tour '{paquete.nombre}'.")
-
-                        # Validar antelación (7 días mínimo)
-                        fecha_minima = date.today() + timedelta(days=7)
-                        if fecha_reserva < fecha_minima and paquete.tipo_paquete == 'flexible':
-                            raise ValueError(f"La fecha de '{paquete.nombre}' debe ser al menos 7 días a futuro.")
-
-                        # Validar cupos disponibles
-                        from .serializers import calcular_cupos_disponibles
-                        cupos = calcular_cupos_disponibles(paquete, fecha_reserva)
-                        if cupos < cantidad:
-                            raise ValueError(f"No hay cupos suficientes para '{paquete.nombre}' en la fecha {fecha_reserva}. Disponibles: {cupos}.")
-
-                        Detalles_Venta.objects.create(
-                            venta=venta,
-                            producto=0,
-                            paquete=int(item_id),
-                            cantidad=cantidad,
-                            precio_unitario=precio_unitario,
-                            estado='Confirmado'
-                        )
-
-                        ReservaFecha.objects.create(
-                            paquete=paquete,
-                            venta=venta,
-                            fecha=fecha_reserva,
-                            cantidad=cantidad
-                        )
-
-                # 4. Vaciar el Carrito SOLO si todo lo anterior fue exitoso
-                carrito = Carrito.objects.filter(usuario=request.user, status=True).first()
-                if carrito:
-                    Items.objects.filter(carrito=carrito).delete()
-
-            # Fuera del bloque atomic, si llegamos aquí es que todo se guardó correctamente
-            return Response({
-                'exito': True, 
-                'mensaje': 'Pago procesado exitosamente.',
-                'venta_id': venta.id
-            }, status=status.HTTP_201_CREATED)
-
-        except ValueError as ve:
-            return Response({'error': str(ve)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            logger.critical(f"CRITICAL ERROR EN PAGO: {str(e)}")
-            return Response({
-                'error': 'Error interno al procesar el pago.',
-                'detalle': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            venta, created = procesar_compra(request.user, request.data)
+        except ValidationError:
+            raise
+        except Exception:
+            logger.error('No se pudo procesar la compra')
+            return Response({'error': 'Error interno al procesar la compra.'}, status=500)
+        enlace = None
+        if settings.PAYMENT_PROVIDER == 'wompi' and venta.ambiente_pago:
+            from .wompi import checkout_url
+            enlace = checkout_url(venta)
+        return Response({'exito': True, 'checkout_url': enlace, 'venta_id': venta.pk, 'total': str(venta.total),
+                         'moneda': venta.moneda, 'estado_pago': venta.estado_pago,
+                         'mensaje': 'Demostración sin cobro real.' if venta.estado_pago == 'Simulado' else 'Pedido pendiente de confirmación de pago.'},
+                        status=201 if created else 200)
 
 
 class MisReservasView(APIView):
+    permission_classes = [IsTurista]
     """
     GET /api/mis-reservas/
     Devuelve todas las reservas de paquetes turísticos del turista autenticado.
     Cada ítem incluye estado semántico: 'Confirmado', 'Cancelado' o 'Realizado'.
     """
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         from datetime import date as date_type
@@ -1765,85 +1696,34 @@ class MisReservasView(APIView):
 
             return Response(resultado, status=status.HTTP_200_OK)
 
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            logger.error(f"ERROR EN MisReservasView: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error('Error interno de operación')
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CancelarReservaView(APIView):
+    permission_classes = [IsTurista]
     """
     PATCH /api/mis-reservas/<pk>/cancelar/
     Cancela una reserva de paquete turístico del turista autenticado.
     Si la fecha de actividad es 8 o más días a futuro, restaura los cupos
     eliminando el registro ReservaFecha correspondiente.
     """
-    permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
-        from datetime import date as date_type, timedelta
-        try:
-            if not Turista.objects.filter(pk=request.user.pk).exists():
-                return Response({'error': 'Acceso restringido a turistas.'}, status=status.HTTP_403_FORBIDDEN)
-
-            detalle = get_object_or_404(Detalles_Venta, pk=pk, venta__usuario=request.user)
-
-            if detalle.paquete == 0:
-                return Response({'error': 'Este ítem no es una reserva de paquete.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            if detalle.estado == 'Cancelado':
-                return Response({'error': 'Esta reserva ya fue cancelada anteriormente.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            paquete = PaqueteTuristico.objects.filter(pk=detalle.paquete).first()
-            if not paquete:
-                return Response({'error': 'No se encontró el paquete turístico asociado.'}, status=status.HTTP_404_NOT_FOUND)
-
-            hoy = date_type.today()
-            cupos_restaurados = False
-
-            reserva_fecha = ReservaFecha.objects.filter(
-                paquete=paquete,
-                venta=detalle.venta
-            ).first()
-
-            if reserva_fecha:
-                dias_diferencia = (reserva_fecha.fecha - hoy).days
-                if dias_diferencia >= 8:
-                    # No eliminamos ReservaFecha para mantener visibilidad en la logística de la agencia
-                    cupos_restaurados = True
-
-            detalle.estado = 'Cancelado'
-            detalle.save()
-
-            venta = detalle.venta
-            todos_cancelados = not Detalles_Venta.objects.filter(
-                venta=venta,
-                paquete__gt=0
-            ).exclude(estado='Cancelado').exists()
-            if todos_cancelados:
-                venta.estado = 'Cancelado'
-                venta.save()
-
-            mensaje = 'Reserva cancelada exitosamente.'
-            if cupos_restaurados:
-                mensaje += ' Los cupos han sido restaurados para la fecha de la actividad.'
-
-            return Response({
-                'exito': True,
-                'cupos_restaurados': cupos_restaurados,
-                'mensaje': mensaje,
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            logger.error(f"ERROR EN CancelarReservaView: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        from .operaciones_pedidos import cancelar_tour
+        cancelar_tour(pk, request.user)
+        return Response({'exito': True, 'cupos_restaurados': True, 'mensaje': 'Reserva cancelada. La devolución monetaria requiere conciliación.'})
 
 
 class GestionLogisticaAgenciaAPIView(APIView):
+    permission_classes = [IsAgencia]
     """
     GET /api/agencia/gestion-logistica/
     Retorna la data logística específica para Agencias (Tours).
     """
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
@@ -2033,16 +1913,18 @@ class GestionLogisticaAgenciaAPIView(APIView):
                 'rechazadosAgrupados': rechazados_agrupados,
                 'cancelaciones': cancelaciones_list
             }, status=status.HTTP_200_OK)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            logger.error(f"Error en GestionAgenciaLogisticaAPIView: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error('Error interno de operación')
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GestionLogisticaProveedorAPIView(APIView):
+    permission_classes = [IsProveedor]
     """
     GET /api/proveedor/gestion-logistica/
     Retorna la data logística específica para Proveedores (Productos).
     """
-    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
@@ -2148,107 +2030,59 @@ class GestionLogisticaProveedorAPIView(APIView):
                 'rechazadosAgrupados': rechazados_agrupados,
                 'cancelaciones': cancelaciones_list
             }, status=status.HTTP_200_OK)
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            logger.error(f"Error en GestionProveedorLogisticaAPIView: {e}")
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error('Error interno de operación')
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class GestionAnularReservaAgenciaAPIView(APIView):
+    permission_classes = [IsAgencia]
     """
     POST /api/agencia/gestion-logistica/anular/
     Una agencia anula una reserva de tour.
     """
-    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        detalle_id = request.data.get('id_detalle')
-        if not detalle_id:
-            return Response({'error': 'ID de detalle no proporcionado.'}, status=status.HTTP_400_BAD_REQUEST)
+        from .operaciones_pedidos import cancelar_tour
+        detalle = cancelar_tour(request.data.get('id_detalle'), request.user, agencia=True)
+        return Response({'mensaje': 'Reserva rechazada.', 'estado': detalle.estado})
 
-        try:
-            detalle = get_object_or_404(Detalles_Venta, pk=detalle_id)
-            if detalle.paquete <= 0:
-                return Response({'error': 'El detalle no corresponde a un paquete.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            es_dueno = PaqueteTuristico.objects.filter(pk=detalle.paquete, agencia_id=request.user.pk).exists()
-            if not es_dueno:
-                return Response({'error': 'No tienes permiso para anular esta venta.'}, status=status.HTTP_403_FORBIDDEN)
-
-            detalle.estado = 'Rechazado'
-            detalle.save()
-            return Response({'mensaje': 'Reserva rechazada correctamente.'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GestionAnularReservaProveedorAPIView(APIView):
+    permission_classes = [IsProveedor]
     """
     POST /api/proveedor/gestion-logistica/anular/
     Un proveedor anula una venta de producto.
     """
-    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        detalle_id = request.data.get('id_detalle')
-        if not detalle_id:
-            return Response({'error': 'ID de detalle no proporcionado.'}, status=status.HTTP_400_BAD_REQUEST)
+        from .operaciones_pedidos import cambiar_producto
+        detalle = cambiar_producto(request.data.get('id_detalle'), request.user, 'Rechazado', proveedor=True)
+        return Response({'mensaje': 'Estado actualizado.', 'estado': detalle.estado})
 
-        try:
-            detalle = get_object_or_404(Detalles_Venta, pk=detalle_id)
-            if detalle.producto <= 0:
-                return Response({'error': 'El detalle no corresponde a un producto.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            es_dueno = Productos.objects.filter(pk=detalle.producto, proveedor_id=request.user.pk).exists()
-            if not es_dueno:
-                return Response({'error': 'No tienes permiso para anular esta venta.'}, status=status.HTTP_403_FORBIDDEN)
-
-            prod = Productos.objects.filter(pk=detalle.producto).first()
-            if prod:
-                prod.stock += detalle.cantidad
-                prod.save()
-
-            detalle.estado = 'Rechazado'
-            detalle.save()
-            return Response({'mensaje': 'Venta de producto rechazada correctamente.'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GestionActualizarEstadoPedidoAPIView(APIView):
+    permission_classes = [IsProveedor]
     """
     POST /api/proveedor/gestion-logistica/actualizar-estado/
     Un proveedor actualiza el estado de un pedido (envío).
     """
-    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        detalle_id = request.data.get('id_detalle')
-        nuevo_estado = request.data.get('estado')
-        
-        if not detalle_id or not nuevo_estado:
-            return Response({'error': 'ID de detalle y nuevo estado son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            detalle = get_object_or_404(Detalles_Venta, pk=detalle_id)
-            if detalle.producto <= 0:
-                 return Response({'error': 'El detalle no corresponde a un producto.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            es_dueno = Productos.objects.filter(pk=detalle.producto, proveedor_id=request.user.pk).exists()
-            if not es_dueno:
-                return Response({'error': 'No tienes permiso para actualizar este pedido.'}, status=status.HTTP_403_FORBIDDEN)
-
-            detalle.estado = nuevo_estado
-            detalle.save()
-            return Response({'mensaje': f'Estado actualizado a {nuevo_estado} correctamente.'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        from .operaciones_pedidos import cambiar_producto
+        detalle = cambiar_producto(request.data.get('id_detalle'), request.user, request.data.get('estado'), proveedor=True)
+        return Response({'mensaje': 'Estado actualizado.', 'estado': detalle.estado})
 
 
 class MisProductosTuristaView(APIView):
+    permission_classes = [IsComprador]
     """
     GET /api/mis-productos/
     Devuelve todos los pedidos de productos del turista/usuario autenticado.
     Aplica la misma simulación de estados en tiempo real que el panel del proveedor.
     """
-    permission_classes = [IsAuthenticated]
 
     STATE_TIMELINE = [
         ('Pendiente de Empaque', 0),
@@ -2365,95 +2199,59 @@ class MisProductosTuristaView(APIView):
 
             return Response(result, status=status.HTTP_200_OK)
 
+        except (Http404, APIException):
+            raise
         except Exception as e:
-            logger.error(f'ERROR MisProductosTuristaView: {e}')
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error('Error interno de operación')
+            return Response({'error': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class SolicitarDevolucionAPIView(APIView):
+    permission_classes = [IsComprador]
     """
     POST /api/mis-productos/devolucion/
     Permite al turista solicitar la devolución de un producto entregado.
     """
-    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        id_detalle = request.data.get('id_detalle')
-        if not id_detalle:
-            return Response({'error': 'ID de detalle requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        from .operaciones_pedidos import cambiar_producto
+        detalle = cambiar_producto(request.data.get('id_detalle'), request.user, 'Devuelto', proveedor=False)
+        return Response({'mensaje': 'Estado actualizado.', 'estado': detalle.estado})
 
-        try:
-            detalle = get_object_or_404(Detalles_Venta, pk=id_detalle, venta__usuario=request.user)
-            
-            if detalle.estado != 'Entregado':
-                return Response({'error': f'No se puede devolver un producto en estado: {detalle.estado}. Solo permitido para "Entregado".'}, status=status.HTTP_400_BAD_REQUEST)
-
-            detalle.estado = 'Devuelto'
-            detalle.save(update_fields=['estado'])
-
-            return Response({'message': 'Devolución procesada correctamente.'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class CancelarPedidoTuristaAPIView(APIView):
+    permission_classes = [IsComprador]
     """
     POST /api/mis-productos/cancelar/
     Permite al turista cancelar un pedido que está en 'Pendiente de Empaque'.
     """
-    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        id_detalle = request.data.get('id_detalle')
-        if not id_detalle:
-            return Response({'error': 'ID de detalle requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        from .operaciones_pedidos import cambiar_producto
+        detalle = cambiar_producto(request.data.get('id_detalle'), request.user, 'Cancelado', proveedor=False)
+        return Response({'mensaje': 'Estado actualizado.', 'estado': detalle.estado})
 
-        try:
-            # Buscamos el detalle asegurando que sea del usuario autenticado
-            detalle = get_object_or_404(Detalles_Venta, pk=id_detalle, venta__usuario=request.user)
-            
-            # Solo se puede cancelar si está en empaque
-            if detalle.estado != 'Pendiente de Empaque':
-                return Response({'error': f'No se puede cancelar un pedido en estado: {detalle.estado}. Solo permitido para "Pendiente de Empaque".'}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Devolvemos el stock al producto
-            prod = Productos.objects.filter(pk=detalle.producto).first()
-            if prod:
-                prod.stock += detalle.cantidad
-                prod.save()
-
-            # Cambiamos estado
-            detalle.estado = 'Cancelado'
-            detalle.save(update_fields=['estado'])
-
-            return Response({'message': 'Pedido cancelado correctamente y stock devuelto.'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class GestionAnularSalidaAgenciaAPIView(APIView):
+    permission_classes = [IsAgencia]
     """
     POST /api/agencia/gestion-logistica/anular-salida/
     Anula todas las reservas de un paquete en una fecha específica.
     """
-    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        paquete_id = request.data.get('paquete_id')
-        fecha = request.data.get('fecha')
-
-        if not paquete_id or not fecha:
-            return Response({'error': 'Paquete y fecha son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
-
+        from .operaciones_pedidos import cancelar_tour
+        from rest_framework.exceptions import ValidationError
+        from datetime import date
         try:
-            paquete = get_object_or_404(PaqueteTuristico, pk=paquete_id, agencia_id=request.user.pk)
-            reservas_fecha = ReservaFecha.objects.filter(paquete=paquete, fecha=fecha)
-            
-            if not reservas_fecha.exists():
-                return Response({'error': 'No hay reservas para esta fecha.'}, status=status.HTTP_404_NOT_FOUND)
-
-            ventas_ids = reservas_fecha.values_list('venta_id', flat=True)
-            detalles = Detalles_Venta.objects.filter(venta_id__in=ventas_ids, paquete=paquete_id).exclude(estado='Rechazado').exclude(estado='Cancelado')
-            
-            count = detalles.count()
-            detalles.update(estado='Rechazado')
-
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            fecha = date.fromisoformat(request.data.get('fecha', ''))
+        except (ValueError, TypeError):
+            raise ValidationError({'error': 'Fecha inválida.'})
+        paquete = get_object_or_404(PaqueteTuristico, pk=request.data.get('paquete_id'), agencia_id=request.user.pk)
+        ventas = ReservaFecha.objects.filter(paquete=paquete, fecha=fecha).values_list('venta_id', flat=True)
+        detalles = list(Detalles_Venta.objects.filter(venta_id__in=ventas, paquete=paquete.pk, estado='Confirmado').select_related('venta'))
+        with transaction.atomic():
+            for ident in sorted({request.user.pk} | {d.venta.usuario_id for d in detalles}):
+                Usuario.objects.select_for_update().get(pk=ident)
+            for detalle in detalles:
+                cancelar_tour(detalle.pk, request.user, agencia=True)
+        return Response({'mensaje': 'Salida anulada.', 'reservas': len(detalles)})

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from decimal import Decimal
 from .models import Productos, ProductoImagen, Proveedor, Detalles_Venta
 from django.db.models import Sum
 
@@ -26,11 +27,7 @@ class ProductoSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
-    proveedor = serializers.PrimaryKeyRelatedField(
-        queryset=Proveedor.objects.all(),
-        write_only=True,
-        required=False
-    )
+    proveedor = serializers.PrimaryKeyRelatedField(read_only=True)
     nombre_categoria = serializers.CharField(source='categorias.nombre', read_only=True)
     marca = serializers.SerializerMethodField()
     modelo = serializers.SerializerMethodField()
@@ -62,6 +59,7 @@ class ProductoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Productos
+        extra_kwargs = {'precio': {'min_value': Decimal('0.01')}, 'stock': {'min_value': 0}}
         fields = [
             'id', 'nombre', 'sku', 'caracteristicas', 'stock', 'precio', 
             'disponible', 'categorias', 'proveedor', 'tipo_catalogo', 'rating',

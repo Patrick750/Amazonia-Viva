@@ -26,7 +26,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'ortizpatrick750@gmail.com')
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 
 EMAIL_HOST_PASSWORD = os.environ.get('PASSWORD_CORREO') or os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = f"Amazonia Viva <{EMAIL_HOST_USER}>"
@@ -36,16 +36,27 @@ DEFAULT_FROM_EMAIL = f"Amazonia Viva <{EMAIL_HOST_USER}>"
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-9(2v#levi0=u6r#0%-#-^b6c7l%!jvkd2@t@+g+%8euuo=pi05')
+SECRET_KEY = config('SECRET_KEY')
+DEBUG = config('DEBUG', default=False, cast=bool)
+if not SECRET_KEY or (not DEBUG and len(SECRET_KEY) < 50):
+    raise ValueError('Configure una SECRET_KEY nueva de al menos 50 caracteres en producción.')
+CHECKOUT_MODE = config('CHECKOUT_MODE', default='disabled')
+if CHECKOUT_MODE not in {'disabled', 'pending', 'demo'}:
+    raise ValueError('CHECKOUT_MODE inválido')
+ALLOW_WITHDRAWALS = config('ALLOW_WITHDRAWALS', default=False, cast=bool)
+PAYMENT_PROVIDER = config('PAYMENT_PROVIDER', default='none')
+WOMPI_ENVIRONMENT = config('WOMPI_ENVIRONMENT', default='test')
+WOMPI_PUBLIC_KEY = config('WOMPI_PUBLIC_KEY', default='')
+WOMPI_PRIVATE_KEY = config('WOMPI_PRIVATE_KEY', default='')
+WOMPI_INTEGRITY_SECRET = config('WOMPI_INTEGRITY_SECRET', default='')
+WOMPI_EVENTS_SECRET = config('WOMPI_EVENTS_SECRET', default='')
+WOMPI_REDIRECT_URL = config('WOMPI_REDIRECT_URL', default='')
+if PAYMENT_PROVIDER not in {'none', 'wompi'} or WOMPI_ENVIRONMENT not in {'test', 'prod'}:
+    raise ValueError('Proveedor o ambiente de pagos inválido.')
 
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    'backend',                  
-    'api.adsoproject.dev',      
-    '.adsoproject.dev'
-]
+
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 # Configuración de paginación del catálogo
 CATALOGO_PAGE_SIZE = 20
@@ -68,10 +79,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular'
 ]
-cloudinary.config( 
-  cloud_name = config('CLOUDINARY_CLOUD_NAME', default="dv4oizzf1"), 
-  api_key = config('CLOUDINARY_API_KEY', default="281574654467419"), 
-  api_secret = config('CLOUDINARY_API_SECRET', default="JQVTkO9f3Fg71-fAaJowIevx2hc"),
+cloudinary.config(
+  cloud_name = config('CLOUDINARY_CLOUD_NAME', default=''),
+  api_key = config('CLOUDINARY_API_KEY', default=''),
+  api_secret = config('CLOUDINARY_API_SECRET', default=''),
   secure = True
 )
 
@@ -88,18 +99,20 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = ['*']
-CORS_ALLOW_METHODS = ['*']
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://amazoniaviva.adsoproject.dev"
-]
+
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173,http://127.0.0.1:5173').split(',')
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='').split(',') if config('CSRF_TRUSTED_ORIGINS', default='') else []
+SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 
 ROOT_URLCONF = 'amazoniaviva.urls'
@@ -125,14 +138,14 @@ WSGI_APPLICATION = 'amazoniaviva.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
+DATABASES = {'default': dj_database_url.parse(config('DATABASE_URL'))} if config('DATABASE_URL', default='') else {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB'),
-        'USER': os.environ.get('POSTGRES_USER'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST'),  # Apunta al servicio "db"
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'NAME': config('POSTGRES_DB', default='amazoniaviva'),
+        'USER': config('POSTGRES_USER', default='postgres'),
+        'PASSWORD': config('POSTGRES_PASSWORD', default=''),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
     }
 }
 
@@ -140,12 +153,15 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.IsAuthenticated',),
+    'DEFAULT_THROTTLE_RATES': {'credentials': '5/minute'},
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=2), # El usuario tendrá que loguearse cada 24 horas
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15), # El usuario tendrá que loguearse cada 24 horas
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': False,
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY, # Usa la clave secreta de tu proyecto para encriptar
     'AUTH_HEADER_TYPES': ('Bearer',),
@@ -207,7 +223,7 @@ LOGGING = {
     'loggers': {
         'autenticacion': {
             'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'WARNING',
             'propagate': False,
         },
         'django': {

@@ -1,4 +1,5 @@
 from django.urls import path
+from rest_framework_simplejwt.views import TokenRefreshView
 from . import views, vistas_reportes, vistas_liquidacion
 from .views import (
     RegistroAgencia, RegistroProveedor, VerificarEmail, RegistroTurista, 
@@ -9,6 +10,7 @@ from .views import (
     VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView,
     CuposDisponiblesView, MisReservasView, CancelarReservaView, DashboardKPIsView, CargaMasivaPaquetesAPIView
 )
+from .vistas_pagos import WompiWebhookView, EstadoPedidoView, CancelarPedidoPendienteView
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView, CargaMasivaProductosAPIView
 from .vistas_experiencias import (
     ExperienciasDashboardView, SubirEvidenciaView, DetalleFeedbackView,
@@ -16,6 +18,10 @@ from .vistas_experiencias import (
 )
 
 urlpatterns = [
+    path('venta/<int:pk>/cancelar/', CancelarPedidoPendienteView.as_view(), name='cancelar_pedido_pendiente'),
+    path('pagos/wompi/webhook/', WompiWebhookView.as_view(), name='wompi_webhook'),
+    path('venta/<int:pk>/estado/', EstadoPedidoView.as_view(), name='estado_pedido'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path("turista/experiencias/", MisExperienciasTuristaView.as_view(), name='mis_experiencias_turista'),
     path('signup/agencia/', RegistroAgencia.as_view(), name='signup_agencia'),
     path('signup/proveedor/', RegistroProveedor.as_view(), name='signup_proveedor'),

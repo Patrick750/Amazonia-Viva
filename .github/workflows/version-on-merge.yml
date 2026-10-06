@@ -1,0 +1,51 @@
+name: Version Bump on Merge
+
+on:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: version-bump-${{ github.ref }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  version-bump:
+    if: "!startsWith(github.event.head_commit.message, 'chore(version-bump):')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verificar automatización
+        run: python -m unittest discover -s tests -p 'test_versionamiento.py'
+      - name: Configurar identidad del bot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+      - name: Procesar commits y publicar versiones
+        id: version
+        env:
+          VERSION_BEFORE: ${{ github.event.before }}
+          VERSION_AFTER: ${{ github.event.after }}
+          VERSION_BRANCH: ${{ github.ref_name }}
+        run: >-
+          python scripts/versionamiento.py bump
+          --before "$VERSION_BEFORE" --after "$VERSION_AFTER"
+          --branch "$VERSION_BRANCH" --initial-version 5.0.0 --push
+      - name: Guardar referencia para despliegue
+        env:
+          VERSIONED_SHA: ${{ steps.version.outputs.sha }}
+        run: printf '%s\n' "$VERSIONED_SHA" > versioned-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: versioned-reference
+          path: versioned-sha.txt
+          retention-days: 7

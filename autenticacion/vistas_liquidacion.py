@@ -15,8 +15,16 @@ from decimal import Decimal
 
 from django.http import HttpResponse
 from django.db.models import Sum, Q
+from django.db import transaction
+from django.conf import settings
+from uuid import uuid4
+from rest_framework.exceptions import ValidationError
+from rest_framework import serializers
+from .permissions import IsEmpresa
 from django.utils import timezone
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
+from .schemas import RetiroRespuestaSerializer
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
@@ -29,7 +37,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-from .models import Venta, Detalles_Venta, Agencia, Proveedor, Productos, PaqueteTuristico, SolicitudRetiro
+from .models import Venta, Detalles_Venta, Agencia, Proveedor, Productos, PaqueteTuristico, SolicitudRetiro, Usuario, CambioEstadoRetiro
 
 # ─── Tasa de comisión de la plataforma (%) ────────────────────────────────────
 COMISION_PLATAFORMA = Decimal("8.00")   # 8 % sobre ventas brutas
@@ -70,7 +78,7 @@ def _calcular_saldos(user):
     estados_pendientes = ["Confirmado", "Enviado", "En Tránsito", "Pendiente de Empaque", "Procesando", "Pendiente"]
 
     # Filtrar ítems que pertenecen a esta empresa
-    qs_items = Detalles_Venta.objects.all()
+    qs_items = Detalles_Venta.objects.filter(venta__estado_pago='Pagado')
     if rol == "agencia":
         qs_items = qs_items.filter(paquete__in=item_ids)
     else:
@@ -92,12 +100,17 @@ def _calcular_saldos(user):
 
     neto_completado = bruto_completado - comision_completado
     neto_pendiente = bruto_pendiente - comision_pendiente
+    comprometido = SolicitudRetiro.objects.filter(usuario=user, estado__in=['Pendiente', 'Procesando', 'Pagado']).aggregate(total=Sum('monto'))['total'] or Decimal('0')
+    deuda = max(Decimal('0'), comprometido - neto_completado)
+    neto_completado = max(Decimal('0'), neto_completado - comprometido)
     saldo_total = neto_completado + neto_pendiente
 
     return {
-        "saldo_total": float(saldo_total),
-        "saldo_disponible": float(neto_completado),
-        "saldo_pendiente": float(neto_pendiente),
+        "saldo_total": saldo_total,
+        "saldo_comprometido": comprometido,
+        "saldo_por_recuperar": deuda,
+        "saldo_disponible": neto_completado,
+        "saldo_pendiente": neto_pendiente,
         "bruto_total": float(bruto_completado + bruto_pendiente),
         "comision_total": float(comision_completado + comision_pendiente),
         "comision_porcentaje": float(COMISION_PLATAFORMA),
@@ -136,9 +149,9 @@ def _build_movimientos(user, page=1, page_size=15, filtro_tipo=None,
 
     # Filtramos ventas que contengan ítems de este usuario
     if rol == "agencia":
-        qs_items = Detalles_Venta.objects.filter(paquete__in=item_ids)
+        qs_items = Detalles_Venta.objects.filter(paquete__in=item_ids, venta__estado_pago='Pagado')
     else:
-        qs_items = Detalles_Venta.objects.filter(producto__in=item_ids)
+        qs_items = Detalles_Venta.objects.filter(producto__in=item_ids, venta__estado_pago='Pagado')
 
     #IDs de ventas involucradas
     venta_ids = qs_items.values_list('venta_id', flat=True).distinct()
@@ -238,7 +251,7 @@ def _concepto_venta(venta):
 
 class LiquidacionSaldosView(APIView):
     """GET /api/liquidacion/saldos/ — Resumen de saldo de la billetera."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsEmpresa]
 
     def get(self, request):
         saldos = _calcular_saldos(request.user)
@@ -250,84 +263,53 @@ class LiquidacionSaldosView(APIView):
         return Response(saldos)
 
 
+class SolicitudRetiroSerializer(serializers.Serializer):
+    monto = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal('0.01'))
+    metodo = serializers.ChoiceField(choices=['transferencia_bancaria', 'nequi', 'daviplata'])
+    datos_bancarios = serializers.DictField(child=serializers.CharField(max_length=150), allow_empty=False)
+
+    def validate(self, attrs):
+        datos = attrs['datos_bancarios']
+        requeridos = ['cuenta', 'titular', 'numero']
+        if attrs['metodo'] == 'transferencia_bancaria':
+            requeridos += ['banco', 'tipo_cuenta']
+        if any(not datos.get(k, '').strip() for k in requeridos):
+            raise ValidationError({'datos_bancarios': 'Complete los datos del destinatario.'})
+        if attrs['metodo'] != 'transferencia_bancaria' and (not datos['cuenta'].isdigit() or len(datos['cuenta']) != 10):
+            raise ValidationError({'datos_bancarios': 'La billetera requiere un celular de 10 dígitos.'})
+        if attrs['metodo'] == 'transferencia_bancaria' and datos['tipo_cuenta'] not in ['ahorros', 'corriente']:
+            raise ValidationError({'datos_bancarios': 'Tipo de cuenta inválido.'})
+        return attrs
+
+
 class SolicitarRetiroView(APIView):
-    """POST /api/liquidacion/solicitar-retiro/ — Registrar solicitud de retiro."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsEmpresa]
 
+    @extend_schema(request=SolicitudRetiroSerializer, responses={201: RetiroRespuestaSerializer}, description='Reserva saldo pagado y completado bajo bloqueo del titular. Requiere ALLOW_WITHDRAWALS=true.')
     def post(self, request):
-        monto = request.data.get("monto")
-        metodo = request.data.get("metodo")
-        datos_bancarios = request.data.get("datos_bancarios", {})
-
-        # Validaciones básicas
-        if not monto or not metodo:
-            return Response(
-                {"error": "Los campos 'monto' y 'metodo' son requeridos."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            monto_decimal = Decimal(str(monto))
-        except Exception:
-            return Response(
-                {"error": "Monto inválido."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if monto_decimal <= 0:
-            return Response(
-                {"error": "El monto debe ser mayor a cero."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        saldos = _calcular_saldos(request.user)
-        if saldos is None:
-            return Response(
-                {"error": "No autorizado para realizar retiros."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        disponible = Decimal(str(saldos["saldo_disponible"]))
-        if monto_decimal > disponible:
-            return Response(
-                {
-                    "error": f"Saldo insuficiente. Disponible: ${float(disponible):,.0f} COP",
-                    "saldo_disponible": float(disponible),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        referencia = f"RET-{timezone.now().strftime('%Y%m%d%H%M%S')}-{request.user.pk}"
-
-        solicitud = SolicitudRetiro.objects.create(
-            usuario=request.user,
-            monto=monto_decimal,
-            metodo=metodo,
-            banco=datos_bancarios.get("banco", ""),
-            cuenta=datos_bancarios.get("cuenta", ""),
-            tipo_cuenta=datos_bancarios.get("tipo_cuenta", ""),
-            titular=datos_bancarios.get("titular", ""),
-            numero_documento=datos_bancarios.get("numero", ""),
-            referencia=referencia,
-            estado="Pendiente"
-        )
-
-        return Response(
-            {
-                "mensaje": "Solicitud de retiro registrada exitosamente.",
-                "referencia": solicitud.referencia,
-                "monto": float(solicitud.monto),
-                "metodo": solicitud.metodo,
-                "estado": solicitud.estado,
-                "estimado": _tiempo_estimado(solicitud.metodo),
-                "fecha_solicitud": solicitud.fecha_solicitud.isoformat(),
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        if not settings.ALLOW_WITHDRAWALS:
+            return Response({'error': 'Los retiros están suspendidos.'}, status=503)
+        serializer = SolicitudRetiroSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        with transaction.atomic():
+            Usuario.objects.select_for_update().get(pk=request.user.pk)
+            disponible = _calcular_saldos(request.user)['saldo_disponible']
+            if data['monto'] > Decimal(str(disponible)):
+                raise ValidationError({'error': 'Saldo insuficiente.'})
+            datos = data['datos_bancarios']
+            solicitud = SolicitudRetiro.objects.create(usuario=request.user, monto=data['monto'],
+                metodo=data['metodo'], banco=datos.get('banco', ''), cuenta=datos['cuenta'],
+                tipo_cuenta=datos.get('tipo_cuenta', ''), titular=datos['titular'],
+                numero_documento=datos['numero'], referencia=f'RET-{uuid4()}', estado='Pendiente')
+            CambioEstadoRetiro.objects.create(solicitud=solicitud, anterior='', nuevo='Pendiente', actor=request.user)
+        return Response({'mensaje': 'Solicitud registrada.', 'referencia': solicitud.referencia,
+            'monto': str(solicitud.monto), 'metodo': solicitud.metodo, 'estado': solicitud.estado,
+            'fecha_solicitud': solicitud.fecha_solicitud.isoformat()}, status=201)
 
 class RetirosView(APIView):
     """GET /api/liquidacion/retiros/ — Historial de retiros."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsEmpresa]
 
     def get(self, request):
         retiros = SolicitudRetiro.objects.filter(usuario=request.user).order_by("-fecha_solicitud")
@@ -358,7 +340,7 @@ def _tiempo_estimado(metodo):
 
 class MovimientosView(APIView):
     """GET /api/liquidacion/movimientos/ — Historial de movimientos paginado."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsEmpresa]
 
     def get(self, request):
         page = int(request.query_params.get("page", 1))
@@ -380,7 +362,7 @@ class MovimientosView(APIView):
 
 class ExportarMovimientosView(APIView):
     """GET /api/liquidacion/exportar/ — Exportar historial en formato CSV, XLS o PDF."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsEmpresa]
 
     def get(self, request):
         filtro_tipo = request.query_params.get("tipo", "todos")

@@ -1,0 +1,32 @@
+name: Lint PR Commits
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-commits:
+    name: Validate PR Commit Format & Coherence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verificar automatización
+        run: python -m unittest discover -s tests -p 'test_versionamiento.py'
+      - name: Validar commits y coherencia semántica
+        env:
+          VERSION_BEFORE: ${{ github.event.pull_request.base.sha }}
+          VERSION_AFTER: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          python scripts/versionamiento.py lint
+          --before "$VERSION_BEFORE" --after "$VERSION_AFTER"

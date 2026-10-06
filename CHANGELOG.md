@@ -8,6 +8,33 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### Sin publicar — Automatización del versionamiento
+
+- **[Tooling]** Integración del esquema high/low/parch de Patrick750/versionamiento, con VERSION=5.0.0 como punto de partida y validación de commits en PR.
+- **[Baseline]** La primera ejecución registra el tag anotado v5.0.0 antes de los incrementos; el commit de prueba solicita 5.0.1 mediante parch [0.0.1].
+- **[Automation]** Incrementos por commit en main/master, tags anotados, prevención de duplicados en reintentos y publicación atómica de rama/tags.
+- **[Doc]** Sincronización automática de VERSION, package.json, lockfile, README y changelog; guía en documentacion/versionamiento.md.
+- **[Deployment]** El despliegue espera al workflow de versionado y utiliza su SHA final verificado.
+- **[Test]** Pruebas en repositorios temporales y remoto bare local; no se publicaron tags ni cambios al remoto real.
+
+### 5.0.0 — Seguridad de operaciones e integración con Wompi — 2026-10-06
+> Estado: cambios locales preparados; no desplegados. Versión mayor por cambios incompatibles en autenticación, contratos de compra y estados de pago.
+
+- **[Security] Autorización**: Autenticación por defecto, permisos reutilizables por rol y comprobación de propietario en paquetes, productos, reservas, evidencias, feedback, reportes y liquidaciones. Los propietarios no pueden reasignarse desde el cliente; las bajas de paquetes/productos conservan el historial.
+- **[Security] Cuentas y sesiones**: Validación de contraseñas en registro, límite de intentos compartido en PostgreSQL, acceso JWT de 15 minutos, renovación con rotación y revocación, y cierre de sesión con comprobación del titular del token.
+- **[Fix] Integridad de compras**: Precios y tarifa ecológica calculados en el servidor con Decimal; validación estricta de cantidades, artículos, disponibilidad, fechas y cupos; transacciones y bloqueos de inventario; UUID y huella de operación para evitar ventas duplicadas. Las compras parciales conservan el resto del carrito.
+- **[Feature] Wompi**: Checkout alojado con firma de integridad y referencia única; webhook con checksum verificado y consulta autenticada a la API privada para contrastar referencia, importe, moneda y estado. Las notificaciones repetidas no duplican efectos y los pagos de sandbox se identifican como simulados.
+- **[Feature] Ciclo del pedido**: Estados de pedido/pago separados, consulta privada de estado, cancelación completa de pedidos pendientes y vencimiento con liberación idempotente de stock/cupos. Las aprobaciones posteriores a la liberación quedan en revisión; las anulaciones verificadas eliminan el respaldo liquidable.
+- **[Fix] Retiros**: Saldo respaldado exclusivamente por ventas pagadas; descuento de retiros pendientes, procesando y pagados; validación de monto/método/destinatario, bloqueo del titular, referencias únicas y transiciones auditadas. Rechazar o cancelar una solicitud libera su reserva.
+- **[UI] Checkout y autenticación**: Retirada de captura y almacenamiento de tarjetas/CVV; enlaces a Wompi, consulta/cancelación de pedidos pendientes, mensajes de pago confirmado o simulado y renovación automática de tokens. El retorno del navegador no confirma pagos.
+- **[Security] Configuración y despliegue**: Eliminación de secretos incrustados y exigencia de SECRET_KEY válida, CORS restringido, HTTPS/cookies/HSTS y exclusión de archivos de entorno de las imágenes. Compras/retiros bloqueados por defecto; seeding de demostración fuera del despliegue y limitado a entornos de demo.
+- **[Automation] Verificación y operación**: Verificaciones previas al despliegue en GitHub y build.sh con base de pruebas aislada; comandos de expiración, auditoría histórica, invalidación de sesiones y cambios de estado de retiros.
+- **[Migration] Base de datos**: Migraciones 0014 y 0015 para idempotencia, estados de pago, referencias únicas, intentos de credenciales y evidencia/auditoría. Las ventas históricas reciben pago Pendiente hasta su conciliación; 0015 genera una referencia distinta por venta.
+- **[Test] Validación**: 62 pruebas pasaron en PostgreSQL, incluyendo compras, cupos, reintentos, retiros y webhooks concurrentes. Compilación del frontend y comprobación de seguridad de Django satisfactorias; migraciones, respaldo/restauración y reversión/reaplicación verificadas con datos ficticios.
+- **[Doc] Operación y pendientes**: Documentación en [seguridad-implementada.md](documentacion/seguridad-implementada.md) y ejemplo de entorno. Antes de habilitar producción: configurar claves/webhook de Wompi y validar sandbox de extremo a extremo, rotar credenciales expuestas, depurar historial compartido, reconciliar operaciones antiguas y programar expiración. Reembolsos fuera de VOIDED y dispersiones bancarias requieren gestión del operador.
+
+**Cambios de compatibilidad:** La API exige autenticación salvo rutas públicas explícitas; POST de compra requiere `clave_operacion` UUID y cantidades/IDs enteros JSON. Los precios del navegador se ignoran y crear un pedido no equivale a pago confirmado. build.sh exige `TEST_DATABASE_URL` distinta de la base operativa; no inicia cuentas de prueba. Aplicar las migraciones y configurar el entorno antes de desplegar.
+
  ### 4.6.0 — Refactorización de Seguridad, Optimización y Observabilidad
  > Archivos: `settings.py`, `urls.py`, `views.py`, `requirements.txt`, `.env`, `CHANGELOG.md`
  

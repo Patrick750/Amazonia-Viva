@@ -5,6 +5,7 @@ from datetime import date
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsAgencia, IsProveedor
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import PaqueteTuristico, ReservaFecha, Detalles_Venta, Agencia, Productos
@@ -22,7 +23,7 @@ class ExportarManifiestoAgenciaAPIView(APIView):
     POST /api/agencia/gestion-logistica/exportar/
     Exporta el manifiesto de pasajeros para agencias.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgencia]
 
     def post(self, request):
         paquete_id = request.data.get('paquete_id')
@@ -120,7 +121,7 @@ class ExportarDespachoProveedorAPIView(APIView):
     POST /api/proveedor/gestion-logistica/exportar/
     Exporta el reporte de despacho para proveedores.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsProveedor]
 
     def post(self, request):
         producto_id = request.data.get('paquete_id') # Mantenemos el nombre del campo por compatibilidad con el front
@@ -209,7 +210,7 @@ class ExportarVentasGlobalesMensualAPIView(APIView):
     Exporta el reporte consolidado de TODAS las ventas del proveedor para un mes.
     Contiene registros en cualquier estado.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsProveedor]
 
     def post(self, request):
         mes = request.data.get('mes') # Formato YYYY-MM

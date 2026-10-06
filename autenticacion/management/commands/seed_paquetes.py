@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.core.management.base import CommandError
 import random
 import cloudinary.uploader
 from datetime import date, timedelta
@@ -11,6 +13,8 @@ class Command(BaseCommand):
     help = 'Seeds the PaqueteTuristico table with realistic data and real Cloudinary uploads.'
 
     def handle(self, *args, **options):
+        if not settings.DEBUG or settings.CHECKOUT_MODE != 'demo':
+            raise CommandError('Datos de demostración requieren DEBUG=true y CHECKOUT_MODE=demo en una base aislada.')
         self.stdout.write(self.style.SUCCESS("Iniciando sembrado de paquetes turísticos con carga a Cloudinary..."))
 
         # 1. Limpiar datos previos si es necesario (opcional, para evitar saturación de Cloudinary)
