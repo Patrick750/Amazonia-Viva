@@ -10,6 +10,7 @@
  
 ### 5.0.1 — 2026-10-06 — chore(versioning): parch [0.0.1] probar versionamiento desde 5.0.0
 
+- Autor del commit: AI Bot.
 - Commit de origen: `405f91c2ae3c73d0e8dde3b507c74e33c86e8216`. Versión calculada automáticamente desde VERSION.
 
 ### Sin publicar — Automatización del versionamiento

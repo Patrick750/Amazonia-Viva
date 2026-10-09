@@ -93,6 +93,24 @@ class GitIntegrationTests(unittest.TestCase):
         self.assertEqual(self.run_script('bump', after=after).returncode, 0)
         self.assertEqual(self.git('rev-parse', 'HEAD'), head)
 
+    def test_changelog_records_each_original_author_instead_of_version_bot(self):
+        self.env['GIT_AUTHOR_NAME'] = 'Ana Pérez'
+        first = self.commit('fix: parch [0.0.1] corregir acceso')
+        self.env['GIT_AUTHOR_NAME'] = 'Luis Gómez'
+        second = self.commit('fix: parch [0.0.1] corregir compra')
+        self.env['GIT_AUTHOR_NAME'] = 'github-actions[bot]'
+        result = self.run_script('bump', None, second)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        changelog = (self.root / 'CHANGELOG.md').read_text()
+        first_entry = changelog.split('### 5.0.1 —', 1)[1].split('### ', 1)[0]
+        second_entry = changelog.split('### 5.0.2 —', 1)[1].split('### ', 1)[0]
+        self.assertIn('Autor del commit: Ana Pérez.', first_entry)
+        self.assertIn(first, first_entry)
+        self.assertIn('Autor del commit: Luis Gómez.', second_entry)
+        self.assertIn(second, second_entry)
+        self.assertNotIn('github-actions[bot]', changelog)
+        self.assertEqual(self.git('show', '-s', '--format=%an', 'HEAD'), 'github-actions[bot]')
+
     def test_initial_release_starts_at_five_and_patch_is_idempotent(self):
         after = self.commit('chore(versioning): parch [0.0.1] probar automatización')
         result = self.run_script('bump', None, after, '--initial-version', '5.0.0')
