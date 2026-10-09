@@ -206,6 +206,27 @@ class GitIntegrationTests(unittest.TestCase):
         self.assertNotEqual(self.run_script('bump', before, after).returncode, 0)
         self.assertEqual(self.git('tag'), '')
 
+    def test_pr_lint_accepts_divergence_and_excludes_base_only_commits(self):
+        self.git('checkout', '-b', 'feature')
+        after = self.commit('fix: parch [0.0.1] corregir changelog')
+        self.git('checkout', 'main')
+        before = self.commit('fix: patch [1.0.0] declaración ajena al PR')
+        result = self.run_script('lint', before, after)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.git('checkout', 'feature')
+        invalid = self.commit('fix: patch [1.0.0] declaración inválida del PR')
+        result = self.run_script('lint', before, invalid)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(invalid[:7], result.stderr)
+        self.assertNotIn(before[:7], result.stderr)
+
+    def test_pr_lint_rejects_unrelated_histories(self):
+        self.git('checkout', '--orphan', 'unrelated')
+        after = self.commit('fix: parch [0.0.1] sin historia compartida')
+        result = self.run_script('lint', self.base, after)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('ancestro común', result.stderr)
+
     def test_merge_commit_preserves_individual_versions(self):
         self.git('checkout', '-b', 'feature')
         first = self.commit('feat: low [0.1.0] módulo')

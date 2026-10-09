@@ -23,7 +23,7 @@ Las palabras se aceptan sin distinguir mayúsculas. El número entre corchetes i
 ## Flujo
 
 1. Trabajar en una rama secundaria y declarar los incrementos en los commits que correspondan.
-2. Abrir PR a main/master. `Lint PR Commits` comprueba formato/coherencia; no recibe permisos de escritura ni credenciales Git persistidas.
+2. Abrir PR a main/master. `Lint PR Commits` comprueba formato/coherencia de los commits exclusivos de la rama del PR (`base..head`), permitiendo que main haya avanzado desde su creación, siempre que exista un ancestro común; no recibe permisos de escritura ni credenciales Git persistidas.
 3. Fusionar con **Create a merge commit** o **Rebase and merge**. No usar squash: elimina los commits individuales que deben versionarse.
 4. En la primera ejecución, se registra el tag anotado **v5.0.0** sobre el checkout inicial, antes de aplicar incrementos. Así el historial empieza en la versión existente; un commit `parch [0.0.1]` genera después **v5.0.1**. Si el tag ya existe, se conserva. Si falta pero VERSION ya avanzó, el proceso falla para evitar etiquetar una versión incorrecta.
 5. `Version Bump on Merge` obtiene before..after, ordena los commits de ancestros a descendientes y calcula cada incremento. Crea un commit `chore(version-bump)` y un tag anotado por origen.

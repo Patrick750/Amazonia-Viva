@@ -50,13 +50,17 @@ def increment(value, kind):
     return f'{major}.{minor}.{patch + 1}'
 
 
-def commits(before, after):
+def commits(before, after, for_pr=False):
     for sha in (before, after):
         if not re.fullmatch(r'[0-9a-fA-F]{40}', sha):
             raise ValueError('Los extremos del rango deben ser SHA completos')
     if set(before) == {'0'}:
         return git('rev-list', '--reverse', '--topo-order', after).splitlines()
-    if subprocess.run(['git', 'merge-base', '--is-ancestor', before, after], capture_output=True).returncode:
+    if for_pr:
+        # Un PR puede divergir de main. Excluir los commits que ya están en la base.
+        if subprocess.run(['git', 'merge-base', before, after], capture_output=True).returncode:
+            raise ValueError('Las ramas del PR no tienen un ancestro común')
+    elif subprocess.run(['git', 'merge-base', '--is-ancestor', before, after], capture_output=True).returncode:
         raise ValueError('before no es ancestro de after; revisar force-push antes de versionar')
     return git('rev-list', '--reverse', '--topo-order', f'{before}..{after}').splitlines()
 
@@ -169,7 +173,7 @@ def main():
             print(f'Versión consistente: {value}')
         elif args.mode == 'lint':
             errors = []
-            for sha in commits(args.before or '', args.after or ''):
+            for sha in commits(args.before or '', args.after or '', for_pr=True):
                 try:
                     keyword(git('show', '-s', '--format=%s', sha))
                 except ValueError as exc:
