@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.0.5 — 2026-10-09 — fix(versioning): parch [0.0.1] validar PR cuando la base ha avanzado
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `c78d40807262773501745b5dc065cd58bc5f3c56`. Versión calculada automáticamente desde VERSION.
+
 ### 5.0.4 — 2026-10-09 — fix(versioning): parch [0.0.1] registrar usuario de GitHub en changelog
 
 - Autor del commit: AI Bot.
