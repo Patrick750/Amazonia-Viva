@@ -8,6 +8,11 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.0.3 — 2026-10-09 — fix(config): parch [0.0.1] normalizar hosts y configurar origenes de produccion
+
+- Autor del commit: AI Bot.
+- Commit de origen: `275878a8b224d429f721d0ae3fdafe2aab9afbb4`. Versión calculada automáticamente desde VERSION.
+
 ### 5.0.2 — 2026-10-09 — fix(versioning): parch [0.0.1] registrar autor original en changelog
 
 - Autor del commit: AI Bot.
