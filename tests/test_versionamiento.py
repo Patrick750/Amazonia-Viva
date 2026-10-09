@@ -45,6 +45,7 @@ class GitIntegrationTests(unittest.TestCase):
         self.env = dict(os.environ, GIT_AUTHOR_NAME='Test', GIT_AUTHOR_EMAIL='test@example.test',
                         GIT_COMMITTER_NAME='Test', GIT_COMMITTER_EMAIL='test@example.test')
         self.env.pop('GITHUB_OUTPUT', None)
+        self.env.pop('VERSION_ACTOR', None)
         self.git('init', '-b', 'main')
         (self.root / 'VERSION').write_text('5.0.0\n')
         (self.root / 'README.md').write_text('# Proyecto\n\nVersión: **5.0.0**\n')
@@ -110,6 +111,25 @@ class GitIntegrationTests(unittest.TestCase):
         self.assertIn(second, second_entry)
         self.assertNotIn('github-actions[bot]', changelog)
         self.assertEqual(self.git('show', '-s', '--format=%an', 'HEAD'), 'github-actions[bot]')
+
+    def test_changelog_records_github_actor_separately_from_git_author(self):
+        self.env['GIT_AUTHOR_NAME'] = 'AI Bot'
+        after = self.commit('fix: parch [0.0.1] registrar usuario')
+        self.env['GIT_AUTHOR_NAME'] = 'github-actions[bot]'
+        self.env['VERSION_ACTOR'] = 'Patrick750'
+        result = self.run_script('bump', None, after)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        changelog = (self.root / 'CHANGELOG.md').read_text()
+        self.assertIn('Autor del commit: AI Bot.', changelog)
+        self.assertIn('Usuario de GitHub que inició el versionamiento: @Patrick750.', changelog)
+        self.assertNotIn('Autor del commit: github-actions[bot]', changelog)
+
+    def test_local_versioning_does_not_invent_github_user(self):
+        after = self.commit('fix: parch [0.0.1] prueba local')
+        result = self.run_script('bump', None, after)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Usuario de GitHub que inició el versionamiento: No disponible (ejecución local).',
+                      (self.root / 'CHANGELOG.md').read_text())
 
     def test_initial_release_starts_at_five_and_patch_is_idempotent(self):
         after = self.commit('chore(versioning): parch [0.0.1] probar automatización')

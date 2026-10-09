@@ -85,7 +85,10 @@ def sync_version(value, sha, subject):
     # Una entrada por origen. Se conserva el changelog detallado previo.
     title = subject.replace('<', '&lt;').replace('>', '&gt;')
     author = git('show', '-s', '--format=%an', sha).replace('<', '&lt;').replace('>', '&gt;')
-    entry = f'### {value} — {date} — {title}\n\n- Autor del commit: {author}.\n- Commit de origen: `{sha}`. Versión calculada automáticamente desde VERSION.\n\n'
+    actor = os.environ.get('VERSION_ACTOR', '').strip()
+    github_user = f'@{actor}' if actor else 'No disponible (ejecución local)'
+    github_user = github_user.replace('<', '&lt;').replace('>', '&gt;')
+    entry = f'### {value} — {date} — {title}\n\n- Autor del commit: {author}.\n- Usuario de GitHub que inició el versionamiento: {github_user}.\n- Commit de origen: `{sha}`. Versión calculada automáticamente desde VERSION.\n\n'
     text = changelog.read_text() if changelog.exists() else '# Changelog\n\n'
     position = re.search(r'^### ', text, re.M)
     index = position.start() if position else len(text)
