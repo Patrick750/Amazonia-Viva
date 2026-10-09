@@ -84,7 +84,8 @@ def sync_version(value, sha, subject):
     date = datetime.now(ZoneInfo('America/Bogota')).date().isoformat()
     # Una entrada por origen. Se conserva el changelog detallado previo.
     title = subject.replace('<', '&lt;').replace('>', '&gt;')
-    entry = f'### {value} — {date} — {title}\n\n- Commit de origen: `{sha}`. Versión calculada automáticamente desde VERSION.\n\n'
+    author = git('show', '-s', '--format=%an', sha).replace('<', '&lt;').replace('>', '&gt;')
+    entry = f'### {value} — {date} — {title}\n\n- Autor del commit: {author}.\n- Commit de origen: `{sha}`. Versión calculada automáticamente desde VERSION.\n\n'
     text = changelog.read_text() if changelog.exists() else '# Changelog\n\n'
     position = re.search(r'^### ', text, re.M)
     index = position.start() if position else len(text)
