@@ -8,6 +8,11 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.0.2 — 2026-10-09 — fix(versioning): parch [0.0.1] registrar autor original en changelog
+
+- Autor del commit: AI Bot.
+- Commit de origen: `b4cdefcea49490da2a5383b0590d47ec84e4a3cb`. Versión calculada automáticamente desde VERSION.
+
 ### 5.0.1 — 2026-10-06 — chore(versioning): parch [0.0.1] probar versionamiento desde 5.0.0
 
 - Autor del commit: AI Bot.
