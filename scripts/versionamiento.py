@@ -50,13 +50,17 @@ def increment(value, kind):
     return f'{major}.{minor}.{patch + 1}'
 
 
-def commits(before, after):
+def commits(before, after, for_pr=False):
     for sha in (before, after):
         if not re.fullmatch(r'[0-9a-fA-F]{40}', sha):
             raise ValueError('Los extremos del rango deben ser SHA completos')
     if set(before) == {'0'}:
         return git('rev-list', '--reverse', '--topo-order', after).splitlines()
-    if subprocess.run(['git', 'merge-base', '--is-ancestor', before, after], capture_output=True).returncode:
+    if for_pr:
+        # Un PR puede divergir de main. Excluir los commits que ya están en la base.
+        if subprocess.run(['git', 'merge-base', before, after], capture_output=True).returncode:
+            raise ValueError('Las ramas del PR no tienen un ancestro común')
+    elif subprocess.run(['git', 'merge-base', '--is-ancestor', before, after], capture_output=True).returncode:
         raise ValueError('before no es ancestro de after; revisar force-push antes de versionar')
     return git('rev-list', '--reverse', '--topo-order', f'{before}..{after}').splitlines()
 
@@ -85,7 +89,10 @@ def sync_version(value, sha, subject):
     # Una entrada por origen. Se conserva el changelog detallado previo.
     title = subject.replace('<', '&lt;').replace('>', '&gt;')
     author = git('show', '-s', '--format=%an', sha).replace('<', '&lt;').replace('>', '&gt;')
-    entry = f'### {value} — {date} — {title}\n\n- Autor del commit: {author}.\n- Commit de origen: `{sha}`. Versión calculada automáticamente desde VERSION.\n\n'
+    actor = os.environ.get('VERSION_ACTOR', '').strip()
+    github_user = f'@{actor}' if actor else 'No disponible (ejecución local)'
+    github_user = github_user.replace('<', '&lt;').replace('>', '&gt;')
+    entry = f'### {value} — {date} — {title}\n\n- Autor del commit: {author}.\n- Usuario de GitHub que inició el versionamiento: {github_user}.\n- Commit de origen: `{sha}`. Versión calculada automáticamente desde VERSION.\n\n'
     text = changelog.read_text() if changelog.exists() else '# Changelog\n\n'
     position = re.search(r'^### ', text, re.M)
     index = position.start() if position else len(text)
@@ -166,7 +173,7 @@ def main():
             print(f'Versión consistente: {value}')
         elif args.mode == 'lint':
             errors = []
-            for sha in commits(args.before or '', args.after or ''):
+            for sha in commits(args.before or '', args.after or '', for_pr=True):
                 try:
                     keyword(git('show', '-s', '--format=%s', sha))
                 except ValueError as exc:

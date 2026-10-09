@@ -36,6 +36,7 @@ jobs:
           VERSION_BEFORE: ${{ github.event.before }}
           VERSION_AFTER: ${{ github.event.after }}
           VERSION_BRANCH: ${{ github.ref_name }}
+          VERSION_ACTOR: ${{ github.actor }}
         run: >-
           python scripts/versionamiento.py bump
           --before "$VERSION_BEFORE" --after "$VERSION_AFTER"
