@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.0.4 — 2026-10-09 — fix(versioning): parch [0.0.1] registrar usuario de GitHub en changelog
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `150786f7a4b7cdfdd5a16bcfe992df278f570069`. Versión calculada automáticamente desde VERSION.
+
 ### 5.0.3 — 2026-10-09 — fix(config): parch [0.0.1] normalizar hosts y configurar origenes de produccion
 
 - Autor del commit: AI Bot.
