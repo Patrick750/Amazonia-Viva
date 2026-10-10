@@ -56,7 +56,7 @@ if PAYMENT_PROVIDER not in {'none', 'wompi'} or WOMPI_ENVIRONMENT not in {'test'
 
 
 
-ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',') if host.strip()]
+ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='localhost,127.0.0.1,api.adsoproject.dev').split(',') if host.strip()]
 
 # Configuración de paginación del catálogo
 CATALOGO_PAGE_SIZE = 20
@@ -105,12 +105,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173,http://127.0.0.1:5173').split(',')
+    for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173,http://127.0.0.1:5173,https://amazoniaviva.adsoproject.dev').split(',')
     if origin.strip()
 ]
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
-    for origin in config('CSRF_TRUSTED_ORIGINS', default='').split(',')
+    for origin in config('CSRF_TRUSTED_ORIGINS', default='https://api.adsoproject.dev,https://amazoniaviva.adsoproject.dev').split(',')
     if origin.strip()
 ]
 SECURE_SSL_REDIRECT = not DEBUG

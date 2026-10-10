@@ -116,3 +116,28 @@ Para revertir: detener escrituras, mantener bloqueos, restaurar backup verificad
 La revisión del historial alcanzable encontró cambios de credenciales incrustadas en settings en fce7974 y e99c488. Los valores se retiraron del árbol de trabajo; siguen en el historial. Rotarlos es obligatorio aunque después se limpie Git.
 
 La depuración del remoto requiere coordinación con sus colaboradores: hacer un mirror de respaldo, usar git-filter-repo con un archivo privado de reemplazos para todos los valores expuestos, revisar todas las ramas/tags, actualizar las referencias remotas coordinadamente y pedir nuevos clones. Revisar forks, caches, registros de CI y copias descargadas. No almacenar el archivo de reemplazos en Git. Esta operación y la rotación en Cloudinary/servidor no fueron ejecutadas: no se dispone de acceso autenticado a esos servicios y se preservó el historial compartido.
+
+## CORS de producción
+
+El frontend se publica en `https://amazoniaviva.adsoproject.dev` y consume el backend `https://api.adsoproject.dev`. Los valores predeterminados y `.env.example` permiten ese origen explícito; CORS continúa restringido.
+
+Las variables del `.env` del VPS prevalecen sobre los valores predeterminados. Configurar:
+
+```dotenv
+ALLOWED_HOSTS=localhost,127.0.0.1,api.adsoproject.dev
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://amazoniaviva.adsoproject.dev
+CSRF_TRUSTED_ORIGINS=https://api.adsoproject.dev,https://amazoniaviva.adsoproject.dev
+```
+
+Los orígenes incluyen `https://` y no llevan barra final. Después de actualizar el código y esas variables, reconstruir y recrear el backend con `docker compose up -d --build --force-recreate --no-deps backend`. Un simple restart no recarga el `env_file` de Compose.
+
+Verificar el preflight:
+
+```bash
+curl -i -X OPTIONS https://api.adsoproject.dev/autenticacion/login/ \
+  -H 'Origin: https://amazoniaviva.adsoproject.dev' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type,authorization'
+```
+
+La respuesta debe incluir `Access-Control-Allow-Origin: https://amazoniaviva.adsoproject.dev` y permitir los encabezados solicitados.
