@@ -8,9 +8,33 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
-### Sin publicar — CORS de producción
+### 5.0.6 — 2026-10-10 — fix(requirements): parch [0.0.1] dependecia faltante agregada
 
-- **[Fix]** Autorizar el frontend `https://amazoniaviva.adsoproject.dev` en CORS y CSRF, y el host del backend `api.adsoproject.dev`; actualizar `.env.example` y documentar la recreación del contenedor para aplicar el entorno del VPS.
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `b1cb4d6d3c9ce2dea931ef2345207e61be9cbb88`. Versión calculada automáticamente desde VERSION.
+
+### 5.0.5 — 2026-10-09 — fix(versioning): parch [0.0.1] validar PR cuando la base ha avanzado
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `c78d40807262773501745b5dc065cd58bc5f3c56`. Versión calculada automáticamente desde VERSION.
+
+### 5.0.4 — 2026-10-09 — fix(versioning): parch [0.0.1] registrar usuario de GitHub en changelog
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `150786f7a4b7cdfdd5a16bcfe992df278f570069`. Versión calculada automáticamente desde VERSION.
+
+### 5.0.3 — 2026-10-09 — fix(config): parch [0.0.1] normalizar hosts y configurar origenes de produccion
+
+- Autor del commit: AI Bot.
+- Commit de origen: `275878a8b224d429f721d0ae3fdafe2aab9afbb4`. Versión calculada automáticamente desde VERSION.
+
+### 5.0.2 — 2026-10-09 — fix(versioning): parch [0.0.1] registrar autor original en changelog
+
+- Autor del commit: AI Bot.
+- Commit de origen: `b4cdefcea49490da2a5383b0590d47ec84e4a3cb`. Versión calculada automáticamente desde VERSION.
 
 ### 5.0.1 — 2026-10-06 — chore(versioning): parch [0.0.1] probar versionamiento desde 5.0.0
 
