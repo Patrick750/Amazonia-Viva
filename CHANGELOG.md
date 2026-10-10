@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.0.6 — 2026-10-10 — fix(requirements): parch [0.0.1] dependecia faltante agregada
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `b1cb4d6d3c9ce2dea931ef2345207e61be9cbb88`. Versión calculada automáticamente desde VERSION.
+
 ### 5.0.5 — 2026-10-09 — fix(versioning): parch [0.0.1] validar PR cuando la base ha avanzado
 
 - Autor del commit: AI Bot.
