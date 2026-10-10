@@ -37,3 +37,4 @@ reportlab==4.1.0
 python-decouple
 django-ratelimit
 drf-spectacular
+chardet==5.2.0
