@@ -8,6 +8,10 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### Sin publicar — CORS de producción
+
+- **[Fix]** Autorizar el frontend `https://amazoniaviva.adsoproject.dev` en CORS y CSRF, y el host del backend `api.adsoproject.dev`; actualizar `.env.example` y documentar la recreación del contenedor para aplicar el entorno del VPS.
+
 ### 5.0.1 — 2026-10-06 — chore(versioning): parch [0.0.1] probar versionamiento desde 5.0.0
 
 - Autor del commit: AI Bot.
