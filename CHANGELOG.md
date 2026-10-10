@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.0.7 — 2026-10-10 — fix(cors): parch [0.0.1] autorizar frontend amazoniaviva.adsoproject.dev
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `cf33bd431dea119cb9593a5483e6025e25864813`. Versión calculada automáticamente desde VERSION.
+
 ### 5.0.6 — 2026-10-10 — fix(requirements): parch [0.0.1] dependecia faltante agregada
 
 - Autor del commit: AI Bot.
