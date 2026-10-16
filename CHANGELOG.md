@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.1.1 — 2026-10-16 — chore(deploy): parch [0.0.1] apuntar despliegue a rama MEJ-004
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `2f56d7850ccb459d55a73ce55cc0a4c06acc6451`. Versión calculada automáticamente desde VERSION.
+
 ### 5.1.0 — 2026-10-16 — feat(auth): low [0.1.0] rediseñar inicio de sesión y registro
 
 - Autor del commit: AI Bot.
