@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.1.2 — 2026-10-16 — fix(deploy): parch [0.0.1] activar despliegue de rama MEJ-004 por push
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `f08cb3cdb8c033ce991a0fedf548a2d78428a0ba`. Versión calculada automáticamente desde VERSION.
+
 ### 5.1.1 — 2026-10-16 — chore(deploy): parch [0.0.1] apuntar despliegue a rama MEJ-004
 
 - Autor del commit: AI Bot.
