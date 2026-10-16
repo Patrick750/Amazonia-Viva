@@ -11,7 +11,7 @@ Documento de trabajo que se actualizará con las necesidades indicadas por el us
 | MEJ-001 | PWA con registro GPS sin conexión, trazado asociado al paquete y acceso al recorrido para turistas con compra | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
 | MEJ-002 | Mejora UX del catálogo de paquetes y productos, onboarding por rol y recomendaciones personalizadas | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
 | MEJ-003 | Actualizar el registro de paquetes turísticos conforme al documento de referencia y mejorar su interfaz visual y de uso | Necesidad registrada; reglas por precisar y referencias normativas por verificar | Pendiente de comparar con las demás mejoras |
-| MEJ-004 | Rediseño UX de inicio de sesión y creación de cuenta utilizando la skill diseno-ux-web | Necesidad registrada; diseño por concretar | Pendiente de comparar con las demás mejoras |
+| MEJ-004 | Rediseño UX de inicio de sesión y creación de cuenta utilizando la skill diseno-ux-web | Implementado en la rama `codex/mej-004-auth-ux`; pendiente de revisión e integración | Prioridad ejecutada |
 
 ## MEJ-001. Recorridos GPS vinculados a paquetes turísticos
 
@@ -307,7 +307,7 @@ La definición de estos datos es una dependencia propuesta para la parte de MEJ-
 
 ### Objetivo y alcance confirmado
 
-Rediseñar la experiencia de inicio de sesión y creación de cuenta utilizando la skill [diseno-ux-web](/home/patrickortiz/.codex/skills/diseno-ux-web/SKILL.md). Se registra como parte de la planificación; todavía no se implementan cambios en las pantallas.
+Rediseñar la experiencia de inicio de sesión y creación de cuenta utilizando la skill [diseno-ux-web](/home/patrickortiz/.codex/skills/diseno-ux-web/SKILL.md). El rediseño quedó implementado en la rama `codex/mej-004-auth-ux` para su revisión e integración.
 
 | ID | Actor o contexto | Requisito |
 | --- | --- | --- |
@@ -340,25 +340,27 @@ La creación de cuenta debe enlazar con el onboarding correspondiente al rol seg
 3. Implementar el rediseño con los componentes y estilos apropiados del proyecto.
 4. Comprobar inicio de sesión, registro por rol, recuperación de errores y resultado visual en móvil y escritorio.
 
-### Decisiones pendientes
+### Decisiones de implementación y pendientes
 
-- Definir la dirección visual concreta y los componentes compartidos entre ambas pantallas.
-- Evaluar si el registro se beneficia de pasos y cómo se comporta al cambiar de rol.
+- Se adoptó un contenedor visual compartido, con una composición enfocada para autenticación y sin el encabezado ni el pie globales en esas dos rutas.
+- El registro se mantiene en una página y agrupa los datos en secciones. El selector accesible de rol cambia los campos específicos sin eliminar los valores ya diligenciados.
+- Se conservaron los endpoints, roles y campos existentes. Se añadieron estados visibles, ayudas, atributos de autocompletado y controles para mostrar las contraseñas.
 - Definir el destino posterior al registro y la transición al onboarding de MEJ-002.
 - Determinar si recuperación de contraseña o verificación de cuenta requieren una mejora separada; no se incorporan como funciones nuevas confirmadas en esta solicitud.
 
-### Validación propuesta
+### Validación realizada y pendiente
 
-- Las personas distinguen iniciar sesión de crear una cuenta y pueden navegar entre ambos flujos.
-- Los tres roles existentes presentan los campos y las validaciones que correspondan.
-- Los estados de envío, error y éxito son visibles y permiten continuar sin perder innecesariamente el trabajo.
-- Los flujos principales se comprueban con teclado y en móvil y escritorio, además de revisar el resultado renderizado.
-- El registro se integra con el onboarding conforme a las reglas que se definan para MEJ-002.
+- La compilación de producción del frontend finaliza correctamente con `npm run build`.
+- Se revisaron las pantallas renderizadas de inicio de sesión y registro en escritorio y en un viewport móvil de 390 × 844 píxeles.
+- Se comprobó en el navegador el cambio de turista a agencia y la actualización de sus campos y acción principal.
+- La estructura expone etiquetas, grupos, encabezados y controles de contraseña en el árbol de accesibilidad; queda pendiente una prueba formal con lector de pantalla.
+- Queda pendiente validar el registro e inicio de sesión completos contra el backend con cuentas de prueba, y conectar el registro con el onboarding cuando se implemente MEJ-002.
 
 ## Registro de decisiones
 
 | Fecha      | Registro                                                                          | Estado                          |
 | ---------- | --------------------------------------------------------------------------------- | ------------------------------- |
+| 2026-10-16 | Se implementa MEJ-004 en `codex/mej-004-auth-ux`: contenedor compartido, formularios rediseñados, selector por rol, estados de error y carga, mejoras de accesibilidad y adaptación móvil. | Implementado; pendiente de revisión e integración |
 | 2026-10-16 | Se registra MEJ-004: rediseño UX de inicio de sesión y creación de cuenta usando diseno-ux-web. Se documenta un brief inicial y su relación con el onboarding. | Necesidad confirmada; diseño propuesto por concretar |
 | 2026-10-16 | Se registra MEJ-001 a partir de la descripción del usuario.                      | Confirmado como necesidad       |
 | 2026-10-16 | Se propone un orden interno y se identifican preguntas para concretar el alcance. | Propuesta pendiente de precisar |

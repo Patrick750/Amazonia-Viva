@@ -1,28 +1,27 @@
 <script setup>
-import { ref } from 'vue';
-import clienteAxios from '@/api/axios';
-import { useRouter } from 'vue-router';
+import { ref } from 'vue'
+import clienteAxios from '@/api/axios'
+import AuthLayout from '@/components/auth/AuthLayout.vue'
 
-const router = useRouter()
 const cargando = ref(false)
+const mostrarPassword = ref(false)
+const errorCredenciales = ref('')
 
 const formulario = ref({
   email: '',
-  password: ''
-});
-
-const Redirigir = () => {
-  router.push(`/`)
-} 
-
-const errorCredenciales = ref('') 
+  password: '',
+})
 
 const procesarLogin = async () => {
+  if (cargando.value) return
+
   cargando.value = true
-  try{
-    const response = await clienteAxios.post('api/login/',{
-      email: formulario.value.email,
-      password: formulario.value.password
+  errorCredenciales.value = ''
+
+  try {
+    const response = await clienteAxios.post('api/login/', {
+      email: formulario.value.email.trim(),
+      password: formulario.value.password,
     })
 
     localStorage.setItem('token', response.data.access)
@@ -34,109 +33,123 @@ const procesarLogin = async () => {
     localStorage.setItem('nombre_agencia', response.data.usuario.nombre_agencia)
     localStorage.setItem('rol', response.data.usuario.group)
 
-    window.location.href = '/'
-    Redirigir()
-    
-  }catch(error){
-    errorCredenciales.value = 'Correo o contraseña incorrectas'
-    console.error('Hubo un error' + error)
-  }finally{
+    window.location.assign('/')
+  } catch (error) {
+    errorCredenciales.value = error.response
+      ? 'El correo o la contraseña no son correctos. Revisa los datos e inténtalo de nuevo.'
+      : 'No pudimos conectar con el servicio. Comprueba tu conexión e inténtalo de nuevo.'
+  } finally {
     cargando.value = false
   }
 }
 </script>
 
 <template>
-  <div 
-    class="min-h-screen flex items-center justify-center p-4 font-sans relative bg-cover bg-center bg-no-repeat"
-    style="background-image: url('/src/assets/public/IMG_2820.JPG')"
-  >
-    <div class="absolute inset-0 bg-black/30"></div>
-    
-    <div class="relative bg-white/70 backdrop-blur-lg border border-white/40 p-8 sm:p-10 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.15)] w-full max-w-[420px] transition-all">
-      
-      <div class="text-center mb-8">
-        <div class="bg-gradient-to-br from-teal-400 to-emerald-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg transform -rotate-3 hover:rotate-0 transition-transform duration-300">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-          </svg>
-        </div>
-        <h2 class="text-3xl font-bold text-gray-800 tracking-tight mb-2">Tu próximo viaje</h2>
-        <p class="text-sm text-gray-600 font-medium">Inicia sesión para planificar tu aventura</p>
-        
-        <div v-if="errorCredenciales" class="mt-4 p-3 bg-red-100/80 border border-red-200 text-red-600 rounded-xl text-sm font-semibold flex items-center justify-center space-x-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-          <span>{{ errorCredenciales }}</span>
-        </div>
-      </div>
+  <AuthLayout>
+    <header class="auth-heading">
+      <router-link to="/" class="back-link">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
+        Volver al inicio
+      </router-link>
+      <h1>Inicia sesión</h1>
+      <p>Accede a tu cuenta para continuar en Amazonia Viva.</p>
+    </header>
 
-      <form @submit.prevent="procesarLogin">
-        
-        <div class="mb-5 flex flex-col relative">
-          <label for="email" class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">Correo Electrónico</label>
-          <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-            </div>
-            <input 
-              type="email" 
-              id="email" 
-              v-model="formulario.email" 
-              placeholder="viajero@ejemplo.com" 
-              required 
-              class="w-full pl-11 pr-4 py-3.5 border border-white/50 rounded-xl bg-white/50 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white/80 transition-all placeholder-gray-500 shadow-sm"
-            />
-          </div>
-        </div>
-
-        <div class="mb-6 flex flex-col relative">
-          <label for="password" class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 ml-1">Contraseña</label>
-          <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            </div>
-            <input 
-              type="password" 
-              id="password" 
-              v-model="formulario.password" 
-              placeholder="••••••••" 
-              required 
-              class="w-full pl-11 pr-4 py-3.5 border border-white/50 rounded-xl bg-white/50 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white/80 transition-all placeholder-gray-500 shadow-sm"
-            />
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          :disabled="cargando"
-          class="w-full py-3.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-xl text-base font-bold tracking-wide transition-all duration-300 mt-2 flex items-center justify-center shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
-        >
-          <template v-if="!cargando">
-            Comenzar Viaje
-          </template>
-
-          <template v-else>
-            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Preparando maletas...
-          </template>
-        </button>
-      </form>
-
-      <div class="text-center mt-8 text-sm text-gray-700">
-        <p>¿Aún no eres parte del club? <br/>
-          <router-link to="/auth/signup" class="text-teal-700 font-bold hover:text-teal-500 transition-colors hover:underline underline-offset-4">Regístrate y viaja con nosotros</router-link>
-        </p>
-      </div>
-
+    <div v-if="errorCredenciales" id="login-error" class="form-alert" role="alert" aria-live="polite">
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v6m0 4h.01" />
+      </svg>
+      <span>{{ errorCredenciales }}</span>
     </div>
-  </div>
+
+    <form class="auth-form" @submit.prevent="procesarLogin">
+      <div class="field-group">
+        <label for="login-email">Correo electrónico</label>
+        <input
+          id="login-email"
+          v-model="formulario.email"
+          type="email"
+          name="email"
+          autocomplete="email"
+          inputmode="email"
+          placeholder="nombre@correo.com"
+          :aria-describedby="errorCredenciales ? 'login-error' : undefined"
+          required
+        />
+      </div>
+
+      <div class="field-group">
+        <label for="login-password">Contraseña</label>
+        <div class="password-field">
+          <input
+            id="login-password"
+            v-model="formulario.password"
+            :type="mostrarPassword ? 'text' : 'password'"
+            name="password"
+            autocomplete="current-password"
+            placeholder="Ingresa tu contraseña"
+            :aria-describedby="errorCredenciales ? 'login-error' : undefined"
+            required
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            :aria-label="mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            :aria-pressed="mostrarPassword"
+            @click="mostrarPassword = !mostrarPassword"
+          >
+            {{ mostrarPassword ? 'Ocultar' : 'Mostrar' }}
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="primary-action" :disabled="cargando">
+        <svg v-if="cargando" class="spinner" aria-hidden="true" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M21 12a9 9 0 0 0-9-9" />
+        </svg>
+        {{ cargando ? 'Ingresando…' : 'Iniciar sesión' }}
+      </button>
+    </form>
+
+    <p class="auth-switch">
+      ¿Aún no tienes una cuenta?
+      <router-link to="/auth/signup">Crear una cuenta</router-link>
+    </p>
+  </AuthLayout>
 </template>
 
-<style>
-/* Si deseas, el estilo está manejado enteramente con Tailwind, no necesitas CSS extra aquí */
+<style scoped>
+.auth-heading { margin-bottom: 30px; }
+.back-link { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 32px; color: #47604e; font-size: .88rem; font-weight: 700; text-decoration: none; }
+.back-link:hover { color: #17652d; text-decoration: underline; text-underline-offset: 4px; }
+.back-link:focus-visible, .auth-switch a:focus-visible { border-radius: 4px; outline: 3px solid rgba(45, 141, 65, .3); outline-offset: 3px; }
+.back-link svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.auth-heading h1 { margin: 0 0 10px; color: #13271a; font-size: clamp(2rem, 4vw, 2.65rem); font-weight: 800; line-height: 1.08; letter-spacing: -.035em; }
+.auth-heading p { margin: 0; color: #5a685e; font-size: .98rem; line-height: 1.6; }
+.auth-form { display: grid; gap: 20px; }
+.field-group { display: grid; gap: 8px; }
+.field-group label { color: #233e2a; font-size: .88rem; font-weight: 750; }
+.field-group input { width: 100%; min-height: 50px; border: 1px solid #cbd8ce; border-radius: 12px; background: #fbfcfb; padding: 0 14px; color: #17221a; font-size: 1rem; outline: none; transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease; }
+.field-group input::placeholder { color: #79867d; }
+.field-group input:hover { border-color: #9fb3a3; }
+.field-group input:focus { border-color: #2d8d41; background: #fff; box-shadow: 0 0 0 4px rgba(45, 141, 65, .13); }
+.password-field { position: relative; }
+.password-field input { padding-right: 84px; }
+.password-toggle { position: absolute; top: 50%; right: 7px; min-height: 36px; transform: translateY(-50%); border: 0; border-radius: 8px; background: transparent; padding: 0 9px; color: #246a35; font-size: .78rem; font-weight: 800; cursor: pointer; }
+.password-toggle:hover { background: #edf6ef; }
+.password-toggle:focus-visible, .primary-action:focus-visible { outline: 3px solid rgba(45, 141, 65, .32); outline-offset: 3px; }
+.primary-action { min-height: 52px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; border: 0; border-radius: 12px; background: #17652d; padding: 0 20px; color: #fff; font-size: .96rem; font-weight: 800; cursor: pointer; transition: background-color 160ms ease, transform 160ms ease; }
+.primary-action:hover:not(:disabled) { background: #104d22; transform: translateY(-1px); }
+.primary-action:disabled { cursor: wait; opacity: .72; }
+.spinner { width: 20px; height: 20px; animation: spin 750ms linear infinite; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; opacity: .9; }
+.spinner circle { opacity: .25; }
+.form-alert { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 22px; border: 1px solid #efc1bc; border-radius: 12px; background: #fff4f2; padding: 12px 14px; color: #8b2921; font-size: .88rem; line-height: 1.45; }
+.form-alert svg { flex: 0 0 auto; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.auth-switch { margin: 28px 0 0; color: #5a685e; font-size: .9rem; text-align: center; }
+.auth-switch a { margin-left: 4px; color: #17652d; font-weight: 800; text-decoration: none; }
+.auth-switch a:hover { text-decoration: underline; text-underline-offset: 4px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
 </style>
