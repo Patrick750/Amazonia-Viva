@@ -1,12 +1,15 @@
 name: Despliegue Automático Amazonia Viva
 
-# El commit del bot usa GITHUB_TOKEN y no genera otro push workflow.
-# Esperar al versionado y desplegar exactamente la referencia publicada.
+# Main espera el versionado y despliega su referencia publicada. La rama de
+# trabajo se despliega directamente porque el versionador solo opera en main.
 on:
   workflow_run:
     workflows: ['Version Bump on Merge']
     types: [completed]
     branches: [main]
+  push:
+    branches: [codex/mej-004-auth-ux]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,10 +23,12 @@ concurrency:
 jobs:
   verify:
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}
+      release_branch: ${{ steps.release.outputs.branch }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -46,6 +51,7 @@ jobs:
       ALLOW_WITHDRAWALS: 'false'
     steps:
       - uses: actions/download-artifact@v4
+        if: github.event_name == 'workflow_run'
         with:
           name: versioned-reference
           github-token: ${{ github.token }}
@@ -53,10 +59,24 @@ jobs:
           path: .versioned
       - name: Validar referencia publicada
         id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_SHA: ${{ github.sha }}
+          PUSH_BRANCH: ${{ github.ref_name }}
+          VERSIONED_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          VERSIONED_SHA=$(cat .versioned/versioned-sha.txt)
-          [[ "$VERSIONED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
-          printf 'sha=%s\n' "$VERSIONED_SHA" >> "$GITHUB_OUTPUT"
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            RELEASE_SHA=$(cat .versioned/versioned-sha.txt)
+            RELEASE_BRANCH="$VERSIONED_BRANCH"
+          else
+            RELEASE_SHA="$PUSH_SHA"
+            RELEASE_BRANCH="$PUSH_BRANCH"
+          fi
+
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ "$RELEASE_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] || exit 1
+          printf 'sha=%s\n' "$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+          printf 'branch=%s\n' "$RELEASE_BRANCH" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.release.outputs.sha }}
@@ -124,7 +144,7 @@ jobs:
         script: |
           # Asegúrate de que esta sea la ruta real en tu servidor VPS
           cd ~/Amazonia-Viva
-          git fetch origin main
+          git fetch origin ${{ needs.verify.outputs.release_branch }}
           git checkout --detach ${{ needs.verify.outputs.release_sha }}
           docker compose pull
           docker compose up -d --build
