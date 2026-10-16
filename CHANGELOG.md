@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.1.0 — 2026-10-16 — feat(auth): low [0.1.0] rediseñar inicio de sesión y registro
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `5bd723962d902f8a9c45c0cfbee1704adc8206ff`. Versión calculada automáticamente desde VERSION.
+
 ### 5.0.8 — 2026-10-10 — fix(merge): parch [0.0.1] arreglo de conflicto
 
 - Autor del commit: AI Bot.
