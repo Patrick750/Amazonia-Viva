@@ -6,7 +6,7 @@ on:
   workflow_run:
     workflows: ['Version Bump on Merge']
     types: [completed]
-    branches: [main]
+    branches: [codex/mej-004-auth-ux]
 
 permissions:
   contents: read
@@ -124,7 +124,7 @@ jobs:
         script: |
           # Asegúrate de que esta sea la ruta real en tu servidor VPS
           cd ~/Amazonia-Viva
-          git fetch origin main
+          git fetch origin codex/mej-004-auth-ux
           git checkout --detach ${{ needs.verify.outputs.release_sha }}
           docker compose pull
           docker compose up -d --build
