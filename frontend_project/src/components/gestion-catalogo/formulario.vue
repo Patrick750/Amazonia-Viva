@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, watch, ref, computed, nextTick } from 'vue';
+import { reactive, watch, ref, computed, nextTick, onBeforeUnmount } from 'vue';
 import { GuardarRegistro } from '@/composables/gestion-tours/create-pack';
 import { useNotificacion } from '@/composables/useNotificacion';
 import clienteAxios from '@/api/axios';
@@ -29,6 +29,8 @@ const fileInput = ref(null);
 const mapContainer = ref(null);
 let map = null;
 let marker = null;
+let bodyOverflowAnterior = '';
+let bloqueoScrollActivo = false;
 
 // --- NOTIFICACIÓN ---
 const { mostrarNotificacion } = useNotificacion();
@@ -86,6 +88,12 @@ const actividadesAventura = computed(() =>
 );
 const requiereCertificacion = computed(() => actividadesAventura.value.length > 0);
 const totalErrores = computed(() => Object.keys(errores).length);
+const camposOperacionCompletos = computed(() => [
+    newTour.requisitos_participantes,
+    newTour.condiciones_operacion,
+    newTour.medidas_seguridad,
+    newTour.informacion_sostenibilidad,
+].filter(valor => String(valor || '').trim()).length);
 const erroresCarga = reactive({ categorias: '', estandar: '' });
 const mensajesCarga = computed(() =>
     [props.errorDatos, erroresCarga.categorias, erroresCarga.estandar].filter(Boolean)
@@ -469,15 +477,34 @@ const toggleMapSize = async () => {
     }, 300);
 };
 
+const irASeleccionActividades = () => {
+    document.getElementById('tipos-actividad')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+    });
+};
+
 watch(() => props.abrir, async (estaAbierto) => {
     if (estaAbierto) {
+        if (!bloqueoScrollActivo) {
+            bodyOverflowAnterior = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            bloqueoScrollActivo = true;
+        }
         fetchCategorias();
         fetchEstandar();
         await nextTick();
         setTimeout(() => {
             initMap();
         }, 150);
+    } else if (bloqueoScrollActivo) {
+        document.body.style.overflow = bodyOverflowAnterior;
+        bloqueoScrollActivo = false;
     }
+}, { immediate: true });
+
+onBeforeUnmount(() => {
+    if (bloqueoScrollActivo) document.body.style.overflow = bodyOverflowAnterior;
 });
 
 // --- ENVÍO ---
@@ -546,17 +573,17 @@ const Enviar = async () => {
   <Teleport to="body">
     <!-- Overlay + Modal -->
     <div v-if="abrir"
-      class="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      class="fixed inset-0 z-[60] flex items-center justify-center overflow-hidden p-2 sm:p-4"
       @click.self="emit('cerrar')">
 
       <!-- Backdrop -->
       <div class="absolute inset-0 bg-black/85 backdrop-blur-md"></div>
 
       <!-- Modal Card -->
-      <div class="relative bg-[#0d2114] border border-white/10 rounded-[2rem] shadow-2xl w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden animate-fade-in-up">
+      <div class="relative flex max-h-[96dvh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0d2114] shadow-2xl animate-fade-in-up sm:max-h-[94vh] sm:rounded-[2rem]">
 
         <!-- === HEADER GRADIENTE === -->
-        <div class="bg-gradient-to-br from-emerald-600 to-emerald-900 px-8 py-7 flex-shrink-0 relative overflow-hidden">
+        <div class="relative flex-shrink-0 overflow-hidden bg-gradient-to-br from-emerald-600 to-emerald-900 px-5 py-6 sm:px-8 sm:py-7">
           <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/leaf.png')] opacity-10"></div>
           <div class="relative z-10 flex items-start justify-between gap-4">
             <div>
@@ -566,7 +593,7 @@ const Enviar = async () => {
                   {{ paquete ? 'Editando Tour' : 'Nuevo Tour' }}
                 </span>
               </div>
-              <h2 class="text-3xl font-black text-white leading-tight">
+              <h2 class="text-2xl font-black leading-tight text-white sm:text-3xl">
                 {{ paquete ? paquete.nombre : 'Configurar Experiencia' }}
               </h2>
               <p class="text-emerald-100/60 text-sm mt-1.5 font-medium italic">
@@ -597,8 +624,8 @@ const Enviar = async () => {
         </div>
 
         <!-- === CUERPO DEL FORMULARIO === -->
-        <div class="overflow-y-auto flex-1 form-scroll bg-[#0a1a0f]">
-          <form @submit.prevent="Enviar" class="p-8 sm:p-10 space-y-12">
+        <div class="form-scroll flex-1 overflow-x-hidden overflow-y-auto bg-[#0a1a0f]">
+          <form @submit.prevent="Enviar" class="space-y-8 p-5 sm:space-y-12 sm:p-10">
 
             <div v-if="totalErrores" data-form-error="true" role="alert" class="rounded-2xl border border-rose-400/30 bg-rose-400/10 p-5 text-sm text-rose-100">
               <p class="font-black">Faltan {{ totalErrores }} campos o secciones por revisar.</p>
@@ -830,7 +857,7 @@ const Enviar = async () => {
                 </div>
 
                 <!-- Checkboxes Actividades -->
-                <div>
+                <div id="tipos-actividad" class="scroll-mt-6">
                   <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-6 px-1">Tipos de Actividad <span class="text-emerald-500">*</span></label>
                   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <label v-for="actividad in actividadesDisponibles" :key="actividad.id"
@@ -857,69 +884,159 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 4: FICHA TÉCNICA Y SEGURIDAD ─── -->
-            <section>
-              <div class="flex items-center gap-4 mb-8">
-                <div class="w-10 h-10 rounded-2xl bg-sky-400/10 border border-sky-300/20 text-sky-200 text-sm font-black flex items-center justify-center flex-shrink-0">4</div>
-                <div>
-                  <h3 class="text-xs font-black text-white/50 uppercase tracking-[0.2em]">Dificultad, requisitos y seguridad</h3>
-                  <p class="mt-1 text-xs text-white/35">Completa una ficha por actividad. Los campos obligatorios aparecen cuando seleccionas turismo de aventura.</p>
-                </div>
-                <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
-              </div>
-
-              <div v-if="!actividadesSeleccionadas.length" class="rounded-2xl border border-dashed border-white/15 p-7 text-center text-sm text-white/40">
-                Selecciona actividades en la sección anterior para completar su ficha técnica.
-              </div>
-
-              <div v-else class="space-y-4">
-                <article v-for="actividad in actividadesSeleccionadas" :key="`ficha-${actividad.id}`" class="rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
-                  <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h4 class="font-black text-white">{{ actividad.nombre }}</h4>
-                      <p class="mt-1 text-xs text-white/40">Riesgo interno {{ actividad.nivel_riesgo }}/10<span v-if="actividad.sistema_dificultad"> · {{ actividad.sistema_dificultad }}</span></p>
-                    </div>
-                    <span v-if="actividad.norma_tecnica" class="rounded-full bg-sky-300/10 px-3 py-1.5 text-[10px] font-black text-sky-200">{{ actividad.norma_tecnica }}</span>
-                    <span v-else class="rounded-full bg-white/5 px-3 py-1.5 text-[10px] font-bold text-white/35">Sin escala normativa cargada</span>
+            <section aria-labelledby="titulo-seguridad" class="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
+              <div class="flex flex-col gap-5 border-b border-white/10 pb-6 sm:flex-row sm:items-start sm:justify-between">
+                <div class="flex items-start gap-4">
+                  <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-sky-300/25 bg-sky-300/10 text-sm font-black text-sky-200">4</div>
+                  <div>
+                    <h3 id="titulo-seguridad" class="text-lg font-black tracking-tight text-white">Dificultad, requisitos y seguridad</h3>
+                    <p class="mt-1 max-w-2xl text-sm leading-6 text-white/55">Describe cómo se realiza el tour, quién puede participar y qué medidas protegen al viajero.</p>
                   </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <span class="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 text-[11px] font-bold text-white/60">
+                    {{ actividadesSeleccionadas.length }} {{ actividadesSeleccionadas.length === 1 ? 'actividad' : 'actividades' }}
+                  </span>
+                  <span class="rounded-full border border-emerald-300/15 bg-emerald-300/[0.08] px-3 py-1.5 text-[11px] font-bold text-emerald-200">
+                    {{ camposOperacionCompletos }}/4 campos completos
+                  </span>
+                </div>
+              </div>
 
-                  <div class="mt-5 grid gap-4" :class="actividad.opciones_dificultad?.length ? 'md:grid-cols-2' : ''">
-                    <div v-if="actividad.opciones_dificultad?.length">
-                      <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Nivel técnico</label>
-                      <select v-model="fichaActividad(actividad).nivel" class="min-h-12 w-full rounded-xl border border-white/10 bg-[#102219] px-4 text-sm font-semibold text-white focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/20">
-                        <option value="">Selecciona un nivel…</option>
-                        <option v-for="opcion in actividad.opciones_dificultad" :key="opcion.value" :value="opcion.value">{{ opcion.label }}</option>
-                      </select>
+              <div class="pt-7">
+                <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h4 class="text-sm font-black text-white">Dificultad por actividad</h4>
+                    <p class="mt-1 text-xs leading-5 text-white/45">Usa la escala propia de cada actividad seleccionada.</p>
+                  </div>
+                  <router-link to="/estandar-paquetes" class="text-xs font-bold text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-300/50">
+                    Consultar cómo se clasifica
+                  </router-link>
+                </div>
+
+                <div v-if="!actividadesSeleccionadas.length" class="flex flex-col items-center rounded-2xl border border-dashed border-white/15 bg-black/10 px-5 py-7 text-center sm:flex-row sm:justify-between sm:text-left">
+                  <div class="flex flex-col items-center gap-3 sm:flex-row">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/45">
+                      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
                     </div>
                     <div>
-                      <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Descripción del recorrido y sus condiciones</label>
-                      <textarea v-model="fichaActividad(actividad).descripcion" rows="3" placeholder="Ej.: altura, caudal, terreno, experiencia requerida o condiciones del usuario…" class="w-full rounded-xl border border-white/10 bg-black/15 px-4 py-3 text-sm leading-6 text-white placeholder:text-white/20 focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/20"></textarea>
+                      <p class="text-sm font-bold text-white/75">Primero selecciona las actividades del tour</p>
+                      <p class="mt-1 text-xs text-white/40">Aquí aparecerá una ficha técnica para cada actividad.</p>
                     </div>
                   </div>
-                </article>
-                <p v-if="errores.clasificacion_actividades" class="text-xs font-semibold text-rose-300">{{ errores.clasificacion_actividades }}</p>
+                  <button type="button" @click="irASeleccionActividades" class="mt-5 min-h-11 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-bold text-white/75 transition hover:border-emerald-300/30 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-300/50 sm:mt-0">
+                    Elegir actividades
+                  </button>
+                </div>
+
+                <div v-else class="space-y-4">
+                  <article v-for="actividad in actividadesSeleccionadas" :key="`ficha-${actividad.id}`" class="rounded-2xl border border-white/10 bg-black/10 p-5 sm:p-6">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h5 class="font-black text-white">{{ actividad.nombre }}</h5>
+                        <p class="mt-1 text-xs text-white/45">Riesgo interno {{ actividad.nivel_riesgo }}/10<span v-if="actividad.sistema_dificultad"> · {{ actividad.sistema_dificultad }}</span></p>
+                      </div>
+                      <span v-if="actividad.norma_tecnica" class="rounded-full bg-sky-300/10 px-3 py-1.5 text-[10px] font-black text-sky-200">{{ actividad.norma_tecnica }}</span>
+                      <span v-else class="rounded-full bg-white/5 px-3 py-1.5 text-[10px] font-bold text-white/40">Descripción técnica libre</span>
+                    </div>
+
+                    <div class="mt-5 grid gap-4" :class="actividad.opciones_dificultad?.length ? 'md:grid-cols-2' : ''">
+                      <div v-if="actividad.opciones_dificultad?.length">
+                        <label :for="`nivel-${actividad.id}`" class="mb-2 block text-xs font-bold text-white/70">Nivel técnico</label>
+                        <select :id="`nivel-${actividad.id}`" v-model="fichaActividad(actividad).nivel" class="min-h-12 w-full rounded-xl border border-white/10 bg-[#102219] px-4 text-sm font-semibold text-white focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/20">
+                          <option value="">Selecciona un nivel…</option>
+                          <option v-for="opcion in actividad.opciones_dificultad" :key="opcion.value" :value="opcion.value">{{ opcion.label }}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label :for="`descripcion-actividad-${actividad.id}`" class="mb-2 block text-xs font-bold text-white/70">¿Qué encontrará el viajero?</label>
+                        <textarea :id="`descripcion-actividad-${actividad.id}`" v-model="fichaActividad(actividad).descripcion" rows="3" placeholder="Ej.: altura, caudal, terreno, experiencia necesaria…" class="w-full rounded-xl border border-white/10 bg-[#102219] px-4 py-3 text-sm leading-6 text-white placeholder:text-white/30 focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/20"></textarea>
+                      </div>
+                    </div>
+                  </article>
+                  <p v-if="errores.clasificacion_actividades" class="rounded-xl bg-rose-400/10 px-4 py-3 text-xs font-semibold text-rose-200">{{ errores.clasificacion_actividades }}</p>
+                </div>
               </div>
 
-              <div class="mt-6 grid gap-5 md:grid-cols-2">
-                <div>
-                  <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Requisitos y restricciones <span v-if="requiereCertificacion" class="text-emerald-400">*</span></label>
-                  <textarea v-model="newTour.requisitos_participantes" rows="4" placeholder="Edad mínima, salud, condición física, experiencia o habilidades requeridas…" class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm leading-6 text-white placeholder:text-white/20 focus:border-emerald-400/50 focus:outline-none"></textarea>
-                  <p v-if="errores.requisitos_participantes" class="mt-2 text-xs font-semibold text-rose-300">{{ errores.requisitos_participantes }}</p>
+              <fieldset class="mt-8 border-t border-white/10 pt-7">
+                <legend class="sr-only">Información operativa del tour</legend>
+                <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h4 class="text-sm font-black text-white">Información operativa del tour</h4>
+                    <p class="mt-1 text-xs leading-5 text-white/45">Responde cada pregunta con información concreta que la agencia pueda cumplir.</p>
+                  </div>
+                  <span v-if="requiereCertificacion" class="rounded-lg bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-200">3 campos obligatorios por aventura</span>
                 </div>
-                <div>
-                  <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Condiciones de operación <span v-if="requiereCertificacion" class="text-emerald-400">*</span></label>
-                  <textarea v-model="newTour.condiciones_operacion" rows="4" placeholder="Clima, caudal, horarios, límites de participantes o condiciones que suspenden la salida…" class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm leading-6 text-white placeholder:text-white/20 focus:border-emerald-400/50 focus:outline-none"></textarea>
-                  <p v-if="errores.condiciones_operacion" class="mt-2 text-xs font-semibold text-rose-300">{{ errores.condiciones_operacion }}</p>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                  <article class="rounded-2xl border bg-black/10 p-4 sm:p-5" :class="errores.requisitos_participantes ? 'border-rose-400/40' : 'border-white/10'">
+                    <div class="flex items-start gap-3">
+                      <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-300/10 text-emerald-200">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372A9.337 9.337 0 0 0 21 18.9v-3.75M15 19.128v-.003c0-1.113-.285-2.161-.786-3.073M15 19.128v.106A12.318 12.318 0 0 1 8.624 21C6.33 21 4.18 20.38 2.332 19.295a6.92 6.92 0 0 1 3.04-4.343M9 6.75a3.75 3.75 0 1 1 0 7.5 3.75 3.75 0 0 1 0-7.5Z"/></svg>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <label for="requisitos-participantes" class="text-sm font-black text-white">¿Quién puede participar?</label>
+                          <span class="text-[10px] font-bold" :class="requiereCertificacion ? 'text-amber-200' : 'text-white/35'">{{ requiereCertificacion ? 'Obligatorio' : 'Opcional' }}</span>
+                        </div>
+                        <p class="mt-1 text-xs leading-5 text-white/40">Edad, salud, condición física o experiencia necesaria.</p>
+                      </div>
+                    </div>
+                    <textarea id="requisitos-participantes" v-model="newTour.requisitos_participantes" rows="4" placeholder="Ej.: mayores de 14 años, saber nadar y no tener restricciones cardíacas." class="mt-4 w-full rounded-xl border border-white/10 bg-[#102219] px-4 py-3 text-sm leading-6 text-white placeholder:text-white/30 focus:border-emerald-300/50 focus:outline-none focus:ring-2 focus:ring-emerald-300/15"></textarea>
+                    <p v-if="errores.requisitos_participantes" class="mt-2 text-xs font-semibold text-rose-300">{{ errores.requisitos_participantes }}</p>
+                  </article>
+
+                  <article class="rounded-2xl border bg-black/10 p-4 sm:p-5" :class="errores.condiciones_operacion ? 'border-rose-400/40' : 'border-white/10'">
+                    <div class="flex items-start gap-3">
+                      <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-sky-300/10 text-sky-200">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <label for="condiciones-operacion" class="text-sm font-black text-white">¿Cuándo puede realizarse?</label>
+                          <span class="text-[10px] font-bold" :class="requiereCertificacion ? 'text-amber-200' : 'text-white/35'">{{ requiereCertificacion ? 'Obligatorio' : 'Opcional' }}</span>
+                        </div>
+                        <p class="mt-1 text-xs leading-5 text-white/40">Clima, horarios, cupos y motivos para suspender.</p>
+                      </div>
+                    </div>
+                    <textarea id="condiciones-operacion" v-model="newTour.condiciones_operacion" rows="4" placeholder="Ej.: sujeto al caudal del río; se suspende durante tormentas eléctricas." class="mt-4 w-full rounded-xl border border-white/10 bg-[#102219] px-4 py-3 text-sm leading-6 text-white placeholder:text-white/30 focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/15"></textarea>
+                    <p v-if="errores.condiciones_operacion" class="mt-2 text-xs font-semibold text-rose-300">{{ errores.condiciones_operacion }}</p>
+                  </article>
+
+                  <article class="rounded-2xl border bg-black/10 p-4 sm:p-5" :class="errores.medidas_seguridad ? 'border-rose-400/40' : 'border-white/10'">
+                    <div class="flex items-start gap-3">
+                      <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-rose-300/10 text-rose-200">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m5.25-4.5c0 6.75-3.75 12-8.25 13.5C7.5 17.25 3.75 12 3.75 5.25 6.25 5.25 9 4 12 2.25c3 1.75 5.75 3 8.25 3Z"/></svg>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <label for="medidas-seguridad" class="text-sm font-black text-white">¿Cómo se protege al viajero?</label>
+                          <span class="text-[10px] font-bold" :class="requiereCertificacion ? 'text-amber-200' : 'text-white/35'">{{ requiereCertificacion ? 'Obligatorio' : 'Opcional' }}</span>
+                        </div>
+                        <p class="mt-1 text-xs leading-5 text-white/40">Equipos, inducción, comunicación y respuesta a emergencias.</p>
+                      </div>
+                    </div>
+                    <textarea id="medidas-seguridad" v-model="newTour.medidas_seguridad" rows="4" placeholder="Ej.: casco y chaleco certificados, guía líder, botiquín y protocolo de evacuación." class="mt-4 w-full rounded-xl border border-white/10 bg-[#102219] px-4 py-3 text-sm leading-6 text-white placeholder:text-white/30 focus:border-rose-300/50 focus:outline-none focus:ring-2 focus:ring-rose-300/15"></textarea>
+                    <p v-if="errores.medidas_seguridad" class="mt-2 text-xs font-semibold text-rose-300">{{ errores.medidas_seguridad }}</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-black/10 p-4 sm:p-5">
+                    <div class="flex items-start gap-3">
+                      <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-lime-300/10 text-lime-200">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582"/></svg>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <label for="informacion-sostenibilidad" class="text-sm font-black text-white">¿Cómo se cuida el destino?</label>
+                          <span class="text-[10px] font-bold text-white/35">Opcional</span>
+                        </div>
+                        <p class="mt-1 text-xs leading-5 text-white/40">Compromisos ambientales, culturales y con la comunidad.</p>
+                      </div>
+                    </div>
+                    <textarea id="informacion-sostenibilidad" v-model="newTour.informacion_sostenibilidad" rows="4" placeholder="Ej.: no dejar residuos, respetar la fauna y comprar a emprendimientos locales." class="mt-4 w-full rounded-xl border border-white/10 bg-[#102219] px-4 py-3 text-sm leading-6 text-white placeholder:text-white/30 focus:border-lime-300/50 focus:outline-none focus:ring-2 focus:ring-lime-300/15"></textarea>
+                  </article>
                 </div>
-                <div>
-                  <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Medidas de seguridad <span v-if="requiereCertificacion" class="text-emerald-400">*</span></label>
-                  <textarea v-model="newTour.medidas_seguridad" rows="4" placeholder="Inducción, equipos, comunicaciones, seguros y respuesta a emergencias…" class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm leading-6 text-white placeholder:text-white/20 focus:border-emerald-400/50 focus:outline-none"></textarea>
-                  <p v-if="errores.medidas_seguridad" class="mt-2 text-xs font-semibold text-rose-300">{{ errores.medidas_seguridad }}</p>
-                </div>
-                <div>
-                  <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Información de sostenibilidad</label>
-                  <textarea v-model="newTour.informacion_sostenibilidad" rows="4" placeholder="Prácticas ambientales, socioculturales y económicas que se informarán al viajero…" class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm leading-6 text-white placeholder:text-white/20 focus:border-emerald-400/50 focus:outline-none"></textarea>
-                </div>
-              </div>
+              </fieldset>
 
               <div v-if="requiereCertificacion" class="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-5 sm:p-6">
                 <div class="flex flex-wrap items-start justify-between gap-4">
@@ -1080,13 +1197,13 @@ const Enviar = async () => {
         </div>
 
         <!-- === FOOTER ACCIONES === -->
-        <div class="px-8 py-8 bg-[#0d2114] border-t border-white/10 flex items-center justify-end gap-5 flex-shrink-0">
+        <div class="flex flex-shrink-0 flex-col-reverse items-stretch justify-end gap-3 border-t border-white/10 bg-[#0d2114] p-4 sm:flex-row sm:items-center sm:gap-5 sm:px-8 sm:py-8">
           <button @click="emit('cerrar')" type="button" :disabled="isLoading"
-            class="px-8 py-4 rounded-2xl text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-white hover:bg-white/5 transition-all disabled:opacity-50">
+            class="min-h-12 w-full rounded-2xl px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white/50 transition-all hover:bg-white/5 hover:text-white disabled:opacity-50 sm:w-auto sm:px-8 sm:py-4">
             Descartar Cambios
           </button>
           <button @click="Enviar" type="button" :disabled="isLoading"
-            class="group px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-black font-black uppercase tracking-[0.2em] text-[11px] rounded-2xl transition-all shadow-xl shadow-emerald-900/20 flex items-center gap-3 disabled:opacity-50">
+            class="group flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-emerald-600 px-6 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-black shadow-xl shadow-emerald-900/20 transition-all hover:bg-emerald-500 disabled:opacity-50 sm:w-auto sm:px-10 sm:py-4 sm:tracking-[0.2em]">
             <svg v-if="isLoading" class="animate-spin h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
