@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.db import connection
 
+from autenticacion.catalogo_dificultades import obtener_dificultad
 from autenticacion.models import Categoria, Actividad
 
 class Command(BaseCommand):
@@ -46,32 +47,6 @@ class Command(BaseCommand):
             {"id": 34, "category": "Aventura y Reto Físico", "name": "Torrentismo / Canyoning", "risk": 8},
         ]
 
-        estandar_aventura = {
-            "Rafting / Canotaje": ("NTS-AV 010", "Clase internacional del tramo de río", [
-                {"value": "I", "label": "Clase I · Fácil"},
-                {"value": "II", "label": "Clase II · Novato"},
-                {"value": "III", "label": "Clase III · Intermedio"},
-                {"value": "IV", "label": "Clase IV · Avanzado"},
-                {"value": "V", "label": "Clase V · Experto"},
-            ]),
-            "Rappel en cascadas": ("NTS-AV 011", "Ficha técnica del descenso", []),
-            "Espeleología (Exploración de cuevas)": ("NTS-AV 012", "Características técnicas del recorrido", [
-                {"value": "horizontal", "label": "Recorrido horizontal"},
-                {"value": "vertical", "label": "Recorrido vertical con técnicas de progresión"},
-            ]),
-            "Parapente": ("NTS-AV 013", "Condiciones del vuelo y habilitación del piloto", []),
-            "Cabalgata": ("NTS-AV 014", "Perfil del jinete y asignación del equino", []),
-            "Torrentismo / Canyoning": ("NTS-AV 015", "Nivel técnico vertical y acuático", [
-                {"value": "1", "label": "Nivel 1 · Muy fácil"},
-                {"value": "2", "label": "Nivel 2 · Fácil"},
-                {"value": "3", "label": "Nivel 3 · Poco difícil"},
-                {"value": "4", "label": "Nivel 4 · Bastante difícil"},
-                {"value": "5", "label": "Nivel 5 · Difícil"},
-                {"value": "6", "label": "Nivel 6 · Muy difícil"},
-                {"value": "7", "label": "Nivel 7 · Extremadamente difícil"},
-            ]),
-        }
-
         categorias_creadas = 0
         actividades_creadas = 0
 
@@ -88,7 +63,8 @@ class Command(BaseCommand):
             # 2. Actualizar o crear la Actividad
             # Usamos update_or_create para que si ejecutas el script dos veces, 
             # no duplique las actividades, sino que las actualice si hubo cambios.
-            norma, sistema, opciones = estandar_aventura.get(item["name"], ("", "", []))
+            dificultad = obtener_dificultad(item["name"])
+            norma = dificultad["norma"]
             actividad_obj, act_created = Actividad.objects.update_or_create(
                 id=item["id"],
                 defaults={
@@ -97,8 +73,8 @@ class Command(BaseCommand):
                     "categoria": categoria_obj,
                     "es_turismo_aventura": bool(norma),
                     "norma_tecnica": norma,
-                    "sistema_dificultad": sistema,
-                    "opciones_dificultad": opciones,
+                    "sistema_dificultad": dificultad["sistema"],
+                    "opciones_dificultad": dificultad["opciones"],
                 }
             )
             if act_created:

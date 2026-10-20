@@ -788,3 +788,22 @@ class SeedActividadesTests(TransactionTestCase):
         )
 
         self.assertGreater(nueva.pk, maximo_antes)
+
+    def test_seed_carga_dificultades_seleccionables_sin_duplicar_actividades(self):
+        call_command('seed_actividades', verbosity=0)
+        total_antes = Actividad.objects.count()
+
+        call_command('seed_dificultades_actividades', verbosity=0)
+        call_command('seed_dificultades_actividades', verbosity=0)
+
+        canopy = Actividad.objects.get(nombre='Canopy / Tirolesa')
+        rafting = Actividad.objects.get(nombre='Rafting / Canotaje')
+        safari = Actividad.objects.get(nombre='Safaris fotográficos')
+        self.assertEqual(Actividad.objects.count(), total_antes)
+        self.assertGreaterEqual(len(canopy.opciones_dificultad), 3)
+        self.assertEqual(rafting.opciones_dificultad[0]['value'], 'I')
+        self.assertEqual(safari.sistema_dificultad, 'Nivel de exigencia del recorrido (referencia interna)')
+        self.assertEqual(
+            {opcion['value'] for opcion in safari.opciones_dificultad},
+            {'baja', 'media', 'alta'},
+        )

@@ -207,6 +207,9 @@ MEJ-003 quedó implementada en la rama `codex/mej-003-estandar-paquetes` con est
 - Vista informativa pública en `/estandar-paquetes`, alimentada por el mismo endpoint que expone la versión, los principios y las fuentes del estándar.
 - Presentación de la ficha técnica al turista en el detalle público del paquete.
 - Rediseño del formulario en secciones más claras, ayudas contextuales, resumen de errores, campos condicionales y controles adaptables.
+- Navegación visual por las siete secciones del formulario, buscadores para modalidades y actividades, y estados de selección visibles.
+- Opciones de dificultad presentadas como elementos clicables y obtenidas desde `Actividad.opciones_dificultad` mediante la API.
+- Comando idempotente `python manage.py seed_dificultades_actividades` para completar o actualizar las opciones de dificultad en la base de datos. El despliegue lo ejecuta después de las migraciones. Las actividades sin escala sectorial cargada usan niveles de exigencia identificados expresamente como referencia interna.
 
 Fuentes oficiales verificadas para esta entrega:
 
@@ -223,6 +226,8 @@ La publicación en Amazonía Viva registra información y referencias aportadas 
 | RF-013 | Registro de paquetes turísticos | Actualizar el registro para incorporar el estándar estipulado en el documento de referencia suministrado. |
 | RF-014 | Interfaz de registro y edición de paquetes turísticos | Mejorar el diseño visual y la facilidad de uso para que la interfaz sea más amigable y agradable a la vista. |
 | RF-015 | Vista informativa del estándar | Incluir una vista de información que explique en qué se basa el estándar aplicado al registro de paquetes turísticos. |
+| RF-016 | Modalidades y actividades | Incorporar búsqueda para localizar modalidades y actividades dentro del formulario. |
+| RF-017 | Dificultad por actividad | Mostrar opciones clicables cargadas desde la base de datos y disponer de un script reproducible para alimentar ese catálogo. |
 
 ### Vista informativa del estándar
 
@@ -279,6 +284,8 @@ Según la sección 4.1 de la fuente aportada, se deben estudiar las siguientes d
 - **Buceo:** características de la inmersión y certificación requerida al participante.
 
 Para las demás actividades de la sección 4, el documento no detalla una escala específica. No se inventarán escalas normativas para completar esos casos. La dificultad, el riesgo, la habilitación del operador y los requisitos del participante se tratarán como conceptos distintos.
+
+Cuando una actividad no tiene una escala sectorial verificable cargada, la interfaz usa una escala operativa interna de exigencia baja, media o alta. El sistema la identifica como «referencia interna» y no la presenta como norma, certificación o equivalencia entre actividades.
 
 ### Flujo funcional propuesto
 
@@ -391,4 +398,5 @@ La creación de cuenta debe enlazar con el onboarding correspondiente al rol seg
 | 2026-10-16 | El usuario amplía MEJ-003 para incluir una interfaz de registro y edición de paquetes más amigable y agradable a la vista. | Confirmado como necesidad |
 | 2026-10-16 | El usuario amplía MEJ-003 con una vista informativa que explique en qué se basa el estándar. | Confirmado como necesidad |
 | 2026-10-16 | Se implementa MEJ-003 en una rama propia, con ficha técnica por actividad, validación de turismo de aventura, vista informativa pública y presentación en el detalle del paquete. | Implementado; pendiente de revisión e integración |
+| 2026-10-20 | Se amplía el rediseño a todo el formulario, se añaden buscadores de modalidades y actividades, navegación por secciones y dificultades clicables alimentadas desde la base de datos mediante un comando idempotente. | Implementado; pendiente de revisión e integración |
 | 2026-10-16 | A solicitud del usuario, se documenta para MEJ-002 la opción técnica recomendada: diccionarios, conjuntos, vectores y reglas explícitas, con ordenación por afinidad y heap opcional. Se incorpora el cruce planteado de características personales con requisitos y riesgo de actividades. | Propuesta documentada; reglas y campos pendientes de validación |

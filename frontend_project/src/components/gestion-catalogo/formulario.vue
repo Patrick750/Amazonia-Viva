@@ -40,6 +40,8 @@ const searchQuery = ref('');
 const suggestions = ref([]);
 const isSearching = ref(false);
 const isMapExpanded = ref(false);
+const modalidadBusqueda = ref('');
+const actividadBusqueda = ref('');
 let searchTimeout = null;
 const estandar = ref(null);
 
@@ -80,6 +82,24 @@ const tipoPaqueteAuto = computed(() => newTour.fecha_realizacion ? 'fijo' : 'fle
 const actividadesDisponibles = computed(() =>
     Array.isArray(props.actividades) ? props.actividades : []
 );
+const normalizarBusqueda = (valor) => String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+const modalidadesFiltradas = computed(() => {
+    const consulta = normalizarBusqueda(modalidadBusqueda.value);
+    const modalidades = Array.isArray(estandar.value?.modalidades) ? estandar.value.modalidades : [];
+    if (!consulta) return modalidades;
+    return modalidades.filter(modalidad => normalizarBusqueda(modalidad.label).includes(consulta));
+});
+const actividadesFiltradas = computed(() => {
+    const consulta = normalizarBusqueda(actividadBusqueda.value);
+    if (!consulta) return actividadesDisponibles.value;
+    return actividadesDisponibles.value.filter(actividad =>
+        normalizarBusqueda(`${actividad.nombre} ${actividad.categoria_nombre || ''} ${actividad.norma_tecnica || ''}`).includes(consulta)
+    );
+});
 const actividadesSeleccionadas = computed(() =>
     actividadesDisponibles.value.filter(actividad => newTour.actividades.includes(actividad.id))
 );
@@ -206,6 +226,8 @@ const limpiarFormulario = () => {
     imagenesExistentes.value = [];
     imagenesAEliminar.value = [];
     searchQuery.value = '';
+    modalidadBusqueda.value = '';
+    actividadBusqueda.value = '';
     suggestions.value = [];
     if (fileInput.value) fileInput.value.value = '';
     if (marker) marker.setOpacity(0);
@@ -625,7 +647,7 @@ const Enviar = async () => {
 
         <!-- === CUERPO DEL FORMULARIO === -->
         <div class="form-scroll flex-1 overflow-x-hidden overflow-y-auto bg-[#0a1a0f]">
-          <form @submit.prevent="Enviar" class="space-y-8 p-5 sm:space-y-12 sm:p-10">
+          <form @submit.prevent="Enviar" class="tour-form space-y-7 p-4 sm:space-y-9 sm:p-8 lg:p-10">
 
             <div v-if="totalErrores" data-form-error="true" role="alert" class="rounded-2xl border border-rose-400/30 bg-rose-400/10 p-5 text-sm text-rose-100">
               <p class="font-black">Faltan {{ totalErrores }} campos o secciones por revisar.</p>
@@ -639,7 +661,7 @@ const Enviar = async () => {
               </ul>
             </div>
 
-            <div class="rounded-2xl border border-sky-300/20 bg-sky-300/[0.07] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+            <div class="rounded-2xl border border-sky-300/20 bg-gradient-to-r from-sky-300/[0.09] to-emerald-300/[0.05] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
               <div>
                 <p class="text-xs font-black uppercase tracking-[0.15em] text-sky-200">Ficha técnica MEJ-003</p>
                 <p class="mt-2 text-sm leading-6 text-white/60">La dificultad se registra por actividad. La escala de riesgo 1–10 es una referencia interna y no reemplaza la norma técnica.</p>
@@ -649,11 +671,21 @@ const Enviar = async () => {
               </router-link>
             </div>
 
+            <nav aria-label="Secciones del formulario" class="form-steps">
+              <a href="#seccion-informacion"><span>1</span>Información</a>
+              <a href="#seccion-ubicacion"><span>2</span>Ubicación</a>
+              <a href="#seccion-actividades"><span>3</span>Actividades</a>
+              <a href="#seccion-seguridad"><span>4</span>Seguridad</a>
+              <a href="#seccion-itinerario"><span>5</span>Itinerario</a>
+              <a href="#seccion-incluye"><span>6</span>Incluye</a>
+              <a href="#seccion-galeria"><span>7</span>Galería</a>
+            </nav>
+
             <!-- ─── SECCIÓN 1: INFO BÁSICA ─── -->
-            <section>
-              <div class="flex items-center gap-4 mb-8">
+            <section id="seccion-informacion" class="form-section">
+              <div class="section-heading flex items-center gap-4 mb-8">
                 <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">1</div>
-                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Información Básica</h3>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Información principal</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>
 
@@ -760,12 +792,12 @@ const Enviar = async () => {
                     {{ tipoPaqueteAuto === 'fijo' ? 'Tour Fijo' : 'Tour Flexible' }}
                   </span>
                 </div>
-                <div class="flex items-center gap-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                   <input v-model="newTour.fecha_realizacion" type="date"
                     class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white font-black focus:outline-none focus:border-emerald-500/50 transition-all uppercase tracking-widest text-sm"
                   >
                   <button v-if="newTour.fecha_realizacion" @click.prevent="newTour.fecha_realizacion = ''"
-                    class="h-[56px] px-6 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-rose-900/20">
+                    class="flex h-[56px] w-full items-center justify-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-6 text-[10px] font-black uppercase tracking-widest text-rose-400 shadow-xl shadow-rose-900/20 transition-all hover:bg-rose-500 hover:text-white sm:w-auto">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     Reset
                   </button>
@@ -774,10 +806,10 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 2: UBICACIÓN Y MAPA ─── -->
-            <section>
-              <div class="flex items-center gap-4 mb-8">
+            <section id="seccion-ubicacion" class="form-section">
+              <div class="section-heading flex items-center gap-4 mb-8">
                 <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">2</div>
-                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Ubicación Geográfica</h3>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Ubicación del encuentro</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>
 
@@ -815,8 +847,8 @@ const Enviar = async () => {
                 <div class="relative bg-black/20 rounded-[2rem] border border-white/10 overflow-hidden shadow-inner group">
                   <div id="map" ref="mapContainer" class="w-full h-80 z-10 brightness-90 contrast-110"></div>
                   <!-- Overlay informativo -->
-                  <div class="absolute bottom-6 left-6 right-6 z-20 pointer-events-none">
-                    <div class="inline-flex items-center gap-3 bg-black/60 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/10 text-white shadow-2xl">
+                  <div class="pointer-events-none absolute bottom-4 left-4 right-4 z-20 sm:bottom-6 sm:left-6 sm:right-6">
+                    <div class="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-black/70 px-4 py-3 text-white shadow-2xl backdrop-blur-md sm:px-5">
                       <div class="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
                         <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                       </div>
@@ -835,32 +867,60 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 3: ATRIBUTOS EXTRA ─── -->
-            <section>
-              <div class="flex items-center gap-4 mb-8">
+            <section id="seccion-actividades" class="form-section">
+              <div class="section-heading mb-8 flex flex-wrap items-center gap-4">
                 <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">3</div>
-                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Atributos Adicionales</h3>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Modalidades y actividades</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>
 
-              <div class="bg-white/5 border border-white/10 rounded-[2rem] p-6 sm:p-8 space-y-8">
+              <div class="space-y-8 rounded-[1.5rem] border border-white/10 bg-black/10 p-4 sm:p-6">
                 <div>
-                  <label class="block text-[10px] font-black text-white/40 uppercase tracking-[0.15em] mb-4">Modalidades del paquete <span class="text-emerald-400">*</span></label>
-                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <label v-for="modalidad in estandar?.modalidades || []" :key="modalidad.value"
-                      class="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition"
-                      :class="newTour.modalidades_turismo.includes(modalidad.value) ? 'border-emerald-400/40 bg-emerald-400/10 text-white' : 'border-white/10 bg-black/10 text-white/55 hover:border-white/20'">
-                      <input v-model="newTour.modalidades_turismo" type="checkbox" :value="modalidad.value" class="h-4 w-4 accent-emerald-500">
-                      <span class="text-xs font-bold">{{ modalidad.label }}</span>
+                  <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <label for="buscar-modalidad" class="block text-sm font-black text-white">Modalidades del paquete <span class="text-emerald-400">*</span></label>
+                      <p class="mt-1 text-xs text-white/45">Busca y selecciona una o varias modalidades.</p>
+                    </div>
+                    <span class="rounded-full border border-emerald-300/15 bg-emerald-300/[0.08] px-3 py-1.5 text-[11px] font-bold text-emerald-200">
+                      {{ newTour.modalidades_turismo.length }} seleccionadas
+                    </span>
+                  </div>
+                  <div class="relative mb-4">
+                    <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input id="buscar-modalidad" v-model="modalidadBusqueda" type="search" autocomplete="off" placeholder="Buscar naturaleza, aventura, cultura…" class="min-h-12 w-full rounded-xl border border-white/10 bg-[#0b1c12] py-3 pl-11 pr-11 text-sm text-white placeholder:text-white/30 focus:border-emerald-300/50 focus:outline-none focus:ring-2 focus:ring-emerald-300/15">
+                    <button v-if="modalidadBusqueda" type="button" @click="modalidadBusqueda = ''" aria-label="Limpiar búsqueda de modalidades" class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-white/45 hover:bg-white/10 hover:text-white">×</button>
+                  </div>
+                  <div v-if="modalidadesFiltradas.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <label v-for="modalidad in modalidadesFiltradas" :key="modalidad.value"
+                      class="group flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition"
+                      :class="newTour.modalidades_turismo.includes(modalidad.value) ? 'border-emerald-300/50 bg-emerald-300/10 text-white shadow-lg shadow-emerald-950/30' : 'border-white/10 bg-white/[0.03] text-white/65 hover:border-white/20 hover:bg-white/[0.06]'">
+                      <input v-model="newTour.modalidades_turismo" type="checkbox" :value="modalidad.value" class="sr-only">
+                      <span class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg border transition" :class="newTour.modalidades_turismo.includes(modalidad.value) ? 'border-emerald-300 bg-emerald-300 text-[#07150d]' : 'border-white/20 bg-black/15'">
+                        <svg v-if="newTour.modalidades_turismo.includes(modalidad.value)" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6"/></svg>
+                      </span>
+                      <span class="text-xs font-bold leading-5">{{ modalidad.label }}</span>
                     </label>
                   </div>
+                  <div v-else class="rounded-xl border border-dashed border-white/15 px-5 py-7 text-center text-sm text-white/45">No hay modalidades que coincidan con “{{ modalidadBusqueda }}”.</div>
                   <p v-if="errores.modalidades_turismo" class="mt-3 text-xs font-semibold text-rose-300">{{ errores.modalidades_turismo }}</p>
                 </div>
 
                 <!-- Checkboxes Actividades -->
                 <div id="tipos-actividad" class="scroll-mt-6">
-                  <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-6 px-1">Tipos de Actividad <span class="text-emerald-500">*</span></label>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <label v-for="actividad in actividadesDisponibles" :key="actividad.id"
+                  <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <label for="buscar-actividad" class="block text-sm font-black text-white">Actividades del recorrido <span class="text-emerald-400">*</span></label>
+                      <p class="mt-1 text-xs text-white/45">Selecciona las experiencias que formarán parte del paquete.</p>
+                    </div>
+                    <span class="rounded-full border border-sky-300/15 bg-sky-300/[0.08] px-3 py-1.5 text-[11px] font-bold text-sky-200">{{ newTour.actividades.length }} seleccionadas</span>
+                  </div>
+                  <div class="relative mb-4">
+                    <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input id="buscar-actividad" v-model="actividadBusqueda" type="search" autocomplete="off" placeholder="Buscar actividad o norma técnica…" class="min-h-12 w-full rounded-xl border border-white/10 bg-[#0b1c12] py-3 pl-11 pr-11 text-sm text-white placeholder:text-white/30 focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/15">
+                    <button v-if="actividadBusqueda" type="button" @click="actividadBusqueda = ''" aria-label="Limpiar búsqueda de actividades" class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-white/45 hover:bg-white/10 hover:text-white">×</button>
+                  </div>
+                  <div v-if="actividadesFiltradas.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <label v-for="actividad in actividadesFiltradas" :key="actividad.id"
                       class="relative flex items-center gap-3 p-4 rounded-2xl border transition-all cursor-pointer group overflow-hidden"
                       :class="newTour.actividades.includes(actividad.id)
                         ? 'bg-emerald-500/10 border-emerald-500/30'
@@ -878,13 +938,14 @@ const Enviar = async () => {
                       <span v-if="actividad.norma_tecnica" class="ml-auto rounded-md bg-sky-300/10 px-2 py-1 text-[9px] font-bold text-sky-200">{{ actividad.norma_tecnica }}</span>
                     </label>
                   </div>
+                  <div v-else class="rounded-xl border border-dashed border-white/15 px-5 py-7 text-center text-sm text-white/45">No hay actividades que coincidan con “{{ actividadBusqueda }}”.</div>
                   <p v-if="errores.actividades" class="text-[10px] text-rose-400 mt-4 font-bold px-1">{{ errores.actividades }}</p>
                 </div>
               </div>
             </section>
 
             <!-- ─── SECCIÓN 4: FICHA TÉCNICA Y SEGURIDAD ─── -->
-            <section aria-labelledby="titulo-seguridad" class="rounded-[1.75rem] border border-white/10 bg-white/[0.025] p-5 sm:p-7">
+            <section id="seccion-seguridad" aria-labelledby="titulo-seguridad" class="form-section">
               <div class="flex flex-col gap-5 border-b border-white/10 pb-6 sm:flex-row sm:items-start sm:justify-between">
                 <div class="flex items-start gap-4">
                   <div class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-sky-300/25 bg-sky-300/10 text-sm font-black text-sky-200">4</div>
@@ -937,21 +998,30 @@ const Enviar = async () => {
                         <p class="mt-1 text-xs text-white/45">Riesgo interno {{ actividad.nivel_riesgo }}/10<span v-if="actividad.sistema_dificultad"> · {{ actividad.sistema_dificultad }}</span></p>
                       </div>
                       <span v-if="actividad.norma_tecnica" class="rounded-full bg-sky-300/10 px-3 py-1.5 text-[10px] font-black text-sky-200">{{ actividad.norma_tecnica }}</span>
-                      <span v-else class="rounded-full bg-white/5 px-3 py-1.5 text-[10px] font-bold text-white/40">Descripción técnica libre</span>
+                      <span v-else class="rounded-full bg-emerald-300/10 px-3 py-1.5 text-[10px] font-bold text-emerald-200">Referencia interna</span>
                     </div>
 
-                    <div class="mt-5 grid gap-4" :class="actividad.opciones_dificultad?.length ? 'md:grid-cols-2' : ''">
-                      <div v-if="actividad.opciones_dificultad?.length">
-                        <label :for="`nivel-${actividad.id}`" class="mb-2 block text-xs font-bold text-white/70">Nivel técnico</label>
-                        <select :id="`nivel-${actividad.id}`" v-model="fichaActividad(actividad).nivel" class="min-h-12 w-full rounded-xl border border-white/10 bg-[#102219] px-4 text-sm font-semibold text-white focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/20">
-                          <option value="">Selecciona un nivel…</option>
-                          <option v-for="opcion in actividad.opciones_dificultad" :key="opcion.value" :value="opcion.value">{{ opcion.label }}</option>
-                        </select>
+                    <fieldset v-if="actividad.opciones_dificultad?.length" class="mt-5">
+                      <legend class="text-xs font-bold text-white/75">Selecciona la dificultad</legend>
+                      <p class="mt-1 text-xs text-white/40">Las opciones se cargan desde el catálogo técnico de la actividad.</p>
+                      <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        <label v-for="opcion in actividad.opciones_dificultad" :key="opcion.value"
+                          class="group flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition"
+                          :class="fichaActividad(actividad).nivel === opcion.value ? 'border-sky-300/55 bg-sky-300/10 shadow-lg shadow-sky-950/20' : 'border-white/10 bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.05]'">
+                          <input v-model="fichaActividad(actividad).nivel" type="radio" :name="`dificultad-${actividad.id}`" :value="opcion.value" class="sr-only">
+                          <span class="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border transition" :class="fichaActividad(actividad).nivel === opcion.value ? 'border-sky-200 bg-sky-200' : 'border-white/25'">
+                            <span v-if="fichaActividad(actividad).nivel === opcion.value" class="h-2 w-2 rounded-full bg-[#07150d]"></span>
+                          </span>
+                          <span>
+                            <span class="block text-xs font-black text-white/80 group-hover:text-white">{{ opcion.label }}</span>
+                            <span v-if="opcion.description" class="mt-1 block text-[11px] leading-4 text-white/40">{{ opcion.description }}</span>
+                          </span>
+                        </label>
                       </div>
-                      <div>
-                        <label :for="`descripcion-actividad-${actividad.id}`" class="mb-2 block text-xs font-bold text-white/70">¿Qué encontrará el viajero?</label>
-                        <textarea :id="`descripcion-actividad-${actividad.id}`" v-model="fichaActividad(actividad).descripcion" rows="3" placeholder="Ej.: altura, caudal, terreno, experiencia necesaria…" class="w-full rounded-xl border border-white/10 bg-[#102219] px-4 py-3 text-sm leading-6 text-white placeholder:text-white/30 focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/20"></textarea>
-                      </div>
+                    </fieldset>
+                    <div class="mt-5">
+                      <label :for="`descripcion-actividad-${actividad.id}`" class="mb-2 block text-xs font-bold text-white/70">Detalles útiles para el viajero</label>
+                      <textarea :id="`descripcion-actividad-${actividad.id}`" v-model="fichaActividad(actividad).descripcion" rows="3" placeholder="Ej.: altura, caudal, terreno, experiencia necesaria…" class="w-full rounded-xl border border-white/10 bg-[#102219] px-4 py-3 text-sm leading-6 text-white placeholder:text-white/30 focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/20"></textarea>
                     </div>
                   </article>
                   <p v-if="errores.clasificacion_actividades" class="rounded-xl bg-rose-400/10 px-4 py-3 text-xs font-semibold text-rose-200">{{ errores.clasificacion_actividades }}</p>
@@ -1069,10 +1139,10 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 5: ITINERARIO ─── -->
-            <section>
-              <div class="flex items-center gap-4 mb-8">
+            <section id="seccion-itinerario" class="form-section">
+              <div class="section-heading flex items-center gap-4 mb-8">
                 <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">5</div>
-                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Crónica del Viaje</h3>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Itinerario del viaje</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
                 <button @click.prevent="addItineraryItem" type="button"
                   class="flex-shrink-0 flex items-center gap-2 text-[10px] text-emerald-400 font-black bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-xl transition-all border border-emerald-500/10 uppercase tracking-widest shadow-xl">
@@ -1083,16 +1153,16 @@ const Enviar = async () => {
               
               <div class="space-y-4">
                 <div v-for="(item, index) in newTour.itinerario" :key="'iti-'+index"
-                  class="flex gap-4 items-center group bg-white/3 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
+                  class="group grid grid-cols-[2rem_minmax(0,1fr)] items-center gap-3 rounded-2xl border border-white/10 bg-black/10 p-4 transition-all hover:border-white/20 sm:grid-cols-[2rem_7rem_minmax(0,1fr)_2rem] sm:gap-4">
                   <span class="text-[10px] text-white/20 font-black w-6 text-center flex-shrink-0 italic">{{ (index + 1).toString().padStart(2, '0') }}</span>
-                  <div class="w-28 flex-shrink-0 relative">
+                  <div class="relative min-w-0 sm:w-28">
                     <input v-model="item.time" type="time"
                       class="w-full bg-black/20 border border-white/5 rounded-xl px-3 py-2.5 text-xs text-white font-bold focus:outline-none focus:border-emerald-500/50 transition-all appearance-none cursor-pointer">
                   </div>
                   <input v-model="item.activity" type="text" :placeholder="`Actividad ${index + 1}...`"
-                    class="flex-1 bg-black/20 border border-white/5 rounded-xl px-5 py-2.5 text-xs text-white font-medium focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-white/10">
+                    class="col-span-2 min-w-0 rounded-xl border border-white/10 bg-black/20 px-4 py-2.5 text-xs font-medium text-white transition-all placeholder:text-white/25 focus:border-emerald-500/50 focus:outline-none sm:col-span-1 sm:px-5">
                   <button v-if="newTour.itinerario.length > 1" @click.prevent="removeItineraryItem(index)" type="button"
-                    class="w-8 h-8 flex items-center justify-center rounded-xl text-white/10 hover:text-rose-400 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0">
+                    class="col-start-2 flex h-8 w-8 items-center justify-center justify-self-end rounded-xl text-white/40 transition-all hover:bg-rose-500/10 hover:text-rose-300 sm:col-start-auto sm:opacity-0 sm:group-hover:opacity-100">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
                 </div>
@@ -1100,10 +1170,10 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 6: QUÉ INCLUYE ─── -->
-            <section>
-              <div class="flex items-center gap-4 mb-8">
+            <section id="seccion-incluye" class="form-section">
+              <div class="section-heading mb-8 flex flex-wrap items-center gap-4">
                 <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">6</div>
-                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Beneficios Incluidos</h3>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Qué incluye</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
                 <button @click.prevent="addIncludedItem" type="button"
                   class="flex-shrink-0 flex items-center gap-2 text-[10px] text-emerald-400 font-black bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-xl transition-all border border-emerald-500/10 uppercase tracking-widest shadow-xl">
@@ -1128,14 +1198,14 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 7: GALERÍA ─── -->
-            <section>
-              <div class="flex items-center gap-4 mb-8">
+            <section id="seccion-galeria" class="form-section">
+              <div class="section-heading flex items-center gap-4 mb-8">
                 <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">7</div>
-                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Galería Visual</h3>
+                <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Galería del paquete</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>
 
-              <div class="bg-white/5 border border-white/10 rounded-[2rem] p-8">
+              <div class="rounded-[1.5rem] border border-white/10 bg-black/10 p-4 sm:p-8">
                 <!-- Imágenes existentes (modo edición) -->
                 <div v-if="imagenesExistentes.length > 0" class="mb-10">
                   <p class="text-[10px] font-black text-white/20 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -1235,4 +1305,106 @@ const Enviar = async () => {
 .form-scroll::-webkit-scrollbar { width: 5px; }
 .form-scroll::-webkit-scrollbar-track { background: transparent; }
 .form-scroll::-webkit-scrollbar-thumb { background-color: #d1d5db; border-radius: 20px; }
+
+.form-steps {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+  padding: 0.55rem;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  background: rgba(7, 23, 14, 0.92);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+}
+.form-steps a {
+  display: flex;
+  min-width: 6.8rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.75rem;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.7rem;
+  font-weight: 750;
+  text-decoration: none;
+  transition: 160ms ease;
+}
+.form-steps a:hover,
+.form-steps a:focus-visible {
+  background: rgba(52, 211, 153, 0.11);
+  color: #d1fae5;
+  outline: none;
+}
+.form-steps span {
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border: 1px solid rgba(110, 231, 183, 0.22);
+  border-radius: 0.5rem;
+  background: rgba(52, 211, 153, 0.08);
+  color: #a7f3d0;
+  font-size: 0.65rem;
+}
+.form-section {
+  position: relative;
+  scroll-margin-top: 5.5rem;
+  overflow: hidden;
+  padding: clamp(1.1rem, 2.4vw, 2rem);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.75rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(52, 211, 153, 0.07), transparent 26rem),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.014));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 18px 45px rgba(0, 0, 0, 0.11);
+}
+.form-section::before {
+  position: absolute;
+  top: 0;
+  left: 2rem;
+  width: 5rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #34d399, rgba(56, 189, 248, 0.3));
+  content: '';
+}
+.section-heading h3 {
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+.tour-form input:not([type='checkbox']):not([type='radio']):not([type='file']),
+.tour-form textarea,
+.tour-form select {
+  border-color: rgba(255, 255, 255, 0.13);
+  background-color: rgba(4, 17, 10, 0.52);
+}
+.tour-form input:not([type='checkbox']):not([type='radio']):not([type='file']):focus,
+.tour-form textarea:focus,
+.tour-form select:focus {
+  border-color: rgba(110, 231, 183, 0.56);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1);
+}
+.tour-form input::placeholder,
+.tour-form textarea::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 639px) {
+  .form-steps {
+    grid-template-columns: repeat(7, max-content);
+    margin-inline: -0.25rem;
+    scrollbar-width: none;
+  }
+  .form-steps::-webkit-scrollbar { display: none; }
+  .form-section { border-radius: 1.25rem; }
+  .form-section::before { left: 1.25rem; }
+}
 </style>

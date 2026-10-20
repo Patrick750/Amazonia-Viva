@@ -161,6 +161,7 @@ jobs:
           docker compose pull
           docker compose up -d db
           docker compose run --rm backend python manage.py migrate --noinput
+          docker compose run --rm backend python manage.py seed_dificultades_actividades
 
           echo "Actualizando servicios de aplicacion"
           docker compose up -d --build

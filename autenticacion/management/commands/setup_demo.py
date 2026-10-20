@@ -16,6 +16,7 @@ class Command(BaseCommand):
 
         self.stdout.write("\n--- Paso 2: Sembrado de Actividades ---")
         call_command('seed_actividades')      
+        call_command('seed_dificultades_actividades')
 
         self.stdout.write("\n--- Paso 3: Sembrado de Categorías de paquetes ---")
         call_command('seed_categorias_paquetes')      
