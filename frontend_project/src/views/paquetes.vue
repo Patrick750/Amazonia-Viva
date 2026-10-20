@@ -95,8 +95,15 @@
 
     // --- DATOS ---
     const listado = ref([]);
+    const errorActividades = ref('');
     onMounted(async () => {
-        listado.value = await pedirActividades();
+        try {
+            listado.value = await pedirActividades();
+        } catch (error) {
+            listado.value = [];
+            errorActividades.value = 'No fue posible cargar las actividades. Intenta nuevamente cuando el servicio esté disponible.';
+            console.error('Error al cargar actividades', error);
+        }
     });
 
     const paquetesTraidos = ref([]);
@@ -152,6 +159,7 @@
       :abrir="isModalOpen"
       @cerrar="cerrarModal"
       :actividades="listado"
+      :error-datos="errorActividades"
       :paquete="paqueteSeleccionado"
       @guardadoExitoso="onGuardadoExitoso"
     ></Formulario>

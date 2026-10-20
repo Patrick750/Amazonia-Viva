@@ -139,8 +139,12 @@ class Actividades(APIView):
             return Response(serializer.data)
         except (Http404, APIException):
             raise
-        except Exception as e:
-            return Response({'mensaje':'Hubo un error con la DB'})
+        except Exception:
+            logger.exception('No se pudo consultar el catálogo de actividades')
+            return Response(
+                {'mensaje': 'No se pudo consultar el catálogo de actividades.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class EstandarPaquetesView(APIView):

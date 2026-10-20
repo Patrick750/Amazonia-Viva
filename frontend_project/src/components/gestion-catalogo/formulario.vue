@@ -15,7 +15,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const props = defineProps(['abrir', 'actividades', 'paquete']);
+const props = defineProps(['abrir', 'actividades', 'paquete', 'errorDatos']);
 const emit = defineEmits(['cerrar', 'guardadoExitoso']);
 
 // --- COMPOSABLE ---
@@ -75,32 +75,46 @@ const newTour = reactive({
 
 // Tipo calculado en tiempo real
 const tipoPaqueteAuto = computed(() => newTour.fecha_realizacion ? 'fijo' : 'flexible');
+const actividadesDisponibles = computed(() =>
+    Array.isArray(props.actividades) ? props.actividades : []
+);
 const actividadesSeleccionadas = computed(() =>
-    (props.actividades || []).filter(actividad => newTour.actividades.includes(actividad.id))
+    actividadesDisponibles.value.filter(actividad => newTour.actividades.includes(actividad.id))
 );
 const actividadesAventura = computed(() =>
     actividadesSeleccionadas.value.filter(actividad => actividad.es_turismo_aventura)
 );
 const requiereCertificacion = computed(() => actividadesAventura.value.length > 0);
 const totalErrores = computed(() => Object.keys(errores).length);
+const erroresCarga = reactive({ categorias: '', estandar: '' });
+const mensajesCarga = computed(() =>
+    [props.errorDatos, erroresCarga.categorias, erroresCarga.estandar].filter(Boolean)
+);
 
 const categorias = ref([]);
 const fetchCategorias = async () => {
+    erroresCarga.categorias = '';
     try {
         const { data } = await clienteAxios.get('api/categorias-paquetes/');
-        // Agrupar categorías por grupo para un mejor select (opcional, pero vamos a listarlas simples primero)
+        if (!Array.isArray(data)) throw new Error('Respuesta inválida');
         categorias.value = data;
     } catch (error) {
+        categorias.value = [];
+        erroresCarga.categorias = 'No fue posible cargar las categorías de paquetes.';
         console.error("Error al cargar categorías", error);
     }
 };
 
 const fetchEstandar = async () => {
     if (estandar.value) return;
+    erroresCarga.estandar = '';
     try {
         const { data } = await clienteAxios.get('api/estandar-paquetes/');
+        if (!data || !Array.isArray(data.modalidades)) throw new Error('Respuesta inválida');
         estandar.value = data;
     } catch (error) {
+        estandar.value = null;
+        erroresCarga.estandar = 'No fue posible cargar la configuración del estándar turístico.';
         console.error('Error al cargar el estándar de paquetes', error);
     }
 };
@@ -591,6 +605,13 @@ const Enviar = async () => {
               <p class="mt-1 text-rose-100/70">Los mensajes aparecen junto a la información que debes corregir.</p>
             </div>
 
+            <div v-if="mensajesCarga.length" role="alert" class="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-5 text-sm text-amber-100">
+              <p class="font-black">No se pudieron cargar todos los datos del formulario.</p>
+              <ul class="mt-2 list-disc space-y-1 pl-5 text-amber-100/75">
+                <li v-for="mensaje in mensajesCarga" :key="mensaje">{{ mensaje }}</li>
+              </ul>
+            </div>
+
             <div class="rounded-2xl border border-sky-300/20 bg-sky-300/[0.07] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
               <div>
                 <p class="text-xs font-black uppercase tracking-[0.15em] text-sky-200">Ficha técnica MEJ-003</p>
@@ -812,7 +833,7 @@ const Enviar = async () => {
                 <div>
                   <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-6 px-1">Tipos de Actividad <span class="text-emerald-500">*</span></label>
                   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <label v-for="actividad in actividades" :key="actividad.id"
+                    <label v-for="actividad in actividadesDisponibles" :key="actividad.id"
                       class="relative flex items-center gap-3 p-4 rounded-2xl border transition-all cursor-pointer group overflow-hidden"
                       :class="newTour.actividades.includes(actividad.id)
                         ? 'bg-emerald-500/10 border-emerald-500/30'

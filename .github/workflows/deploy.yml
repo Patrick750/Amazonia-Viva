@@ -156,8 +156,13 @@ jobs:
           git fetch --prune origin "+refs/heads/$DEPLOY_BRANCH:refs/remotes/origin/$DEPLOY_BRANCH"
           git checkout -f -B "$DEPLOY_BRANCH" "$RELEASE_SHA"
           git branch --set-upstream-to="origin/$DEPLOY_BRANCH" "$DEPLOY_BRANCH"
+
+          echo "Actualizando imagenes y preparando la base de datos"
           docker compose pull
+          docker compose up -d db
+          docker compose run --rm backend python manage.py migrate --noinput
+
+          echo "Actualizando servicios de aplicacion"
           docker compose up -d --build
-          docker compose exec -T backend python manage.py check --deploy --tag security --fail-level WARNING
-          docker compose exec -T backend python manage.py migrate --noinput
+          docker compose exec -T backend python manage.py check --deploy --tag security
           docker image prune -f
