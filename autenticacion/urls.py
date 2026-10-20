@@ -8,7 +8,8 @@ from .views import (
     CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
     DetalleProductoPublico, UserStatsView, PerfilView, PerfilFotoView,
     VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView,
-    CuposDisponiblesView, MisReservasView, CancelarReservaView, DashboardKPIsView, CargaMasivaPaquetesAPIView
+    CuposDisponiblesView, MisReservasView, CancelarReservaView, DashboardKPIsView,
+    CargaMasivaPaquetesAPIView, EstandarPaquetesView
 )
 from .vistas_pagos import WompiWebhookView, EstadoPedidoView, CancelarPedidoPendienteView
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView, CargaMasivaProductosAPIView
@@ -30,6 +31,7 @@ urlpatterns = [
     path('login/', Login.as_view(), name='auth_login'),
     path("logout/", Logout.as_view(), name="logout"),
     path("actividades/", Actividades.as_view(), name="actividades"),
+    path("estandar-paquetes/", EstandarPaquetesView.as_view(), name="estandar_paquetes"),
     path("createnewpack/", NewPack.as_view(), name="createnewpack"),
     path("updatepack/<int:pk>/", UpdatePack.as_view(), name="updatepack"),
     path("deletepack/<int:pk>/", DeletePack.as_view(), name="deletepack"),

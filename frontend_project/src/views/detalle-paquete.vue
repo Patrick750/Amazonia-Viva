@@ -224,6 +224,20 @@ const formatTime = (timeStr) => {
     hrs = hrs % 12 || 12;
     return `${hrs}:${mins} ${period}`;
 };
+
+const etiquetasModalidad = {
+    naturaleza: 'Naturaleza y ecoturismo',
+    aventura: 'Turismo de aventura',
+    cultural: 'Turismo cultural',
+    rural: 'Turismo rural',
+    agroturismo: 'Agroturismo',
+    bienestar: 'Bienestar',
+    nautico: 'Turismo náutico',
+    reuniones: 'Reuniones y eventos',
+};
+
+const fichaDeActividad = (actividadId) =>
+    tour.value?.clasificacion_actividades?.find(item => Number(item.actividad_id) === Number(actividadId));
 </script>
 
 <template>
@@ -465,6 +479,59 @@ const formatTime = (timeStr) => {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Ficha técnica MEJ-003 -->
+                    <section v-if="tour.modalidades_turismo?.length || tour.clasificacion_actividades?.length || tour.requisitos_participantes" class="overflow-hidden rounded-3xl border border-sky-100 bg-white shadow-sm">
+                        <div class="border-b border-sky-100 bg-sky-50 p-6 sm:flex sm:items-center sm:justify-between sm:gap-5">
+                            <div>
+                                <p class="text-[11px] font-black uppercase tracking-[0.15em] text-sky-700">Ficha técnica y de seguridad</p>
+                                <h2 class="mt-2 text-xl font-black text-gray-900">Prepárate con información específica del recorrido</h2>
+                            </div>
+                            <router-link to="/estandar-paquetes" class="mt-4 inline-flex min-h-11 items-center rounded-xl border border-sky-200 bg-white px-4 text-xs font-bold text-sky-700 transition hover:border-sky-300 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:mt-0">
+                                ¿En qué se basa esta ficha?
+                            </router-link>
+                        </div>
+
+                        <div class="p-6 sm:p-8">
+                            <div v-if="tour.modalidades_turismo?.length" class="mb-6 flex flex-wrap gap-2">
+                                <span v-for="modalidad in tour.modalidades_turismo" :key="modalidad" class="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">
+                                    {{ etiquetasModalidad[modalidad] || modalidad }}
+                                </span>
+                            </div>
+
+                            <div v-if="tour.actividades_detalle?.some(actividad => fichaDeActividad(actividad.id))" class="grid gap-4 md:grid-cols-2">
+                                <article v-for="actividad in tour.actividades_detalle.filter(item => fichaDeActividad(item.id))" :key="`publica-${actividad.id}`" class="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <h3 class="font-bold text-gray-900">{{ actividad.nombre }}</h3>
+                                        <span v-if="actividad.norma_tecnica" class="rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-black text-sky-700">{{ actividad.norma_tecnica }}</span>
+                                    </div>
+                                    <p v-if="fichaDeActividad(actividad.id).nivel" class="mt-3 text-sm font-bold text-sky-800">
+                                        {{ actividad.opciones_dificultad?.find(opcion => opcion.value === fichaDeActividad(actividad.id).nivel)?.label || fichaDeActividad(actividad.id).nivel }}
+                                    </p>
+                                    <p v-if="fichaDeActividad(actividad.id).descripcion" class="mt-2 text-sm leading-6 text-gray-600">{{ fichaDeActividad(actividad.id).descripcion }}</p>
+                                </article>
+                            </div>
+
+                            <dl class="mt-6 grid gap-5 md:grid-cols-2">
+                                <div v-if="tour.requisitos_participantes" class="rounded-2xl border border-gray-100 p-5">
+                                    <dt class="text-xs font-black uppercase tracking-wide text-gray-500">Requisitos y restricciones</dt>
+                                    <dd class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-700">{{ tour.requisitos_participantes }}</dd>
+                                </div>
+                                <div v-if="tour.condiciones_operacion" class="rounded-2xl border border-gray-100 p-5">
+                                    <dt class="text-xs font-black uppercase tracking-wide text-gray-500">Condiciones de operación</dt>
+                                    <dd class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-700">{{ tour.condiciones_operacion }}</dd>
+                                </div>
+                                <div v-if="tour.medidas_seguridad" class="rounded-2xl border border-gray-100 p-5">
+                                    <dt class="text-xs font-black uppercase tracking-wide text-gray-500">Medidas de seguridad</dt>
+                                    <dd class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-700">{{ tour.medidas_seguridad }}</dd>
+                                </div>
+                                <div v-if="tour.informacion_sostenibilidad" class="rounded-2xl border border-gray-100 p-5">
+                                    <dt class="text-xs font-black uppercase tracking-wide text-gray-500">Sostenibilidad</dt>
+                                    <dd class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-700">{{ tour.informacion_sostenibilidad }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </section>
 
                     <!-- Itinerario -->
                     <div v-if="tour.itinerario && tour.itinerario.length > 0" class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">

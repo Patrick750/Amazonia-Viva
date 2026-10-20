@@ -56,6 +56,11 @@ const router = createRouter({
       component: paquetes,
     },
     {
+      path:'/estandar-paquetes',
+      name:'estandar_paquetes',
+      component: () => import('@/views/estandar-paquetes.vue'),
+    },
+    {
       path:'/panel/productos',
       name:'productos',
       component: productos,
@@ -192,7 +197,7 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   const rol = localStorage.getItem('rol')
 
-  const publicPaths = ['/', '/auth/login', '/auth/signup', '/catalogo']
+  const publicPaths = ['/', '/auth/login', '/auth/signup', '/catalogo', '/estandar-paquetes']
   const isPublic = publicPaths.includes(to.path) || to.path.startsWith('/catalogo/') || to.name === 'perfil_publico'
 
   // Si no está autenticado y no es una ruta pública, al inicio
@@ -230,7 +235,7 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  if (to.path === '/panel/gestion-paquetes' && rolLower !== 'agencia') {
+  if (to.path.startsWith('/panel/gestion-paquetes') && rolLower !== 'agencia') {
     return next('/')
   }
 

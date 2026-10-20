@@ -142,6 +142,22 @@ class Actividades(APIView):
         except Exception as e:
             return Response({'mensaje':'Hubo un error con la DB'})
 
+
+class EstandarPaquetesView(APIView):
+    """Expone la versión y las fuentes que usa la ficha técnica de MEJ-003."""
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from .estandar_turistico import construir_resumen_estandar
+
+        resumen = construir_resumen_estandar()
+        resumen['actividades_reguladas'] = SerializersActividades(
+            Actividad.objects.filter(es_turismo_aventura=True).order_by('nombre'),
+            many=True,
+        ).data
+        return Response(resumen)
+
 class NewPack(APIView):
     permission_classes = [IsAgencia]
     def post(self, request):
@@ -233,6 +249,10 @@ class PaquetesTuristicos(APIView):
                         p.duracion, p.capacidad, p.ubicacion, p.itinerario, 
                         p.incluido, p.rating, p.agencia_id, p.categoria_paquete_id,
                         p.fecha_realizacion, p.tipo_paquete,
+                        p.modalidades_turismo, p.clasificacion_actividades,
+                        p.requisitos_participantes, p.condiciones_operacion,
+                        p.medidas_seguridad, p.informacion_sostenibilidad,
+                        p.certificacion_aventura,
                         c.nombre AS categoria_nombre,
                         (SELECT COALESCE(SUM(dv.cantidad), 0) 
                          FROM autenticacion_detalles_venta dv 
@@ -262,6 +282,16 @@ class PaquetesTuristicos(APIView):
             paquetes_list = []
             for row in rows:
                 item = dict(zip(columns, row))
+                for campo_json, valor_predeterminado in (
+                    ('itinerario', []), ('incluido', []),
+                    ('modalidades_turismo', []), ('clasificacion_actividades', []),
+                    ('certificacion_aventura', {}),
+                ):
+                    if isinstance(item.get(campo_json), str):
+                        try:
+                            item[campo_json] = json.loads(item[campo_json])
+                        except (TypeError, ValueError):
+                            item[campo_json] = valor_predeterminado
                 capacidad = item['capacidad'] or 0
                 reservas_comp = item['reservas_completadas'] or 0
                 
@@ -270,7 +300,6 @@ class PaquetesTuristicos(APIView):
                 else:
                     item['cupos_disponibles'] = capacidad
 
-                # Actividades vacías por defecto o estructuradas
                 item['actividades'] = []
                 item['categoria_paquete'] = item['categoria_paquete_id']
                 item['agencia'] = item['agencia_id']
@@ -287,10 +316,20 @@ class PaquetesTuristicos(APIView):
                         img_map[img.paquete_id] = []
                     img_map[img.paquete_id].append({
                         'id': img.id,
-                        'imagen': img.imagen.url if img.imagen else None
+                        'url': img.imagen.url if img.imagen else None,
+                        'es_portada': img.es_portada,
                     })
                 for p in paquetes_list:
                     p['imagen_paquete'] = img_map.get(p['id'], [])
+
+                actividades_por_paquete = {}
+                relaciones = PaqueteTuristico.actividades.through.objects.filter(
+                    paqueteturistico_id__in=p_ids
+                ).values_list('paqueteturistico_id', 'actividad_id')
+                for paquete_id, actividad_id in relaciones:
+                    actividades_por_paquete.setdefault(paquete_id, []).append(actividad_id)
+                for p in paquetes_list:
+                    p['actividades'] = actividades_por_paquete.get(p['id'], [])
 
             return Response(paquetes_list)
         except (Http404, APIException):

@@ -6,6 +6,8 @@ from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
 from django.db.models import Sum
+from django.utils.dateparse import parse_date
+from .estandar_turistico import MODALIDADES_TURISMO
 
 
 def calcular_cupos_disponibles(paquete, fecha=None):
@@ -165,10 +167,142 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
             'ubicacion', 'latitud', 'longitud', 'capacidad', 
             'actividades', 'itinerario', 'incluido', 
             'imagen_paquete', 'archivos_subidos', 'imagenes_eliminar', 'agencia',
-            'categoria_paquete', 'fecha_realizacion', 'tipo_paquete'
+            'categoria_paquete', 'fecha_realizacion', 'tipo_paquete',
+            'modalidades_turismo', 'clasificacion_actividades',
+            'requisitos_participantes', 'condiciones_operacion',
+            'medidas_seguridad', 'informacion_sostenibilidad',
+            'certificacion_aventura'
         ]
         read_only_fields = ['tipo_paquete', 'agencia']
         extra_kwargs = {'precio': {'min_value': Decimal('0.01')}, 'capacidad': {'min_value': 1}}
+
+    def validate_modalidades_turismo(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Selecciona una o más modalidades válidas.")
+        permitidas = {item['value'] for item in MODALIDADES_TURISMO}
+        normalizadas = list(dict.fromkeys(str(item).strip() for item in value if str(item).strip()))
+        invalidas = [item for item in normalizadas if item not in permitidas]
+        if invalidas:
+            raise serializers.ValidationError(f"Modalidades no reconocidas: {', '.join(invalidas)}.")
+        return normalizadas
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        actividades = attrs.get('actividades')
+        if actividades is None and self.instance:
+            actividades = list(self.instance.actividades.all())
+        actividades = actividades or []
+
+        activo = attrs.get('activo', self.instance.activo if self.instance else True)
+        modalidades = attrs.get(
+            'modalidades_turismo',
+            self.instance.modalidades_turismo if self.instance else []
+        )
+        clasificaciones = attrs.get(
+            'clasificacion_actividades',
+            self.instance.clasificacion_actividades if self.instance else []
+        )
+        certificacion = attrs.get(
+            'certificacion_aventura',
+            self.instance.certificacion_aventura if self.instance else {}
+        )
+
+        if not isinstance(clasificaciones, list):
+            raise serializers.ValidationError({
+                'clasificacion_actividades': 'La clasificación debe ser una lista por actividad.'
+            })
+        if not isinstance(certificacion, dict):
+            raise serializers.ValidationError({
+                'certificacion_aventura': 'La certificación debe tener un formato válido.'
+            })
+        if self.instance is None and not modalidades:
+            raise serializers.ValidationError({
+                'modalidades_turismo': 'Selecciona al menos una modalidad para el paquete.'
+            })
+
+        seleccionadas = {actividad.pk: actividad for actividad in actividades}
+        normalizadas = []
+        vistas = set()
+        errores_clasificacion = []
+        for item in clasificaciones:
+            if not isinstance(item, dict):
+                errores_clasificacion.append('Cada clasificación debe ser un objeto.')
+                continue
+            try:
+                actividad_id = int(item.get('actividad_id'))
+            except (TypeError, ValueError):
+                errores_clasificacion.append('Hay una clasificación sin actividad válida.')
+                continue
+            if actividad_id not in seleccionadas:
+                errores_clasificacion.append(f'La actividad {actividad_id} no está seleccionada en el paquete.')
+                continue
+            if actividad_id in vistas:
+                errores_clasificacion.append(f'La actividad {actividad_id} tiene una clasificación duplicada.')
+                continue
+            vistas.add(actividad_id)
+            actividad = seleccionadas[actividad_id]
+            nivel = str(item.get('nivel', '')).strip()
+            descripcion = str(item.get('descripcion', '')).strip()
+            opciones = {str(opcion.get('value')) for opcion in actividad.opciones_dificultad if isinstance(opcion, dict)}
+            if opciones and nivel not in opciones:
+                errores_clasificacion.append(
+                    f'El nivel indicado para {actividad.nombre} no pertenece a {actividad.sistema_dificultad}.'
+                )
+                continue
+            if actividad.es_turismo_aventura and not (nivel or descripcion):
+                errores_clasificacion.append(f'Describe la dificultad técnica de {actividad.nombre}.')
+                continue
+            normalizadas.append({
+                'actividad_id': actividad_id,
+                'sistema': actividad.sistema_dificultad,
+                'nivel': nivel,
+                'descripcion': descripcion,
+            })
+
+        if errores_clasificacion:
+            raise serializers.ValidationError({'clasificacion_actividades': errores_clasificacion})
+
+        aventura = [actividad for actividad in actividades if actividad.es_turismo_aventura]
+        if aventura and 'aventura' not in modalidades:
+            raise serializers.ValidationError({
+                'modalidades_turismo': 'Incluye “Turismo de aventura” para las actividades seleccionadas.'
+            })
+
+        if activo and aventura:
+            pendientes = [actividad.nombre for actividad in aventura if actividad.pk not in vistas]
+            if pendientes:
+                raise serializers.ValidationError({
+                    'clasificacion_actividades': [
+                        f"Completa la ficha técnica de {nombre}." for nombre in pendientes
+                    ]
+                })
+
+            campos_operativos = {
+                'requisitos_participantes': 'Indica los requisitos y restricciones de participación.',
+                'condiciones_operacion': 'Describe las condiciones en las que se puede operar.',
+                'medidas_seguridad': 'Describe las medidas de seguridad y respuesta.',
+            }
+            errores = {}
+            for campo, mensaje in campos_operativos.items():
+                valor = attrs.get(campo, getattr(self.instance, campo, '') if self.instance else '')
+                if not str(valor).strip():
+                    errores[campo] = mensaje
+
+            if certificacion.get('estado') != 'vigente':
+                errores['certificacion_aventura'] = 'Un tour de aventura activo requiere certificación vigente.'
+            elif not all(str(certificacion.get(campo, '')).strip() for campo in ('organismo', 'codigo', 'vigente_hasta')):
+                errores['certificacion_aventura'] = (
+                    'Registra organismo, código y fecha de vigencia de la certificación.'
+                )
+            else:
+                vigencia = parse_date(str(certificacion.get('vigente_hasta')))
+                if not vigencia or vigencia < timezone.now().date():
+                    errores['certificacion_aventura'] = 'La fecha de vigencia debe ser válida y no estar vencida.'
+            if errores:
+                raise serializers.ValidationError(errores)
+
+        attrs['clasificacion_actividades'] = normalizadas
+        return attrs
 
     def create(self, validated_data):
         archivos = validated_data.pop('archivos_subidos', [])
@@ -274,7 +408,11 @@ class SerializersPaquetes(serializers.ModelSerializer):
             'duracion', 'capacidad', 'ubicacion', 'itinerario', 
             'incluido', 'rating', 'agencia', 'actividades',
             'categoria_paquete', 'imagen_paquete', 'reservas_totales',
-            'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles'
+            'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles',
+            'modalidades_turismo', 'clasificacion_actividades',
+            'requisitos_participantes', 'condiciones_operacion',
+            'medidas_seguridad', 'informacion_sostenibilidad',
+            'certificacion_aventura'
         ]
 
 
@@ -658,7 +796,10 @@ class SerializerDetalleTour(serializers.ModelSerializer):
             'itinerario', 'incluido', 'rating',
             'imagen_paquete', 'nombre_agencia', 'agencia_id', 'categoria_paquete_nombre',
             'actividades_detalle', 'reservas_totales',
-            'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles'
+            'fecha_realizacion', 'tipo_paquete', 'cupos_disponibles',
+            'modalidades_turismo', 'clasificacion_actividades',
+            'requisitos_participantes', 'condiciones_operacion',
+            'medidas_seguridad', 'informacion_sostenibilidad'
         ]
 
 

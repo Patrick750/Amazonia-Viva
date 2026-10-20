@@ -4,13 +4,14 @@ from decimal import Decimal
 from threading import Barrier
 from unittest.mock import patch
 from uuid import uuid4
+import json
 from django.db import close_old_connections, connection
 from django.test import TestCase, TransactionTestCase, override_settings, skipUnlessDBFeature
 from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import (Agencia, Proveedor, Turista, Usuario, Categorias, PaqueteTuristico,
+from .models import (Agencia, Proveedor, Turista, Usuario, Categoria, Actividad, Categorias, PaqueteTuristico,
                      Productos, Venta, Detalles_Venta, ReservaFecha, Carrito, Items, SolicitudRetiro,
                      IntentosCredenciales, CambioEstadoRetiro)
 from .compras import procesar_compra, liberar_pedido
@@ -659,3 +660,113 @@ class WompiTests(TestCase):
         response = self.client.post('/api/venta/procesar/', payload(self.producto), format='json')
         self.assertEqual(response.status_code, 503)
         self.assertEqual(Venta.objects.count(), 1)
+
+
+@override_settings(
+    DEBUG=True,
+    SECURE_SSL_REDIRECT=False,
+    PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'],
+)
+class EstandarPaquetesTests(TestCase):
+    def setUp(self):
+        self.agencia = Agencia.objects.create_user(
+            username='agencia-estandar',
+            email='estandar@example.test',
+            password='A-safe-pass-938!',
+            nombre_agencia='Operadora de aventura',
+        )
+        categoria = Categoria.objects.create(nombre='Aventura')
+        self.rafting = Actividad.objects.create(
+            nombre='Rafting / Canotaje',
+            nivel_riesgo=7,
+            categoria=categoria,
+            es_turismo_aventura=True,
+            norma_tecnica='NTS-AV 010',
+            sistema_dificultad='Clase internacional del tramo de río',
+            opciones_dificultad=[
+                {'value': 'I', 'label': 'Clase I · Fácil'},
+                {'value': 'III', 'label': 'Clase III · Intermedio'},
+            ],
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(self.agencia)
+
+    def datos_paquete(self):
+        return {
+            'activo': True,
+            'nombre': 'Río de prueba',
+            'descripcion': 'Descenso guiado con ficha técnica.',
+            'precio': '150000.00',
+            'duracion': '4 horas',
+            'capacidad': 8,
+            'ubicacion': 'Leticia, Amazonas',
+            'actividades': [self.rafting.pk],
+            'itinerario': [],
+            'incluido': [],
+            'modalidades_turismo': ['aventura', 'naturaleza'],
+            'clasificacion_actividades': [{
+                'actividad_id': self.rafting.pk,
+                'nivel': 'III',
+                'descripcion': 'Tramo con maniobra activa y reconocimiento previo.',
+            }],
+            'requisitos_participantes': 'Mayores de 14 años con condición física adecuada.',
+            'condiciones_operacion': 'Sujeto al caudal y al pronóstico meteorológico.',
+            'medidas_seguridad': 'Inducción, casco, chaleco, guía y plan de respuesta.',
+            'informacion_sostenibilidad': 'No dejar residuos y respetar la fauna.',
+            'certificacion_aventura': {
+                'estado': 'vigente',
+                'organismo': 'OEC de prueba',
+                'codigo': 'CERT-001',
+                'vigente_hasta': '2027-12-31',
+            },
+        }
+
+    def test_info_estandar_es_publica_y_trazable(self):
+        self.client.force_authenticate(None)
+        response = self.client.get('/api/estandar-paquetes/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['version'], '2026-10-16')
+        normas = {actividad['norma_tecnica'] for actividad in response.data['actividades_reguladas']}
+        self.assertIn('NTS-AV 010', normas)
+        self.assertTrue(any(fuente['verificada'] for fuente in response.data['fuentes']))
+
+    def test_tour_aventura_activo_exige_certificacion_vigente(self):
+        data = self.datos_paquete()
+        data['certificacion_aventura'] = {'estado': 'pendiente'}
+        response = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('certificacion_aventura', response.data)
+
+    def test_paquete_nuevo_exige_modalidad(self):
+        data = self.datos_paquete()
+        data['modalidades_turismo'] = []
+        response = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('modalidades_turismo', response.data)
+
+    def test_guarda_clasificacion_especifica_sin_mezclar_riesgo(self):
+        response = self.client.post('/api/createnewpack/', self.datos_paquete(), format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        paquete = PaqueteTuristico.objects.get(pk=response.data['id'])
+        ficha = paquete.clasificacion_actividades[0]
+        self.assertEqual(ficha['sistema'], 'Clase internacional del tramo de río')
+        self.assertEqual(ficha['nivel'], 'III')
+        self.assertEqual(paquete.actividades.get().nivel_riesgo, 7)
+        gestion = self.client.get('/api/pack/')
+        self.assertEqual(gestion.status_code, 200)
+        self.assertEqual(gestion.data[0]['actividades'], [self.rafting.pk])
+        self.assertEqual(gestion.data[0]['modalidades_turismo'], ['aventura', 'naturaleza'])
+
+    def test_rechaza_nivel_ajeno_a_la_escala_de_la_actividad(self):
+        data = self.datos_paquete()
+        data['clasificacion_actividades'][0]['nivel'] = 'alto'
+        response = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('clasificacion_actividades', response.data)
+
+    def test_acepta_campos_json_desde_formdata_del_frontend(self):
+        data = self.datos_paquete()
+        for campo in ('modalidades_turismo', 'clasificacion_actividades', 'certificacion_aventura', 'itinerario', 'incluido'):
+            data[campo] = json.dumps(data[campo])
+        response = self.client.post('/api/createnewpack/', data, format='multipart')
+        self.assertEqual(response.status_code, 201, response.data)

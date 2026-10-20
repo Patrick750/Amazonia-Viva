@@ -1,8 +1,11 @@
 name: Despliegue Automático Amazonia Viva
 
-# El commit del bot usa GITHUB_TOKEN y no genera otro push workflow.
-# Esperar al versionado y desplegar exactamente la referencia publicada.
+# Produccion despliega la referencia versionada de main. La rama MEJ-003 puede
+# desplegarse directamente para validar los cambios antes de integrarlos.
 on:
+  push:
+    branches:
+      - codex/mej-003-estandar-paquetes
   workflow_run:
     workflows: ['Version Bump on Merge']
     types: [completed]
@@ -13,17 +16,19 @@ permissions:
   actions: read
 
 concurrency:
-  group: deployment-main
+  group: deployment-amazonia-viva
   cancel-in-progress: false
-  queue: max
 
 jobs:
   verify:
     if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      github.event.workflow_run.head_repository.full_name == github.repository)
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}
+      deploy_branch: ${{ steps.release.outputs.branch }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -45,18 +50,40 @@ jobs:
       CHECKOUT_MODE: disabled
       ALLOW_WITHDRAWALS: 'false'
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Descargar referencia versionada de produccion
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
         with:
           name: versioned-reference
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id }}
           path: .versioned
-      - name: Validar referencia publicada
+      - name: Resolver referencia a desplegar
         id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_SHA: ${{ github.sha }}
+          PUSH_BRANCH: ${{ github.ref_name }}
         run: |
-          VERSIONED_SHA=$(cat .versioned/versioned-sha.txt)
+          if [ "$EVENT_NAME" = "push" ]; then
+            VERSIONED_SHA="$PUSH_SHA"
+            DEPLOY_BRANCH="$PUSH_BRANCH"
+          else
+            VERSIONED_SHA=$(cat .versioned/versioned-sha.txt)
+            DEPLOY_BRANCH="main"
+          fi
+
           [[ "$VERSIONED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          case "$DEPLOY_BRANCH" in
+            main|codex/mej-003-estandar-paquetes) ;;
+            *)
+              echo "Rama de despliegue no autorizada: $DEPLOY_BRANCH"
+              exit 1
+              ;;
+          esac
+
           printf 'sha=%s\n' "$VERSIONED_SHA" >> "$GITHUB_OUTPUT"
+          printf 'branch=%s\n' "$DEPLOY_BRANCH" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.release.outputs.sha }}
@@ -122,10 +149,13 @@ jobs:
         key: ${{ secrets.VPS_SSH_KEY }}
         # Estos son los comandos que GitHub ejecutará dentro de tu VPS:
         script: |
-          # Asegúrate de que esta sea la ruta real en tu servidor VPS
+          set -euo pipefail
           cd ~/Amazonia-Viva
-          git fetch origin main
-          git checkout --detach ${{ needs.verify.outputs.release_sha }}
+          DEPLOY_BRANCH="${{ needs.verify.outputs.deploy_branch }}"
+          RELEASE_SHA="${{ needs.verify.outputs.release_sha }}"
+          git fetch --prune origin "+refs/heads/$DEPLOY_BRANCH:refs/remotes/origin/$DEPLOY_BRANCH"
+          git checkout -f -B "$DEPLOY_BRANCH" "$RELEASE_SHA"
+          git branch --set-upstream-to="origin/$DEPLOY_BRANCH" "$DEPLOY_BRANCH"
           docker compose pull
           docker compose up -d --build
           docker compose exec -T backend python manage.py check --deploy --tag security --fail-level WARNING

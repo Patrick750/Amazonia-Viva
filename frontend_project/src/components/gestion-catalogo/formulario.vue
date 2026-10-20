@@ -39,6 +39,7 @@ const suggestions = ref([]);
 const isSearching = ref(false);
 const isMapExpanded = ref(false);
 let searchTimeout = null;
+const estandar = ref(null);
 
 // --- ESTADO DEL FORMULARIO ---
 const newTour = reactive({
@@ -58,10 +59,30 @@ const newTour = reactive({
     imagen: [],   // nuevas imágenes locales { file, url, name }
     categoria_paquete: '',
     fecha_realizacion: '',
+    modalidades_turismo: [],
+    clasificacion_actividades: [],
+    requisitos_participantes: '',
+    condiciones_operacion: '',
+    medidas_seguridad: '',
+    informacion_sostenibilidad: '',
+    certificacion_aventura: {
+        estado: 'no_aplica',
+        organismo: '',
+        codigo: '',
+        vigente_hasta: '',
+    },
 });
 
 // Tipo calculado en tiempo real
 const tipoPaqueteAuto = computed(() => newTour.fecha_realizacion ? 'fijo' : 'flexible');
+const actividadesSeleccionadas = computed(() =>
+    (props.actividades || []).filter(actividad => newTour.actividades.includes(actividad.id))
+);
+const actividadesAventura = computed(() =>
+    actividadesSeleccionadas.value.filter(actividad => actividad.es_turismo_aventura)
+);
+const requiereCertificacion = computed(() => actividadesAventura.value.length > 0);
+const totalErrores = computed(() => Object.keys(errores).length);
 
 const categorias = ref([]);
 const fetchCategorias = async () => {
@@ -71,6 +92,16 @@ const fetchCategorias = async () => {
         categorias.value = data;
     } catch (error) {
         console.error("Error al cargar categorías", error);
+    }
+};
+
+const fetchEstandar = async () => {
+    if (estandar.value) return;
+    try {
+        const { data } = await clienteAxios.get('api/estandar-paquetes/');
+        estandar.value = data;
+    } catch (error) {
+        console.error('Error al cargar el estándar de paquetes', error);
     }
 };
 
@@ -110,6 +141,16 @@ watch(() => props.paquete, (paqueteAEditar) => {
 
         newTour.imagen = [];
         newTour.fecha_realizacion = paqueteAEditar.fecha_realizacion || '';
+        newTour.modalidades_turismo = Array.isArray(paqueteAEditar.modalidades_turismo)
+            ? [...paqueteAEditar.modalidades_turismo]
+            : [];
+        newTour.clasificacion_actividades = Array.isArray(paqueteAEditar.clasificacion_actividades)
+            ? JSON.parse(JSON.stringify(paqueteAEditar.clasificacion_actividades))
+            : [];
+        newTour.certificacion_aventura = {
+            estado: 'no_aplica', organismo: '', codigo: '', vigente_hasta: '',
+            ...(paqueteAEditar.certificacion_aventura || {}),
+        };
         // Cargar imágenes existentes
         imagenesExistentes.value = paqueteAEditar.imagen_paquete
             ? paqueteAEditar.imagen_paquete.map(i => ({ ...i }))
@@ -120,6 +161,9 @@ watch(() => props.paquete, (paqueteAEditar) => {
         newTour.incluido = [{ item: '' }];
         newTour.imagen = [];
         newTour.fecha_realizacion = '';
+        newTour.modalidades_turismo = [];
+        newTour.clasificacion_actividades = [];
+        newTour.certificacion_aventura = { estado: 'no_aplica', organismo: '', codigo: '', vigente_hasta: '' };
         imagenesExistentes.value = [];
     }
     imagenesAEliminar.value = [];
@@ -157,6 +201,32 @@ const validarFormulario = () => {
     if (!newTour.capacidad || newTour.capacidad <= 0) { errores.capacidad = "Capacidad inválida."; valido = false; }
     if (!newTour.categoria_paquete) { errores.categoria_paquete = "Selecciona una categoría."; valido = false; }
     if (newTour.actividades.length === 0) { errores.actividades = "Selecciona al menos una actividad."; valido = false; }
+    if (newTour.modalidades_turismo.length === 0) { errores.modalidades_turismo = "Selecciona al menos una modalidad."; valido = false; }
+
+    if (requiereCertificacion.value) {
+        if (!newTour.modalidades_turismo.includes('aventura')) {
+            errores.modalidades_turismo = 'Incluye Turismo de aventura para las actividades seleccionadas.';
+            valido = false;
+        }
+        const fichasIncompletas = actividadesAventura.value.filter(actividad => {
+            const ficha = newTour.clasificacion_actividades.find(item => Number(item.actividad_id) === actividad.id);
+            return !ficha || (!ficha.nivel && !ficha.descripcion?.trim());
+        });
+        if (fichasIncompletas.length) {
+            errores.clasificacion_actividades = `Completa la ficha técnica de ${fichasIncompletas.map(item => item.nombre).join(', ')}.`;
+            valido = false;
+        }
+        if (!newTour.requisitos_participantes.trim()) { errores.requisitos_participantes = 'Indica requisitos y restricciones.'; valido = false; }
+        if (!newTour.condiciones_operacion.trim()) { errores.condiciones_operacion = 'Describe las condiciones de operación.'; valido = false; }
+        if (!newTour.medidas_seguridad.trim()) { errores.medidas_seguridad = 'Describe las medidas de seguridad.'; valido = false; }
+        if (newTour.activo && newTour.certificacion_aventura.estado !== 'vigente') {
+            errores.certificacion_aventura = 'Un tour de aventura activo requiere certificación vigente.';
+            valido = false;
+        } else if (newTour.activo && ['organismo', 'codigo', 'vigente_hasta'].some(campo => !newTour.certificacion_aventura[campo]?.trim())) {
+            errores.certificacion_aventura = 'Completa organismo, código y fecha de vigencia.';
+            valido = false;
+        }
+    }
     
     // Validación de mapa y ubicación
     if (!searchQuery.value?.trim()) {
@@ -167,8 +237,38 @@ const validarFormulario = () => {
         errores.ubicacion = "Debes seleccionar un punto en el mapa (puedes buscarlo o hacer clic).";
         valido = false;
     }
+    if (!valido) {
+        nextTick(() => document.querySelector('[data-form-error="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    }
     return valido;
 };
+
+const fichaActividad = (actividad) => {
+    let ficha = newTour.clasificacion_actividades.find(item => Number(item.actividad_id) === actividad.id);
+    if (!ficha) {
+        ficha = {
+            actividad_id: actividad.id,
+            sistema: actividad.sistema_dificultad || '',
+            nivel: '',
+            descripcion: '',
+        };
+        newTour.clasificacion_actividades.push(ficha);
+    }
+    return ficha;
+};
+
+watch(() => [...newTour.actividades], (ids) => {
+    const seleccionadas = new Set(ids.map(Number));
+    newTour.clasificacion_actividades = newTour.clasificacion_actividades
+        .filter(item => seleccionadas.has(Number(item.actividad_id)));
+    actividadesSeleccionadas.value.forEach(actividad => fichaActividad(actividad));
+    if (actividadesAventura.value.length && !newTour.modalidades_turismo.includes('aventura')) {
+        newTour.modalidades_turismo.push('aventura');
+    }
+    if (!actividadesAventura.value.length) {
+        newTour.certificacion_aventura.estado = 'no_aplica';
+    }
+}, { deep: true });
 
 // --- ITINERARIO E INCLUIDO ---
 const addItineraryItem = () => {
@@ -358,6 +458,7 @@ const toggleMapSize = async () => {
 watch(() => props.abrir, async (estaAbierto) => {
     if (estaAbierto) {
         fetchCategorias();
+        fetchEstandar();
         await nextTick();
         setTimeout(() => {
             initMap();
@@ -373,7 +474,7 @@ const Enviar = async () => {
     try {
         const formData = new FormData();
         for (const key in newTour) {
-            if (!['itinerario', 'incluido', 'actividades', 'archivos_subidos', 'imagen', 'imagen_paquete'].includes(key)) {
+            if (!['itinerario', 'incluido', 'actividades', 'archivos_subidos', 'imagen', 'imagen_paquete', 'modalidades_turismo', 'clasificacion_actividades', 'certificacion_aventura'].includes(key)) {
                 if (newTour[key] !== null && newTour[key] !== undefined) {
                     if (key === 'latitud' || key === 'longitud') {
                         formData.append(key, Number(newTour[key]).toFixed(6));
@@ -394,6 +495,9 @@ const Enviar = async () => {
         formData.append('itinerario', JSON.stringify(itFiltrado));
         const incFiltrado = newTour.incluido.filter(i => i.item.trim());
         formData.append('incluido', JSON.stringify(incFiltrado));
+        formData.append('modalidades_turismo', JSON.stringify(newTour.modalidades_turismo));
+        formData.append('clasificacion_actividades', JSON.stringify(newTour.clasificacion_actividades));
+        formData.append('certificacion_aventura', JSON.stringify(newTour.certificacion_aventura));
         if (newTour.actividades?.length > 0) {
             newTour.actividades.forEach(id => formData.append('actividades', id));
         }
@@ -411,7 +515,13 @@ const Enviar = async () => {
         setTimeout(() => emit('cerrar'), 1500);
     } catch (error) {
         console.error("Error al enviar", error);
-        mostrarNotificacion('Hubo un error al guardar el tour. Intenta de nuevo.', 'error');
+        const respuesta = error.response?.data;
+        if (respuesta && typeof respuesta === 'object') {
+            Object.entries(respuesta).forEach(([campo, mensajes]) => {
+                errores[campo] = Array.isArray(mensajes) ? mensajes.join(' ') : String(mensajes);
+            });
+        }
+        mostrarNotificacion('Revisa los campos señalados antes de guardar.', 'error');
     } finally {
         isLoading.value = false;
     }
@@ -429,7 +539,7 @@ const Enviar = async () => {
       <div class="absolute inset-0 bg-black/85 backdrop-blur-md"></div>
 
       <!-- Modal Card -->
-      <div class="relative bg-[#0d2114] border border-white/10 rounded-[2.5rem] shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-fade-in-up">
+      <div class="relative bg-[#0d2114] border border-white/10 rounded-[2rem] shadow-2xl w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden animate-fade-in-up">
 
         <!-- === HEADER GRADIENTE === -->
         <div class="bg-gradient-to-br from-emerald-600 to-emerald-900 px-8 py-7 flex-shrink-0 relative overflow-hidden">
@@ -449,12 +559,18 @@ const Enviar = async () => {
                 {{ paquete ? 'Actualiza los datos de esta experiencia premium' : 'Diseña una aventura única para tus viajeros' }}
               </p>
             </div>
-            <button @click="emit('cerrar')"
+            <div class="flex items-center gap-2">
+              <router-link to="/estandar-paquetes"
+                class="hidden sm:inline-flex min-h-11 items-center rounded-xl border border-white/15 bg-black/15 px-4 text-xs font-bold text-white/80 transition hover:bg-black/25 focus:outline-none focus:ring-2 focus:ring-white/70">
+                Información del estándar
+              </router-link>
+            <button @click="emit('cerrar')" type="button" aria-label="Cerrar formulario"
               class="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-all hover:rotate-90 duration-300 border border-white/5">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
+            </div>
           </div>
         </div>
 
@@ -469,6 +585,21 @@ const Enviar = async () => {
         <!-- === CUERPO DEL FORMULARIO === -->
         <div class="overflow-y-auto flex-1 form-scroll bg-[#0a1a0f]">
           <form @submit.prevent="Enviar" class="p-8 sm:p-10 space-y-12">
+
+            <div v-if="totalErrores" data-form-error="true" role="alert" class="rounded-2xl border border-rose-400/30 bg-rose-400/10 p-5 text-sm text-rose-100">
+              <p class="font-black">Faltan {{ totalErrores }} campos o secciones por revisar.</p>
+              <p class="mt-1 text-rose-100/70">Los mensajes aparecen junto a la información que debes corregir.</p>
+            </div>
+
+            <div class="rounded-2xl border border-sky-300/20 bg-sky-300/[0.07] p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+              <div>
+                <p class="text-xs font-black uppercase tracking-[0.15em] text-sky-200">Ficha técnica MEJ-003</p>
+                <p class="mt-2 text-sm leading-6 text-white/60">La dificultad se registra por actividad. La escala de riesgo 1–10 es una referencia interna y no reemplaza la norma técnica.</p>
+              </div>
+              <router-link to="/estandar-paquetes" class="mt-4 inline-flex min-h-11 flex-none items-center rounded-xl border border-sky-200/20 px-4 text-xs font-bold text-sky-100 hover:bg-sky-100/10 focus:outline-none focus:ring-2 focus:ring-sky-300 sm:mt-0">
+                Ver base y fuentes
+              </router-link>
+            </div>
 
             <!-- ─── SECCIÓN 1: INFO BÁSICA ─── -->
             <section>
@@ -609,7 +740,7 @@ const Enviar = async () => {
                   <div class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-500/50">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                   </div>
-                  <input v-model="searchQuery" @input="searchLocation"
+                  <input v-model="searchQuery"
                     type="text" placeholder="Busca una ciudad, parque o coordenadas..."
                     class="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white font-bold focus:outline-none focus:bg-white/10 focus:border-emerald-500/50 transition-all placeholder:text-white/10">
                 </div>
@@ -619,7 +750,7 @@ const Enviar = async () => {
                   class="absolute z-30 left-0 right-0 mt-3 bg-[#0d2114] border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl animate-fade-in">
                   <ul class="divide-y divide-white/5">
                     <li v-for="s in suggestions" :key="s.place_id"
-                        @click="selectLocation(s)"
+                        @click="selectSuggestion(s)"
                         class="px-6 py-4 hover:bg-emerald-50/10 cursor-pointer transition-all group flex items-start gap-3">
                       <svg class="w-4 h-4 text-emerald-500 mt-0.5 group-hover:scale-125 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                       <div>
@@ -663,7 +794,20 @@ const Enviar = async () => {
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>
 
-              <div class="bg-white/5 border border-white/10 rounded-[2rem] p-8 space-y-8">
+              <div class="bg-white/5 border border-white/10 rounded-[2rem] p-6 sm:p-8 space-y-8">
+                <div>
+                  <label class="block text-[10px] font-black text-white/40 uppercase tracking-[0.15em] mb-4">Modalidades del paquete <span class="text-emerald-400">*</span></label>
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <label v-for="modalidad in estandar?.modalidades || []" :key="modalidad.value"
+                      class="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition"
+                      :class="newTour.modalidades_turismo.includes(modalidad.value) ? 'border-emerald-400/40 bg-emerald-400/10 text-white' : 'border-white/10 bg-black/10 text-white/55 hover:border-white/20'">
+                      <input v-model="newTour.modalidades_turismo" type="checkbox" :value="modalidad.value" class="h-4 w-4 accent-emerald-500">
+                      <span class="text-xs font-bold">{{ modalidad.label }}</span>
+                    </label>
+                  </div>
+                  <p v-if="errores.modalidades_turismo" class="mt-3 text-xs font-semibold text-rose-300">{{ errores.modalidades_turismo }}</p>
+                </div>
+
                 <!-- Checkboxes Actividades -->
                 <div>
                   <label class="block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-6 px-1">Tipos de Actividad <span class="text-emerald-500">*</span></label>
@@ -683,6 +827,7 @@ const Enviar = async () => {
                         :class="newTour.actividades.includes(actividad.id) ? 'text-white' : 'text-white/40 group-hover:text-white/60'">
                         {{ actividad.nombre }}
                       </span>
+                      <span v-if="actividad.norma_tecnica" class="ml-auto rounded-md bg-sky-300/10 px-2 py-1 text-[9px] font-bold text-sky-200">{{ actividad.norma_tecnica }}</span>
                     </label>
                   </div>
                   <p v-if="errores.actividades" class="text-[10px] text-rose-400 mt-4 font-bold px-1">{{ errores.actividades }}</p>
@@ -690,10 +835,105 @@ const Enviar = async () => {
               </div>
             </section>
 
-            <!-- ─── SECCIÓN 4: ITINERARIO ─── -->
+            <!-- ─── SECCIÓN 4: FICHA TÉCNICA Y SEGURIDAD ─── -->
             <section>
               <div class="flex items-center gap-4 mb-8">
-                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">4</div>
+                <div class="w-10 h-10 rounded-2xl bg-sky-400/10 border border-sky-300/20 text-sky-200 text-sm font-black flex items-center justify-center flex-shrink-0">4</div>
+                <div>
+                  <h3 class="text-xs font-black text-white/50 uppercase tracking-[0.2em]">Dificultad, requisitos y seguridad</h3>
+                  <p class="mt-1 text-xs text-white/35">Completa una ficha por actividad. Los campos obligatorios aparecen cuando seleccionas turismo de aventura.</p>
+                </div>
+                <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
+              </div>
+
+              <div v-if="!actividadesSeleccionadas.length" class="rounded-2xl border border-dashed border-white/15 p-7 text-center text-sm text-white/40">
+                Selecciona actividades en la sección anterior para completar su ficha técnica.
+              </div>
+
+              <div v-else class="space-y-4">
+                <article v-for="actividad in actividadesSeleccionadas" :key="`ficha-${actividad.id}`" class="rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h4 class="font-black text-white">{{ actividad.nombre }}</h4>
+                      <p class="mt-1 text-xs text-white/40">Riesgo interno {{ actividad.nivel_riesgo }}/10<span v-if="actividad.sistema_dificultad"> · {{ actividad.sistema_dificultad }}</span></p>
+                    </div>
+                    <span v-if="actividad.norma_tecnica" class="rounded-full bg-sky-300/10 px-3 py-1.5 text-[10px] font-black text-sky-200">{{ actividad.norma_tecnica }}</span>
+                    <span v-else class="rounded-full bg-white/5 px-3 py-1.5 text-[10px] font-bold text-white/35">Sin escala normativa cargada</span>
+                  </div>
+
+                  <div class="mt-5 grid gap-4" :class="actividad.opciones_dificultad?.length ? 'md:grid-cols-2' : ''">
+                    <div v-if="actividad.opciones_dificultad?.length">
+                      <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Nivel técnico</label>
+                      <select v-model="fichaActividad(actividad).nivel" class="min-h-12 w-full rounded-xl border border-white/10 bg-[#102219] px-4 text-sm font-semibold text-white focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/20">
+                        <option value="">Selecciona un nivel…</option>
+                        <option v-for="opcion in actividad.opciones_dificultad" :key="opcion.value" :value="opcion.value">{{ opcion.label }}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Descripción del recorrido y sus condiciones</label>
+                      <textarea v-model="fichaActividad(actividad).descripcion" rows="3" placeholder="Ej.: altura, caudal, terreno, experiencia requerida o condiciones del usuario…" class="w-full rounded-xl border border-white/10 bg-black/15 px-4 py-3 text-sm leading-6 text-white placeholder:text-white/20 focus:border-sky-300/50 focus:outline-none focus:ring-2 focus:ring-sky-300/20"></textarea>
+                    </div>
+                  </div>
+                </article>
+                <p v-if="errores.clasificacion_actividades" class="text-xs font-semibold text-rose-300">{{ errores.clasificacion_actividades }}</p>
+              </div>
+
+              <div class="mt-6 grid gap-5 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Requisitos y restricciones <span v-if="requiereCertificacion" class="text-emerald-400">*</span></label>
+                  <textarea v-model="newTour.requisitos_participantes" rows="4" placeholder="Edad mínima, salud, condición física, experiencia o habilidades requeridas…" class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm leading-6 text-white placeholder:text-white/20 focus:border-emerald-400/50 focus:outline-none"></textarea>
+                  <p v-if="errores.requisitos_participantes" class="mt-2 text-xs font-semibold text-rose-300">{{ errores.requisitos_participantes }}</p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Condiciones de operación <span v-if="requiereCertificacion" class="text-emerald-400">*</span></label>
+                  <textarea v-model="newTour.condiciones_operacion" rows="4" placeholder="Clima, caudal, horarios, límites de participantes o condiciones que suspenden la salida…" class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm leading-6 text-white placeholder:text-white/20 focus:border-emerald-400/50 focus:outline-none"></textarea>
+                  <p v-if="errores.condiciones_operacion" class="mt-2 text-xs font-semibold text-rose-300">{{ errores.condiciones_operacion }}</p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Medidas de seguridad <span v-if="requiereCertificacion" class="text-emerald-400">*</span></label>
+                  <textarea v-model="newTour.medidas_seguridad" rows="4" placeholder="Inducción, equipos, comunicaciones, seguros y respuesta a emergencias…" class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm leading-6 text-white placeholder:text-white/20 focus:border-emerald-400/50 focus:outline-none"></textarea>
+                  <p v-if="errores.medidas_seguridad" class="mt-2 text-xs font-semibold text-rose-300">{{ errores.medidas_seguridad }}</p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-[10px] font-black uppercase tracking-widest text-white/40">Información de sostenibilidad</label>
+                  <textarea v-model="newTour.informacion_sostenibilidad" rows="4" placeholder="Prácticas ambientales, socioculturales y económicas que se informarán al viajero…" class="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm leading-6 text-white placeholder:text-white/20 focus:border-emerald-400/50 focus:outline-none"></textarea>
+                </div>
+              </div>
+
+              <div v-if="requiereCertificacion" class="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-5 sm:p-6">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p class="text-xs font-black uppercase tracking-widest text-amber-200">Certificación de turismo de aventura</p>
+                    <p class="mt-2 max-w-2xl text-xs leading-5 text-amber-50/60">Para publicar el tour como activo, registra una certificación vigente emitida por un organismo acreditado. El sistema conserva la referencia; no sustituye la verificación oficial.</p>
+                  </div>
+                  <select v-model="newTour.certificacion_aventura.estado" class="min-h-11 rounded-xl border border-amber-200/20 bg-[#2a2816] px-4 text-sm font-bold text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-300">
+                    <option value="pendiente">En trámite / pendiente</option>
+                    <option value="vigente">Vigente</option>
+                    <option value="vencida">Vencida</option>
+                  </select>
+                </div>
+                <div class="mt-5 grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-amber-100/50">Organismo evaluador</label>
+                    <input v-model="newTour.certificacion_aventura.organismo" type="text" placeholder="Nombre del OEC" class="min-h-12 w-full rounded-xl border border-amber-100/15 bg-black/15 px-4 text-sm text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-amber-300/40">
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-amber-100/50">Código o certificado</label>
+                    <input v-model="newTour.certificacion_aventura.codigo" type="text" placeholder="Código verificable" class="min-h-12 w-full rounded-xl border border-amber-100/15 bg-black/15 px-4 text-sm text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-amber-300/40">
+                  </div>
+                  <div>
+                    <label class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-amber-100/50">Vigente hasta</label>
+                    <input v-model="newTour.certificacion_aventura.vigente_hasta" type="date" class="min-h-12 w-full rounded-xl border border-amber-100/15 bg-black/15 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-300/40">
+                  </div>
+                </div>
+                <p v-if="errores.certificacion_aventura" class="mt-3 text-xs font-semibold text-rose-300">{{ errores.certificacion_aventura }}</p>
+              </div>
+            </section>
+
+            <!-- ─── SECCIÓN 5: ITINERARIO ─── -->
+            <section>
+              <div class="flex items-center gap-4 mb-8">
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">5</div>
                 <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Crónica del Viaje</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
                 <button @click.prevent="addItineraryItem" type="button"
@@ -721,13 +961,13 @@ const Enviar = async () => {
               </div>
             </section>
 
-            <!-- ─── SECCIÓN 5: QUÉ INCLUYE ─── -->
+            <!-- ─── SECCIÓN 6: QUÉ INCLUYE ─── -->
             <section>
               <div class="flex items-center gap-4 mb-8">
-                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">5</div>
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">6</div>
                 <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Beneficios Incluidos</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
-                <button @click.prevent="addInclusion" type="button"
+                <button @click.prevent="addIncludedItem" type="button"
                   class="flex-shrink-0 flex items-center gap-2 text-[10px] text-emerald-400 font-black bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-xl transition-all border border-emerald-500/10 uppercase tracking-widest shadow-xl">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                   Agregar
@@ -741,7 +981,7 @@ const Enviar = async () => {
                   </div>
                   <input v-model="inc.item" type="text" :placeholder="`Item ${index + 1}...`"
                     class="flex-1 bg-transparent border-none p-0 text-xs text-white font-medium focus:ring-0 placeholder:text-white/10">
-                  <button v-if="newTour.incluido.length > 1" @click.prevent="removeInclusion(index)" type="button"
+                  <button v-if="newTour.incluido.length > 1" @click.prevent="removeIncludedItem(index)" type="button"
                     class="w-7 h-7 flex items-center justify-center rounded-lg text-white/10 hover:text-rose-400 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100 flex-shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
@@ -749,10 +989,10 @@ const Enviar = async () => {
               </div>
             </section>
 
-            <!-- ─── SECCIÓN 6: GALERÍA ─── -->
+            <!-- ─── SECCIÓN 7: GALERÍA ─── -->
             <section>
               <div class="flex items-center gap-4 mb-8">
-                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">6</div>
+                <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-black flex items-center justify-center shadow-lg shadow-emerald-500/5 flex-shrink-0">7</div>
                 <h3 class="text-xs font-black text-white/40 uppercase tracking-[0.2em]">Galería Visual</h3>
                 <div class="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent"></div>
               </div>

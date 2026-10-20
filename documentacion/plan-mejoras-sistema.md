@@ -10,7 +10,7 @@ Documento de trabajo que se actualizará con las necesidades indicadas por el us
 | ------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------- |
 | MEJ-001 | PWA con registro GPS sin conexión, trazado asociado al paquete y acceso al recorrido para turistas con compra | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
 | MEJ-002 | Mejora UX del catálogo de paquetes y productos, onboarding por rol y recomendaciones personalizadas | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
-| MEJ-003 | Actualizar el registro de paquetes turísticos conforme al documento de referencia y mejorar su interfaz visual y de uso | Necesidad registrada; reglas por precisar y referencias normativas por verificar | Pendiente de comparar con las demás mejoras |
+| MEJ-003 | Actualizar el registro de paquetes turísticos conforme al documento de referencia y mejorar su interfaz visual y de uso | Implementada en `codex/mej-003-estandar-paquetes`; pendiente de revisión e integración | En ejecución |
 | MEJ-004 | Rediseño UX de inicio de sesión y creación de cuenta utilizando la skill diseno-ux-web | Necesidad registrada; diseño por concretar | Pendiente de comparar con las demás mejoras |
 
 ## MEJ-001. Recorridos GPS vinculados a paquetes turísticos
@@ -193,7 +193,28 @@ Actualizar el registro de paquetes turísticos para incorporar el estándar desc
 
 También se debe mejorar la interfaz de registro y edición de paquetes para que sea más amigable y agradable a la vista. Este rediseño forma parte de MEJ-003 y complementa la actualización de los campos y reglas.
 
-La solicitud comprende utilizar ese documento como referencia funcional. Sus afirmaciones sobre normas, obligatoriedad, certificaciones y escalas se registran como contenido de la fuente aportada; su vigencia y exactitud no han sido verificadas. Antes de convertirlas en reglas obligatorias del sistema se deberán contrastar con las fuentes oficiales y los textos técnicos aplicables. El documento no constituye por sí solo una certificación de cumplimiento del sistema o del prestador.
+La solicitud comprende utilizar ese documento como referencia funcional. Para la implementación se contrastaron sus afirmaciones principales con el índice oficial de Normas Técnicas Sectoriales del MinCIT, la comunicación oficial sobre la Resolución 0612 de 2024 y el Directorio Oficial de Acreditados de ONAC. El documento aportado no constituye por sí solo una certificación de cumplimiento del sistema o del prestador.
+
+### Estado de implementación — 16 de octubre de 2026
+
+MEJ-003 quedó implementada en la rama `codex/mej-003-estandar-paquetes` con estos componentes:
+
+- Registro de modalidades turísticas aplicables al paquete.
+- Ficha técnica independiente por actividad, con nombre del sistema de clasificación, nivel cuando existe una escala cargada y descripción operativa.
+- Campos para requisitos y restricciones del participante, condiciones de operación, medidas de seguridad e información de sostenibilidad.
+- Soporte de certificación para turismo de aventura. Un paquete de aventura activo requiere estado vigente, organismo evaluador, código y fecha de vigencia no vencida; un paquete inactivo puede conservarse como borrador mientras se completa esta información.
+- Separación explícita entre el nivel de riesgo interno 1–10 del catálogo y la dificultad técnica de cada actividad.
+- Vista informativa pública en `/estandar-paquetes`, alimentada por el mismo endpoint que expone la versión, los principios y las fuentes del estándar.
+- Presentación de la ficha técnica al turista en el detalle público del paquete.
+- Rediseño del formulario en secciones más claras, ayudas contextuales, resumen de errores, campos condicionales y controles adaptables.
+
+Fuentes oficiales verificadas para esta entrega:
+
+- [Resolución 0612 de 2024 y exigencia de nivel sobresaliente para turismo de aventura](https://www.mincit.gov.co/prensa/noticias/turismo/servicios-turismo-aventura-certificacion-seguridad), MinCIT.
+- [Índice oficial de NTS para agencias de viajes, incluidas NTS-AV 010 a 015](https://www.mincit.gov.co/minturismo/calidad-y-desarrollo-sostenible/calidad-turistica/normas-tecnicas-sectoriales/nts-agencias-de-viajes-1), MinCIT.
+- [Directorio Oficial de Organismos de Evaluación de la Conformidad](https://onac.org.co/directorio-de-acreditados/sectores/turismo-y-ocio/), ONAC.
+
+La publicación en Amazonía Viva registra información y referencias aportadas por la agencia; no emite, reemplaza ni garantiza una certificación oficial.
 
 ### Requisito expresado por el usuario
 
@@ -369,4 +390,5 @@ La creación de cuenta debe enlazar con el onboarding correspondiente al rol seg
 | 2026-10-16 | Se propone un desglose por actividad y una relación con las recomendaciones; la aplicación normativa y las reglas concretas quedan por verificar y definir. | Propuesta pendiente de precisar |
 | 2026-10-16 | El usuario amplía MEJ-003 para incluir una interfaz de registro y edición de paquetes más amigable y agradable a la vista. | Confirmado como necesidad |
 | 2026-10-16 | El usuario amplía MEJ-003 con una vista informativa que explique en qué se basa el estándar. | Confirmado como necesidad |
+| 2026-10-16 | Se implementa MEJ-003 en una rama propia, con ficha técnica por actividad, validación de turismo de aventura, vista informativa pública y presentación en el detalle del paquete. | Implementado; pendiente de revisión e integración |
 | 2026-10-16 | A solicitud del usuario, se documenta para MEJ-002 la opción técnica recomendada: diccionarios, conjuntos, vectores y reglas explícitas, con ordenación por afinidad y heap opcional. Se incorpora el cruce planteado de características personales con requisitos y riesgo de actividades. | Propuesta documentada; reglas y campos pendientes de validación |

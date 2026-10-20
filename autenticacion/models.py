@@ -96,6 +96,26 @@ class Actividad(models.Model):
         related_name="actividades", # Esto es clave para la API
         verbose_name="Categoría"
     )
+    es_turismo_aventura = models.BooleanField(
+        default=False,
+        verbose_name="Actividad de turismo de aventura"
+    )
+    norma_tecnica = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name="Norma técnica aplicable"
+    )
+    sistema_dificultad = models.CharField(
+        max_length=120,
+        blank=True,
+        verbose_name="Sistema de clasificación técnica"
+    )
+    opciones_dificultad = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Opciones de dificultad",
+        help_text="Opciones propias de la actividad; no se comparan entre normas distintas."
+    )
 
     class Meta:
         verbose_name = "Actividad"
@@ -185,6 +205,40 @@ class PaqueteTuristico(models.Model):
         default=list, 
         verbose_name="Qué incluye",
         help_text="Formato esperado: [{'item': 'Transporte'}]"
+    )
+
+    # --- Ficha técnica y de seguridad MEJ-003 ---
+    modalidades_turismo = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Modalidades de turismo"
+    )
+    clasificacion_actividades = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Clasificación técnica por actividad",
+        help_text="Cada elemento identifica la actividad, su sistema y el nivel o descripción aplicable."
+    )
+    requisitos_participantes = models.TextField(
+        blank=True,
+        verbose_name="Requisitos y restricciones para participantes"
+    )
+    condiciones_operacion = models.TextField(
+        blank=True,
+        verbose_name="Condiciones de operación"
+    )
+    medidas_seguridad = models.TextField(
+        blank=True,
+        verbose_name="Medidas de seguridad y respuesta"
+    )
+    informacion_sostenibilidad = models.TextField(
+        blank=True,
+        verbose_name="Información de sostenibilidad"
+    )
+    certificacion_aventura = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Soporte de certificación para turismo de aventura"
     )
     
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
