@@ -5,6 +5,7 @@ from threading import Barrier
 from unittest.mock import patch
 from uuid import uuid4
 import json
+from django.core.management import call_command
 from django.db import close_old_connections, connection
 from django.test import TestCase, TransactionTestCase, override_settings, skipUnlessDBFeature
 from django.utils import timezone
@@ -770,3 +771,20 @@ class EstandarPaquetesTests(TestCase):
             data[campo] = json.dumps(data[campo])
         response = self.client.post('/api/createnewpack/', data, format='multipart')
         self.assertEqual(response.status_code, 201, response.data)
+
+
+class SeedActividadesTests(TransactionTestCase):
+    reset_sequences = True
+
+    def test_seed_deja_secuencia_lista_para_nuevas_actividades(self):
+        call_command('seed_actividades', verbosity=0)
+        maximo_antes = Actividad.objects.order_by('-pk').values_list('pk', flat=True).first()
+        categoria = Categoria.objects.first()
+
+        nueva = Actividad.objects.create(
+            nombre='Actividad creada después del catálogo',
+            nivel_riesgo=1,
+            categoria=categoria,
+        )
+
+        self.assertGreater(nueva.pk, maximo_antes)

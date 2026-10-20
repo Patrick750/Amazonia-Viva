@@ -1,5 +1,8 @@
 from django.core.management.base import BaseCommand
-from autenticacion.models import Categoria, Actividad  # <-- CAMBIA 'tu_app' por el nombre de tu app
+from django.core.management.color import no_style
+from django.db import connection
+
+from autenticacion.models import Categoria, Actividad
 
 class Command(BaseCommand):
     help = 'Puebla la base de datos con el catálogo inicial de categorías y actividades turísticas'
@@ -100,5 +103,12 @@ class Command(BaseCommand):
             )
             if act_created:
                 actividades_creadas += 1
+
+        # Se mantienen IDs estables para no romper relaciones existentes. Al
+        # terminar, la secuencia debe quedar después del ID máximo insertado.
+        sentencias = connection.ops.sequence_reset_sql(no_style(), [Actividad])
+        with connection.cursor() as cursor:
+            for sentencia in sentencias:
+                cursor.execute(sentencia)
 
         self.stdout.write(self.style.SUCCESS(f'¡Éxito! Se crearon/verificaron {categorias_creadas} categorías y {actividades_creadas} actividades.'))

@@ -1,3 +1,4 @@
+from django.core.management.color import no_style
 from django.db import migrations, models
 
 
@@ -32,6 +33,16 @@ ACTIVIDADES_ESTANDAR = {
 def completar_actividades(apps, schema_editor):
     Actividad = apps.get_model("autenticacion", "Actividad")
     Categoria = apps.get_model("autenticacion", "Categoria")
+
+    # El catálogo histórico se cargó con IDs explícitos. PostgreSQL no avanza
+    # la secuencia al insertar de esa forma, por lo que una creación posterior
+    # puede intentar reutilizar el ID 1. Sincronizarla con el máximo existente
+    # hace que esta migración funcione también en bases ya pobladas.
+    for sentencia in schema_editor.connection.ops.sequence_reset_sql(
+        no_style(), [Actividad]
+    ):
+        schema_editor.execute(sentencia)
+
     for nombre, datos in ACTIVIDADES_ESTANDAR.items():
         Actividad.objects.filter(nombre=nombre).update(
             es_turismo_aventura=True,
