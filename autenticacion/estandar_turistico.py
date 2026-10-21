@@ -7,14 +7,14 @@ una referencia interna del catálogo y no se presenta como clasificación normat
 VERSION_ESTANDAR = "2026-10-16"
 
 MODALIDADES_TURISMO = [
-    {"value": "naturaleza", "label": "Naturaleza y ecoturismo"},
-    {"value": "aventura", "label": "Turismo de aventura"},
-    {"value": "cultural", "label": "Turismo cultural"},
-    {"value": "rural", "label": "Turismo rural"},
-    {"value": "agroturismo", "label": "Agroturismo"},
-    {"value": "bienestar", "label": "Bienestar"},
-    {"value": "nautico", "label": "Turismo náutico"},
-    {"value": "reuniones", "label": "Reuniones y eventos"},
+    {"value": "naturaleza", "label": "Naturaleza y ecoturismo", "description": "Fauna, flora silvestre, avistamiento de aves y reservas naturales."},
+    {"value": "aventura", "label": "Turismo de aventura", "description": "Rafting, canopy, rappel y actividades de reto físico o técnico."},
+    {"value": "cultural", "label": "Turismo cultural", "description": "Pueblos originarios, artesanías, memoria y saberes ancestrales."},
+    {"value": "rural", "label": "Turismo rural", "description": "Convivencia con comunidades locales y vida tradicional del campo."},
+    {"value": "agroturismo", "label": "Agroturismo", "description": "Fincas productivas, cosechas, cacao y frutos amazónicos."},
+    {"value": "bienestar", "label": "Bienestar y reconexión", "description": "Retiros, descanso, baños de bosque y experiencias de reconexión."},
+    {"value": "nautico", "label": "Turismo náutico", "description": "Kayak, navegación en botes tradicionales y pesca deportiva."},
+    {"value": "reuniones", "label": "Reuniones y eventos", "description": "Encuentros corporativos, expediciones guiadas y talleres grupales."},
 ]
 
 FUENTES_ESTANDAR = [

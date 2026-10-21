@@ -727,6 +727,7 @@ class EstandarPaquetesTests(TestCase):
         response = self.client.get('/api/estandar-paquetes/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['version'], '2026-10-16')
+        self.assertTrue(all(modalidad['description'] for modalidad in response.data['modalidades']))
         normas = {actividad['norma_tecnica'] for actividad in response.data['actividades_reguladas']}
         self.assertIn('NTS-AV 010', normas)
         self.assertTrue(any(fuente['verificada'] for fuente in response.data['fuentes']))
