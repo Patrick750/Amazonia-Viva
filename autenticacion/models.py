@@ -138,6 +138,106 @@ class CategoriaPaquete(models.Model):
         return f"{self.grupo} — {self.nombre}"
 
 
+class EstandarPaquete(models.Model):
+    clave = models.SlugField(max_length=40, unique=True)
+    version = models.CharField(max_length=20)
+    nombre = models.CharField(max_length=180)
+    proposito = models.TextField()
+    activo = models.BooleanField(default=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Estándar de paquetes"
+        verbose_name_plural = "Estándares de paquetes"
+        ordering = ['clave']
+
+    def __str__(self):
+        return f"{self.nombre} ({self.version})"
+
+
+class ModalidadTurismo(models.Model):
+    estandar = models.ForeignKey(
+        EstandarPaquete,
+        on_delete=models.CASCADE,
+        related_name='modalidades',
+    )
+    codigo = models.SlugField(max_length=40)
+    nombre = models.CharField(max_length=120)
+    descripcion = models.TextField(blank=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Modalidad de turismo"
+        verbose_name_plural = "Modalidades de turismo"
+        ordering = ['orden', 'nombre']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['estandar', 'codigo'],
+                name='modalidad_codigo_unico_por_estandar',
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class PrincipioEstandarPaquete(models.Model):
+    estandar = models.ForeignKey(
+        EstandarPaquete,
+        on_delete=models.CASCADE,
+        related_name='principios',
+    )
+    codigo = models.SlugField(max_length=50)
+    descripcion = models.TextField()
+    orden = models.PositiveSmallIntegerField(default=0)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Principio del estándar"
+        verbose_name_plural = "Principios del estándar"
+        ordering = ['orden', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['estandar', 'codigo'],
+                name='principio_codigo_unico_por_estandar',
+            ),
+        ]
+
+    def __str__(self):
+        return self.descripcion
+
+
+class FuenteEstandarPaquete(models.Model):
+    estandar = models.ForeignKey(
+        EstandarPaquete,
+        on_delete=models.CASCADE,
+        related_name='fuentes',
+    )
+    codigo = models.SlugField(max_length=60)
+    titulo = models.CharField(max_length=180)
+    entidad = models.CharField(max_length=180)
+    alcance = models.TextField()
+    url = models.URLField(blank=True, max_length=500)
+    verificada = models.BooleanField(default=False)
+    orden = models.PositiveSmallIntegerField(default=0)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Fuente del estándar"
+        verbose_name_plural = "Fuentes del estándar"
+        ordering = ['orden', 'titulo']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['estandar', 'codigo'],
+                name='fuente_codigo_unico_por_estandar',
+            ),
+        ]
+
+    def __str__(self):
+        return self.titulo
+
+
 class PaqueteTuristico(models.Model):
     TIPO_PAQUETE_CHOICES = [
         ('fijo', 'Fijo'),

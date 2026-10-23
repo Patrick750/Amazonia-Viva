@@ -14,7 +14,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import (Agencia, Proveedor, Turista, Usuario, Categoria, Actividad, Categorias, PaqueteTuristico,
                      Productos, Venta, Detalles_Venta, ReservaFecha, Carrito, Items, SolicitudRetiro,
-                     IntentosCredenciales, CambioEstadoRetiro)
+                     IntentosCredenciales, CambioEstadoRetiro, EstandarPaquete, ModalidadTurismo,
+                     PrincipioEstandarPaquete, FuenteEstandarPaquete)
 from .compras import procesar_compra, liberar_pedido
 from .retiros import cambiar_estado
 from .vistas_liquidacion import _calcular_saldos
@@ -689,6 +690,7 @@ class EstandarPaquetesTests(TestCase):
                 {'value': 'III', 'label': 'Clase III · Intermedio'},
             ],
         )
+        call_command('seed_estandar_paquetes', verbosity=0)
         self.client = APIClient()
         self.client.force_authenticate(self.agencia)
 
@@ -731,6 +733,26 @@ class EstandarPaquetesTests(TestCase):
         normas = {actividad['norma_tecnica'] for actividad in response.data['actividades_reguladas']}
         self.assertIn('NTS-AV 010', normas)
         self.assertTrue(any(fuente['verificada'] for fuente in response.data['fuentes']))
+
+    def test_seed_estandar_persiste_catalogo_completo_y_es_idempotente(self):
+        call_command('seed_estandar_paquetes', verbosity=0)
+
+        self.assertEqual(EstandarPaquete.objects.filter(activo=True).count(), 1)
+        self.assertEqual(ModalidadTurismo.objects.filter(activa=True).count(), 8)
+        self.assertEqual(PrincipioEstandarPaquete.objects.filter(activo=True).count(), 4)
+        self.assertEqual(FuenteEstandarPaquete.objects.filter(activa=True).count(), 4)
+
+    def test_api_lee_modalidades_desde_base_de_datos(self):
+        ModalidadTurismo.objects.filter(codigo='naturaleza').update(
+            nombre='Naturaleza administrada desde DB',
+        )
+
+        response = self.client.get('/api/estandar-paquetes/')
+
+        modalidad = next(
+            item for item in response.data['modalidades'] if item['value'] == 'naturaleza'
+        )
+        self.assertEqual(modalidad['label'], 'Naturaleza administrada desde DB')
 
     def test_tour_aventura_activo_exige_certificacion_vigente(self):
         data = self.datos_paquete()

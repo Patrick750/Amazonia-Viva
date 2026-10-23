@@ -1,3 +1,14 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import (
+    EstandarPaquete,
+    FuenteEstandarPaquete,
+    ModalidadTurismo,
+    PrincipioEstandarPaquete,
+)
+
+
+admin.site.register(EstandarPaquete)
+admin.site.register(ModalidadTurismo)
+admin.site.register(PrincipioEstandarPaquete)
+admin.site.register(FuenteEstandarPaquete)

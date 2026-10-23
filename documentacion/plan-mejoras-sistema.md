@@ -209,7 +209,8 @@ MEJ-003 quedó implementada en la rama `codex/mej-003-estandar-paquetes` con est
 - Rediseño del formulario en secciones más claras, ayudas contextuales, resumen de errores, campos condicionales y controles adaptables.
 - Navegación visual por las siete secciones del formulario, buscadores para modalidades y actividades, y estados de selección visibles.
 - Opciones de dificultad presentadas como elementos clicables y obtenidas desde `Actividad.opciones_dificultad` mediante la API.
-- Comando idempotente `python manage.py seed_dificultades_actividades` para completar o actualizar las opciones de dificultad en la base de datos. El despliegue lo ejecuta después de las migraciones. Las actividades sin escala sectorial cargada usan niveles de exigencia identificados expresamente como referencia interna.
+- Catálogo maestro persistido en base de datos para la versión del estándar, modalidades, descripciones, principios y fuentes. Las selecciones y fichas diligenciadas por cada agencia se conservan en el paquete turístico.
+- Comando idempotente `python manage.py seed_estandar_paquetes` para cargar o actualizar todo el catálogo y las opciones de dificultad. El despliegue lo ejecuta después de las migraciones. Las actividades sin escala sectorial cargada usan niveles de exigencia identificados expresamente como referencia interna.
 
 Fuentes oficiales verificadas para esta entrega:
 
@@ -399,4 +400,5 @@ La creación de cuenta debe enlazar con el onboarding correspondiente al rol seg
 | 2026-10-16 | El usuario amplía MEJ-003 con una vista informativa que explique en qué se basa el estándar. | Confirmado como necesidad |
 | 2026-10-16 | Se implementa MEJ-003 en una rama propia, con ficha técnica por actividad, validación de turismo de aventura, vista informativa pública y presentación en el detalle del paquete. | Implementado; pendiente de revisión e integración |
 | 2026-10-20 | Se amplía el rediseño a todo el formulario, se añaden buscadores de modalidades y actividades, navegación por secciones y dificultades clicables alimentadas desde la base de datos mediante un comando idempotente. | Implementado; pendiente de revisión e integración |
+| 2026-10-23 | Se mueve a la base de datos el catálogo maestro del estándar y se incorpora `python manage.py seed_estandar_paquetes` para cargarlo de forma idempotente. | Implementado; pendiente de revisión e integración |
 | 2026-10-16 | A solicitud del usuario, se documenta para MEJ-002 la opción técnica recomendada: diccionarios, conjuntos, vectores y reglas explícitas, con ordenación por afinidad y heap opcional. Se incorpora el cruce planteado de características personales con requisitos y riesgo de actividades. | Propuesta documentada; reglas y campos pendientes de validación |

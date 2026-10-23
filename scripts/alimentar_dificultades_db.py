@@ -1,4 +1,4 @@
-"""Alimenta las opciones de dificultad de las actividades mediante Django.
+"""Alimenta el catálogo completo del estándar de paquetes mediante Django.
 
 Uso:
     python scripts/alimentar_dificultades_db.py
@@ -19,4 +19,4 @@ from django.core.management import call_command
 
 if __name__ == "__main__":
     django.setup()
-    call_command("seed_dificultades_actividades")
+    call_command("seed_estandar_paquetes")

@@ -7,7 +7,6 @@ from datetime import timedelta
 from decimal import Decimal
 from django.db.models import Sum
 from django.utils.dateparse import parse_date
-from .estandar_turistico import MODALIDADES_TURISMO
 
 
 def calcular_cupos_disponibles(paquete, fecha=None):
@@ -179,7 +178,12 @@ class SerializersCreateNewPack(serializers.ModelSerializer):
     def validate_modalidades_turismo(self, value):
         if not isinstance(value, list):
             raise serializers.ValidationError("Selecciona una o más modalidades válidas.")
-        permitidas = {item['value'] for item in MODALIDADES_TURISMO}
+        permitidas = set(
+            ModalidadTurismo.objects.filter(
+                activa=True,
+                estandar__activo=True,
+            ).values_list('codigo', flat=True)
+        )
         normalizadas = list(dict.fromkeys(str(item).strip() for item in value if str(item).strip()))
         invalidas = [item for item in normalizadas if item not in permitidas]
         if invalidas:
