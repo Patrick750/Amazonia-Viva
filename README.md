@@ -76,3 +76,7 @@ Ver [implementación y procedimiento operativo](documentacion/seguridad-implemen
 | `parch [0.0.1]` o `patch [0.0.1]` | Parche |
 
 Ejemplo: `feat(api): low [0.1.0] añadir búsquedas`. Los commits sin declaración no incrementan la versión. Ver [flujo, configuración y verificación](documentacion/versionamiento.md).
+
+## Desarrollo asistido con ECC
+
+El repositorio incluye instrucciones específicas para trabajar con el plugin nativo de [Everything Claude Code](https://ecc.tools/) en Codex. Consulta la [instalación, actualización y uso de ECC](documentacion/ecc.md); las reglas del proyecto están en `AGENTS.md`.
