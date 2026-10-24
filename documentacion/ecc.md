@@ -53,7 +53,9 @@ Si la definición de hooks cambia, Codex solicitará una nueva revisión porque 
 
 ## Uso en este proyecto
 
-Las tareas deben respetar `AGENTS.md` y los documentos de `documentacion/`. Los controles base son:
+Codex selecciona automáticamente la skill ECC más específica cuando su descripción coincide con la tarea. No es necesario escribir `$skill` ni pedir expresamente que se use ECC. La regla general está en `~/.codex/AGENTS.md` y las prioridades de Amazonia Viva están en el `AGENTS.md` del repositorio.
+
+Las tareas también deben respetar los documentos de `documentacion/`. Los controles base son:
 
 ```bash
 python manage.py check

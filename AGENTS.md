@@ -52,7 +52,15 @@ DEBUG=false python manage.py check --deploy --tag security --fail-level WARNING
 - `VERSION` es la fuente de verdad; usa `python scripts/versionamiento.py check` para comprobar consistencia.
 - Antes de cambiar el flujo de despliegue, verifica que la rama, el SHA y los comandos remotos mantengan la misma revisión durante todo el proceso.
 
-## Flujos ECC recomendados
+## Selección automática de ECC
+
+- Al comenzar cada tarea, contrasta el objetivo con las skills disponibles del plugin ECC y aplica automáticamente la más específica cuando sea pertinente.
+- El usuario no tiene que mencionar ECC, escribir `$skill` ni autorizar el uso de una skill para que se active.
+- Usa una sola skill principal cuando cubra todo el trabajo. Combina skills solo para fases distintas que realmente lo necesiten, como planificación, migración, implementación y verificación.
+- No uses una skill por una coincidencia superficial ni agregues ceremonias que no mejoren el resultado.
+- Informa brevemente qué skill se aplica la primera vez que se use en la conversación y continúa sin detener la tarea.
+
+Flujos habituales del proyecto:
 
 - Planificación compleja: skill de planificación o arquitectura.
 - Django, API y migraciones: skills de Django, revisión Python y migraciones de base de datos.
