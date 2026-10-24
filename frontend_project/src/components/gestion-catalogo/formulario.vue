@@ -27,6 +27,8 @@ const errores = reactive({});
 const isDragging = ref(false);
 const fileInput = ref(null);
 const mapContainer = ref(null);
+const modalContainer = ref(null);
+const formScroll = ref(null);
 let map = null;
 let marker = null;
 let bodyOverflowAnterior = '';
@@ -43,6 +45,33 @@ const modalidadBusqueda = ref('');
 const actividadBusqueda = ref('');
 let searchTimeout = null;
 const estandar = ref(null);
+
+const pasos = [
+    { numero: 1, titulo: 'Información', descripcion: 'Datos principales' },
+    { numero: 2, titulo: 'Ubicación', descripcion: 'Punto de encuentro' },
+    { numero: 3, titulo: 'Experiencias', descripcion: 'Modalidades y actividades' },
+    { numero: 4, titulo: 'Seguridad', descripcion: 'Dificultad y requisitos' },
+    { numero: 5, titulo: 'Itinerario', descripcion: 'Orden del recorrido' },
+    { numero: 6, titulo: 'Incluye', descripcion: 'Servicios del paquete' },
+    { numero: 7, titulo: 'Galería', descripcion: 'Imágenes del paquete' },
+];
+const pasoActual = ref(1);
+const pasoVisible = computed(() => pasos[pasoActual.value - 1]);
+const progresoFormulario = computed(() => (pasoActual.value / pasos.length) * 100);
+const camposPorPaso = {
+    1: ['nombre', 'descripcion', 'precio', 'duracion', 'capacidad', 'categoria_paquete'],
+    2: ['ubicacion'],
+    3: ['modalidades_turismo', 'actividades'],
+    4: ['clasificacion_actividades', 'requisitos_participantes', 'condiciones_operacion', 'medidas_seguridad', 'certificacion_aventura'],
+};
+const pasoTieneErrores = (numero) => (camposPorPaso[numero] || []).some(campo => errores[campo]);
+const irAlPaso = async (numero) => {
+    pasoActual.value = Math.min(Math.max(Number(numero) || 1, 1), pasos.length);
+    await nextTick();
+    formScroll.value?.scrollTo({ top: 0, behavior: 'smooth' });
+};
+const avanzarPaso = () => irAlPaso(pasoActual.value + 1);
+const retrocederPaso = () => irAlPaso(pasoActual.value - 1);
 
 // --- ESTADO DEL FORMULARIO ---
 const newTour = reactive({
@@ -298,7 +327,12 @@ const validarFormulario = () => {
         valido = false;
     }
     if (!valido) {
-        nextTick(() => document.querySelector('[data-form-error="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+        const primerPasoConError = pasos.find(({ numero }) => pasoTieneErrores(numero))?.numero || 1;
+        pasoActual.value = primerPasoConError;
+        nextTick(() => {
+            formScroll.value?.scrollTo({ top: 0, behavior: 'smooth' });
+            document.querySelector('[data-form-error="true"]')?.focus({ preventScroll: true });
+        });
     }
     return valido;
 };
@@ -514,14 +548,19 @@ const selectSuggestion = async (place) => {
 };
 
 const irASeleccionActividades = () => {
-    document.getElementById('tipos-actividad')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-    });
+    irAlPaso(3);
 };
+
+watch(pasoActual, async (numero) => {
+    if (!props.abrir || numero !== 2) return;
+    await nextTick();
+    if (!map) initMap();
+    else map.invalidateSize();
+});
 
 watch(() => props.abrir, async (estaAbierto) => {
     if (estaAbierto) {
+        pasoActual.value = 1;
         if (!bloqueoScrollActivo) {
             bodyOverflowAnterior = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
@@ -530,9 +569,7 @@ watch(() => props.abrir, async (estaAbierto) => {
         fetchCategorias();
         fetchEstandar();
         await nextTick();
-        setTimeout(() => {
-            initMap();
-        }, 150);
+        modalContainer.value?.focus({ preventScroll: true });
     } else if (bloqueoScrollActivo) {
         document.body.style.overflow = bodyOverflowAnterior;
         bloqueoScrollActivo = false;
@@ -606,43 +643,47 @@ const Enviar = async () => {
   <Teleport to="body">
     <!-- Overlay + Modal -->
     <div v-if="abrir"
-      class="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-hidden bg-black/85 backdrop-blur-xl animate-fade-in"
+      class="fixed inset-0 z-[60] flex h-[100dvh] w-[100dvw] max-w-full items-center justify-center overflow-hidden bg-black/90 p-0 backdrop-blur-md animate-fade-in sm:p-4 md:p-6"
       @click.self="emit('cerrar')">
 
       <!-- Modal Card -->
-      <div class="relative flex max-h-[96dvh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-emerald-500/20 bg-[#08150d] shadow-[0_25px_80px_rgba(0,0,0,0.9),0_0_60px_rgba(16,185,129,0.08)] animate-fade-in-up sm:max-h-[94vh]">
+      <div ref="modalContainer" role="dialog" aria-modal="true" aria-labelledby="titulo-formulario-tour" tabindex="-1"
+        class="relative flex h-[100dvh] w-full min-w-0 max-w-6xl flex-col overflow-hidden border border-emerald-500/20 bg-[#0a1710] shadow-[0_25px_80px_rgba(0,0,0,0.9)] outline-none animate-fade-in-up sm:h-auto sm:max-h-[94vh] sm:rounded-3xl">
 
         <!-- === HEADER PREMIUM === -->
-        <div class="relative flex-shrink-0 overflow-hidden bg-gradient-to-r from-[#064e3b] via-[#053c2e] to-[#022c22] px-6 py-6 border-b border-emerald-400/20 sm:px-8 sm:py-7">
-          <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-400/15 via-transparent to-transparent pointer-events-none"></div>
-
-          <div class="relative z-10 flex items-start justify-between gap-4">
-            <div>
-              <div class="flex items-center gap-2 mb-2.5">
-                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black tracking-[0.2em] uppercase bg-emerald-400/15 border border-emerald-400/30 text-emerald-300 shadow-sm">
-                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  {{ paquete ? 'Editando Tour' : 'Nuevo Tour' }}
+        <div class="relative flex-shrink-0 border-b border-emerald-400/15 bg-[#10271a] px-4 py-4 sm:px-7 sm:py-5">
+          <div class="flex min-w-0 items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="mb-1.5 flex items-center gap-2">
+                <span class="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-emerald-200 uppercase">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                  {{ paquete ? 'Editando paquete' : 'Nuevo paquete' }}
                 </span>
                 <span v-if="paquete?.categoria_paquete_nombre" class="hidden sm:inline-flex px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/10 text-white/70">
                   {{ paquete.categoria_paquete_nombre }}
                 </span>
               </div>
-              <h2 class="text-2xl font-black text-white sm:text-3xl tracking-tight drop-shadow-md">
-                {{ paquete ? paquete.nombre : 'Configurar Experiencia' }}
+              <h2 id="titulo-formulario-tour" class="truncate text-xl font-bold tracking-tight text-white sm:text-2xl">
+                {{ paquete ? paquete.nombre : 'Crear paquete turístico' }}
               </h2>
-              <p class="text-emerald-100/75 text-xs sm:text-sm mt-1.5 font-medium">
-                {{ paquete ? 'Actualiza los datos técnicos y operativos de esta experiencia' : 'Diseña una aventura única para tus viajeros con altos estándares de calidad' }}
+              <p class="mt-1 hidden text-sm text-emerald-50/70 sm:block">
+                {{ paquete ? 'Actualiza la información que verá el viajero.' : 'Completa cada paso. Podrás revisar todo antes de guardar.' }}
               </p>
             </div>
 
-            <div class="flex items-center gap-2.5">
+            <div class="flex flex-shrink-0 items-center gap-2">
+              <router-link to="/estandar-paquetes" target="_blank" rel="noopener" aria-label="Abrir información del estándar en una pestaña nueva"
+                class="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-400/25 bg-black/15 text-emerald-200 transition-colors hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 sm:hidden">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+              </router-link>
               <router-link to="/estandar-paquetes"
-                class="hidden sm:inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-950/60 px-4 text-xs font-bold text-emerald-200 transition-all hover:bg-emerald-900/60 hover:text-white hover:border-emerald-400/60 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 shadow-md">
+                target="_blank" rel="noopener"
+                class="hidden min-h-11 items-center gap-2 rounded-xl border border-emerald-400/25 bg-black/15 px-4 text-xs font-semibold text-emerald-100 transition-colors hover:border-emerald-400/50 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 sm:inline-flex">
                 <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                 Información del estándar
               </router-link>
               <button @click="emit('cerrar')" type="button" aria-label="Cerrar formulario"
-                class="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-2xl bg-white/10 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/40 text-white transition-all hover:rotate-90 duration-300 border border-white/10 shadow-sm">
+                class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white transition-colors hover:border-white/20 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/60">
                 <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
@@ -662,25 +703,35 @@ const Enviar = async () => {
           <p class="text-emerald-400/70 text-xs mt-2 font-medium">Sincronizando información técnica en la plataforma</p>
         </div>
 
-        <!-- === STEP BAR NAVEGACIÓN === -->
-        <div class="sticky top-0 z-20 bg-[#06130b]/95 border-b border-emerald-500/15 backdrop-blur-md px-4 py-2.5 sm:px-8">
-          <nav aria-label="Secciones del formulario" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            <a href="#seccion-informacion" class="step-pill"><span>1</span>Información</a>
-            <a href="#seccion-ubicacion" class="step-pill"><span>2</span>Ubicación</a>
-            <a href="#seccion-actividades" class="step-pill"><span>3</span>Modalidades & Actividades</a>
-            <a href="#seccion-seguridad" class="step-pill"><span>4</span>Dificultad & Seguridad</a>
-            <a href="#seccion-itinerario" class="step-pill"><span>5</span>Itinerario</a>
-            <a href="#seccion-incluye" class="step-pill"><span>6</span>Incluye</a>
-            <a href="#seccion-galeria" class="step-pill"><span>7</span>Galería</a>
+        <!-- === PROGRESO Y NAVEGACIÓN === -->
+        <div class="flex-shrink-0 border-b border-white/8 bg-[#0c1b12] px-4 py-3 sm:px-7">
+          <div class="mb-2.5 flex items-center justify-between md:hidden">
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-400">Paso {{ pasoActual }} de {{ pasos.length }}</p>
+              <p class="text-sm font-semibold text-white">{{ pasoVisible.titulo }}</p>
+            </div>
+            <span class="text-xs text-white/55">{{ pasoVisible.descripcion }}</span>
+          </div>
+          <nav aria-label="Pasos del formulario" class="hidden grid-cols-7 gap-2 md:grid">
+            <button v-for="paso in pasos" :key="paso.numero" type="button" @click="irAlPaso(paso.numero)"
+              class="step-pill"
+              :class="{ 'step-pill--active': pasoActual === paso.numero, 'step-pill--done': paso.numero < pasoActual, 'step-pill--error': pasoTieneErrores(paso.numero) }"
+              :aria-current="pasoActual === paso.numero ? 'step' : undefined">
+              <span class="step-pill__number">{{ paso.numero < pasoActual ? '✓' : paso.numero }}</span>
+              <span class="step-pill__label">{{ paso.titulo }}</span>
+            </button>
           </nav>
+          <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/8" role="progressbar" :aria-valuenow="pasoActual" aria-valuemin="1" :aria-valuemax="pasos.length">
+            <div class="h-full rounded-full bg-emerald-400 transition-[width] duration-300" :style="{ width: `${progresoFormulario}%` }"></div>
+          </div>
         </div>
 
         <!-- === CUERPO DEL FORMULARIO === -->
-        <div class="form-scroll flex-1 overflow-x-hidden overflow-y-auto bg-[#07140c] p-4 sm:p-8 space-y-8">
-          <form @submit.prevent="Enviar" class="tour-form space-y-8">
+        <div ref="formScroll" class="form-scroll flex-1 overflow-x-hidden overflow-y-auto bg-[#09140d] p-3 sm:p-6 lg:p-8">
+          <form @submit.prevent="Enviar" class="tour-form mx-auto max-w-5xl">
 
             <!-- Banner Alertas de Error -->
-            <div v-if="totalErrores" data-form-error="true" role="alert" class="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-5 text-sm text-rose-100 shadow-lg shadow-rose-950/20 flex items-start gap-3">
+            <div v-if="totalErrores" data-form-error="true" role="alert" tabindex="-1" class="mb-4 flex items-start gap-3 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-100 outline-none">
               <svg class="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
               <div>
                 <p class="font-black">Hay {{ totalErrores }} campo(s) o secciones que requieren tu atención.</p>
@@ -689,7 +740,7 @@ const Enviar = async () => {
             </div>
 
             <!-- ─── SECCIÓN 1: INFORMACIÓN PRINCIPAL ─── -->
-            <section id="seccion-informacion" class="form-card">
+            <section v-show="pasoActual === 1" id="seccion-informacion" class="form-card">
               <div class="flex items-center justify-between mb-7 border-b border-white/5 pb-4">
                 <div class="flex items-center gap-3">
                   <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black flex items-center justify-center">1</div>
@@ -817,7 +868,7 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 2: UBICACIÓN Y MAPA ─── -->
-            <section id="seccion-ubicacion" class="form-card">
+            <section v-show="pasoActual === 2" id="seccion-ubicacion" class="form-card">
               <div class="flex items-center gap-3 mb-6 border-b border-white/5 pb-4">
                 <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black flex items-center justify-center">2</div>
                 <div>
@@ -878,7 +929,7 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 3: MODALIDADES Y ACTIVIDADES ─── -->
-            <section id="seccion-actividades" class="form-card">
+            <section v-show="pasoActual === 3" id="seccion-actividades" class="form-card">
               <div class="flex items-center justify-between mb-7 border-b border-white/5 pb-4">
                 <div class="flex items-center gap-3">
                   <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black flex items-center justify-center">3</div>
@@ -1014,7 +1065,7 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 4: DIFICULTAD Y SEGURIDAD (LA PERSPECTIVA SOLICITADA) ─── -->
-            <section id="seccion-seguridad" class="form-card">
+            <section v-show="pasoActual === 4" id="seccion-seguridad" class="form-card">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7 border-b border-white/5 pb-5">
                 <div class="flex items-center gap-3">
                   <div class="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 text-xs font-black flex items-center justify-center">4</div>
@@ -1296,7 +1347,7 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 5: ITINERARIO ─── -->
-            <section id="seccion-itinerario" class="form-card">
+            <section v-show="pasoActual === 5" id="seccion-itinerario" class="form-card">
               <div class="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
                 <div class="flex items-center gap-3">
                   <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black flex items-center justify-center">5</div>
@@ -1315,7 +1366,7 @@ const Enviar = async () => {
 
               <div class="space-y-3">
                 <div v-for="(item, index) in newTour.itinerario" :key="'iti-'+index"
-                  class="group flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3 hover:border-emerald-500/30 transition-all">
+                  class="itinerary-row group flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3 hover:border-emerald-500/30 transition-all">
                   <span class="w-7 h-7 rounded-lg bg-white/5 text-white/40 text-xs font-bold flex items-center justify-center flex-shrink-0">
                     {{ index + 1 }}
                   </span>
@@ -1332,7 +1383,7 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 6: QUÉ INCLUYE ─── -->
-            <section id="seccion-incluye" class="form-card">
+            <section v-show="pasoActual === 6" id="seccion-incluye" class="form-card">
               <div class="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
                 <div class="flex items-center gap-3">
                   <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black flex items-center justify-center">6</div>
@@ -1366,7 +1417,7 @@ const Enviar = async () => {
             </section>
 
             <!-- ─── SECCIÓN 7: GALERÍA ─── -->
-            <section id="seccion-galeria" class="form-card">
+            <section v-show="pasoActual === 7" id="seccion-galeria" class="form-card">
               <div class="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
                 <div class="flex items-center gap-3">
                   <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black flex items-center justify-center">7</div>
@@ -1430,20 +1481,33 @@ const Enviar = async () => {
         </div>
 
         <!-- === FOOTER ACCIONES === -->
-        <div class="flex-shrink-0 flex items-center justify-end gap-3 border-t border-emerald-500/15 bg-[#06130b]/95 px-6 py-4 sm:px-8">
+        <div class="flex flex-shrink-0 items-center justify-between gap-3 border-t border-white/8 bg-[#0c1b12] px-4 py-3 sm:px-7 sm:py-4">
           <button @click="emit('cerrar')" type="button" :disabled="isLoading"
-            class="px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white/60 hover:text-white hover:bg-white/5 transition-all">
-            Descartar Cambios
+            class="hidden min-h-11 rounded-xl px-4 text-sm font-semibold text-white/60 transition-colors hover:bg-white/5 hover:text-white sm:inline-flex sm:items-center">
+            Cancelar
           </button>
-          <button @click="Enviar" type="button" :disabled="isLoading"
-            class="group flex items-center gap-2.5 px-7 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-950/40 transition-all hover:shadow-emerald-500/20 disabled:opacity-50">
+          <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+            <button v-if="pasoActual > 1" @click="retrocederPaso" type="button" :disabled="isLoading"
+              class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/5 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/50">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+              Anterior
+            </button>
+            <span v-else class="hidden sm:block"></span>
+            <button v-if="pasoActual < pasos.length" @click="avanzarPaso" type="button" :disabled="isLoading"
+              class="col-start-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-6 text-sm font-bold text-[#052e1a] transition-colors hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-300/60">
+              Siguiente
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+            <button v-else @click="Enviar" type="button" :disabled="isLoading"
+            class="group col-start-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-400 px-6 text-sm font-bold text-[#052e1a] transition-colors hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-300/60 disabled:opacity-50">
             <svg v-if="isLoading" class="animate-spin h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span v-else>{{ paquete ? 'Guardar Cambios' : 'Confirmar Registro' }}</span>
+            <span v-else>{{ paquete ? 'Guardar cambios' : 'Crear paquete' }}</span>
             <svg v-if="!isLoading" class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1483,53 +1547,98 @@ const Enviar = async () => {
 }
 
 .step-pill {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.75rem;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.6);
-  white-space: nowrap;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.7rem;
+  font-weight: 650;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 .step-pill:hover {
-  background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
-  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.14);
 }
-.step-pill span {
+.step-pill__number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
+  flex: 0 0 auto;
+  width: 1.4rem;
+  height: 1.4rem;
   border-radius: 0.4rem;
   background: rgba(255, 255, 255, 0.08);
   font-size: 0.65rem;
-  font-weight: 900;
+  font-weight: 800;
   color: #34d399;
+}
+.step-pill__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.step-pill--active {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(16, 185, 129, 0.13);
+  color: #ecfdf5;
+}
+.step-pill--active .step-pill__number {
+  background: #34d399;
+  color: #052e1a;
+}
+.step-pill--done .step-pill__number {
+  background: rgba(52, 211, 153, 0.16);
+}
+.step-pill--error {
+  border-color: rgba(251, 113, 133, 0.42);
+}
+.step-pill--error .step-pill__number {
+  background: rgba(244, 63, 94, 0.16);
+  color: #fda4af;
 }
 
 .form-card {
-  border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
-  padding: clamp(1.2rem, 2.5vw, 2rem);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  scroll-margin-top: 4.5rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0f2016;
+  padding: clamp(1rem, 2.5vw, 1.75rem);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+}
+.form-card h3 {
+  color: #f8fafc;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+.form-card label {
+  color: #dce8e1;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+.form-card p {
+  line-height: 1.5;
 }
 
 .form-input {
   width: 100%;
-  border-radius: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background-color: rgba(0, 0, 0, 0.35);
+  min-height: 2.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: rgba(2, 11, 6, 0.55);
   color: #ffffff;
   padding: 0.75rem 1rem;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 .form-input:focus {
   outline: none;
@@ -1538,7 +1647,48 @@ const Enviar = async () => {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 .form-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(226, 232, 240, 0.46);
+}
+
+@media (max-width: 639px) {
+  .form-card {
+    border-radius: 1rem;
+    padding: 1rem;
+    box-shadow: none;
+  }
+  .form-card > div:first-child {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .itinerary-row {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr) 2.75rem;
+  }
+  .itinerary-row .form-input:first-of-type {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+  }
+  .itinerary-row .form-input:nth-of-type(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+  .itinerary-row button {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-in-up {
+    animation: none;
+  }
+  .step-pill,
+  .form-input {
+    transition: none;
+  }
 }
 
 .error-msg {
