@@ -128,24 +128,24 @@
           <h1 class="text-4xl sm:text-5xl font-black text-white tracking-tighter drop-shadow-2xl">Gestión de <span class="text-emerald-500">Tours</span></h1>
           <p class="text-white/40 mt-2 font-bold italic text-sm">Administra tu oferta de experiencias turísticas premium</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <router-link to="/estandar-paquetes"
-                  class="flex min-h-12 items-center gap-2 rounded-2xl border border-sky-300/25 bg-sky-300/10 px-5 text-[11px] font-black uppercase tracking-widest text-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-300/15 focus:outline-none focus:ring-2 focus:ring-sky-300">
+                  class="flex min-h-12 w-full items-center justify-center gap-2 sm:w-auto rounded-2xl border border-sky-300/25 bg-sky-300/10 px-5 text-[11px] font-black uppercase tracking-widest text-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-300/15 focus:outline-none focus:ring-2 focus:ring-sky-300">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75h.008v.008H12V6.75Zm1 10.5h-2v-6h2v6ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
             Información del estándar
           </router-link>
           <router-link to="/panel/recorridos"
-                  class="flex min-h-12 items-center gap-2 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 px-5 text-[11px] font-black uppercase tracking-widest text-emerald-200 transition-all hover:-translate-y-0.5 hover:bg-emerald-300/15 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                  class="flex min-h-12 w-full items-center justify-center gap-2 sm:w-auto rounded-2xl border border-emerald-300/25 bg-emerald-300/10 px-5 text-[11px] font-black uppercase tracking-widest text-emerald-200 transition-all hover:-translate-y-0.5 hover:bg-emerald-300/15 focus:outline-none focus:ring-2 focus:ring-emerald-300">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg>
             Recorridos GPS
           </router-link>
           <button @click="abrirModalCargaMasiva"
-                  class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 font-black py-4 px-6 rounded-2xl transition-all shadow-lg hover:-translate-y-0.5 active:scale-95 w-fit uppercase tracking-widest text-[11px]">
+                  class="flex w-full items-center justify-center gap-2 sm:w-auto bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 font-black py-4 px-6 rounded-2xl transition-all shadow-lg hover:-translate-y-0.5 active:scale-95 uppercase tracking-widest text-[11px]">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
             Carga Masiva
           </button>
           <button @click="abrirModalNuevo" 
-                  class="group flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-black font-black uppercase tracking-widest text-[11px] py-4 px-8 rounded-2xl transition-all shadow-xl shadow-emerald-900/20 hover:-translate-y-1 active:translate-y-0 w-fit">
+                  class="group flex w-full items-center justify-center gap-3 sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-black font-black uppercase tracking-widest text-[11px] py-4 px-8 rounded-2xl transition-all shadow-xl shadow-emerald-900/20 hover:-translate-y-1 active:translate-y-0">
             <div class="w-6 h-6 rounded-lg bg-black/10 flex items-center justify-center group-hover:rotate-90 transition-transform">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </div>

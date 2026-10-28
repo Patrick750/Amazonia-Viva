@@ -86,7 +86,7 @@ const isActive = (path) => {
 
 <template>
   <header class="sticky top-0 z-50 bg-[#0f2318] border-b border-white/8 shadow-lg shadow-black/30">
-    <nav class="max-w-7xl mx-auto px-6 h-[70px] flex items-center justify-between gap-6">
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 h-[70px] flex items-center justify-between gap-3 sm:gap-6">
 
       <!-- ── LOGO ── -->
       <router-link
@@ -102,7 +102,7 @@ const isActive = (path) => {
             alt="Amazonia Viva"
           >
         </div>
-        <div class="leading-tight">
+        <div class="hidden min-[380px]:block leading-tight">
           <div class="text-white font-black text-base tracking-tight leading-none">Amazonia</div>
           <div class="text-emerald-400 font-bold text-[11px] uppercase tracking-[0.2em] leading-none">Viva</div>
         </div>
@@ -176,7 +176,7 @@ const isActive = (path) => {
             <button
               @click="menuAbierto = !menuAbierto"
               :class="[
-                'flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-xl transition-all duration-200',
+                'flex items-center gap-2 pl-1.5 pr-2 sm:pr-3 py-1.5 rounded-xl transition-all duration-200',
                 menuAbierto ? 'bg-white/12' : 'hover:bg-white/10'
               ]"
             >
@@ -276,7 +276,7 @@ const isActive = (path) => {
         <!-- Hamburguesa mobile -->
         <button
           @click="mobileAbierto = !mobileAbierto"
-          class="md:hidden p-2.5 ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+          class="md:hidden p-2.5 ml-0 sm:ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
             <path v-if="!mobileAbierto" stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
