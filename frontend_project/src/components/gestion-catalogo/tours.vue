@@ -105,7 +105,7 @@
             <div v-for="tour in paginatedDatos" :key="tour.id" class="bg-white/5 rounded-3xl border border-white/5 p-5 relative flex flex-col gap-4 transition-all hover:bg-white/10 hover:border-white/10 group">
                 
                 <!-- Indicador de estado móvil -->
-                <span class="absolute top-4 right-4 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-xl"
+                <span class="self-end -mb-1 text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-xl"
                   :class="tour.activo ? 'bg-emerald-500 text-black' : 'bg-rose-500 text-white'">
                   {{ tour.activo ? 'Activo' : 'Inactivo' }}
                 </span>
