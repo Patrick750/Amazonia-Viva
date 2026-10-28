@@ -71,10 +71,16 @@ const mostrarMapaModal = ref(false);
 const mapContainer = ref(null);
 let map = null;
 let marker = null;
+// Trazado GPS publicado por la agencia (MEJ-001); si no existe, el mapa muestra solo el punto de encuentro.
+const recorrido = ref(null);
+let lineaRecorrido = null;
 
 onMounted(async () => {
     tour.value = await obtenerTourPorId(id);
     cargando.value = false;
+    clienteAxios.get(`api/paquetes/${id}/recorrido/`)
+        .then(({ data }) => { recorrido.value = data.disponible ? data : null; })
+        .catch(() => { recorrido.value = null; });
     // Para paquetes fijos, consultar cupos de inmediato
     if (tour.value?.tipo_paquete === 'fijo' && tour.value?.fecha_realizacion) {
         consultarCupos(tour.value.fecha_realizacion);
@@ -119,9 +125,15 @@ const initMap = () => {
     }).addTo(map);
     
     marker = L.marker(position).addTo(map);
-    
+
+    lineaRecorrido = recorrido.value?.puntos?.length > 1
+        ? L.polyline(recorrido.value.puntos, { color: '#059669', weight: 5 }).addTo(map)
+        : null;
+
     setTimeout(() => {
-        if(map) map.invalidateSize();
+        if (!map) return;
+        map.invalidateSize();
+        if (lineaRecorrido) map.fitBounds(lineaRecorrido.getBounds().extend(position), { padding: [30, 30] });
     }, 200);
 };
 
@@ -718,6 +730,7 @@ const fichaDeActividad = (actividadId) =>
                         
                         <!-- Coordenadas overlay -->
                         <div class="absolute bottom-4 left-4 right-4 sm:right-auto bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg border border-slate-100/50 flex flex-col gap-1 z-10">
+                            <span v-if="recorrido" class="text-xs font-bold text-emerald-700 pl-1">Recorrido real de la agencia · {{ recorrido.distancia_km }} km</span>
                             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Coordenadas exactas</span>
                             <div class="flex items-center gap-2 text-emerald-700 font-mono text-xs sm:text-sm bg-emerald-50/50 px-3 py-1.5 rounded-xl border border-emerald-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

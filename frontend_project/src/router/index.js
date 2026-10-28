@@ -61,6 +61,11 @@ const router = createRouter({
       component: () => import('@/views/recorridos-agencia.vue'),
     },
     {
+      path:'/panel/mi-recorrido',
+      name:'mi_recorrido',
+      component: () => import('@/views/mi-recorrido.vue'),
+    },
+    {
       path:'/estandar-paquetes',
       name:'estandar_paquetes',
       component: () => import('@/views/estandar-paquetes.vue'),
@@ -241,6 +246,10 @@ router.beforeEach((to, from, next) => {
   }
 
   if ((to.path.startsWith('/panel/gestion-paquetes') || to.path === '/panel/recorridos') && rolLower !== 'agencia') {
+    return next('/')
+  }
+
+  if (to.path === '/panel/mi-recorrido' && rolLower !== 'turista') {
     return next('/')
   }
 
