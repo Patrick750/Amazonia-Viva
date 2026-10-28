@@ -3,6 +3,10 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import { iniciarCapturaInstalacion } from './composables/useInstalarPwa'
+
+// Debe registrarse antes de montar: el navegador puede avisar de que la app es instalable muy pronto.
+iniciarCapturaInstalacion()
 
 const app = createApp(App)
 

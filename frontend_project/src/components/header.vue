@@ -5,6 +5,7 @@ import { useUserStats } from '@/composables/useUserStats';
 import { useCarrito } from '@/composables/useCarrito';
 import { navegacion } from '@/config/navigation';
 import axios from '@/api/axios';
+import InstalarApp from '@/components/instalar-app.vue';
 
 const menuAbierto   = ref(false);
 const mobileAbierto = ref(false);
@@ -132,6 +133,9 @@ const isActive = (path) => {
 
       <!-- ── ACCIONES DERECHA ── -->
       <div class="flex items-center gap-1.5 flex-shrink-0">
+
+        <!-- Instalar la PWA: solo turistas y agencias, y solo si el navegador lo permite -->
+        <InstalarApp v-if="token && (rol === 'turista' || rol === 'agencia')" variante="boton" />
 
         <!-- === AUTENTICADO === -->
         <template v-if="token">
@@ -285,6 +289,9 @@ const isActive = (path) => {
         </button>
       </div>
     </nav>
+
+    <!-- Aviso de instalación en móvil: a todo el ancho para no saturar la barra superior -->
+    <InstalarApp v-if="token && (rol === 'turista' || rol === 'agencia')" variante="banner" />
 
     <!-- ── MENÚ MOBILE ── -->
     <transition
