@@ -1,0 +1,17 @@
+{
+  "name": "Amazonia Viva",
+  "short_name": "Amazonia Viva",
+  "description": "Experiencias turísticas en la Amazonía. Registra y consulta recorridos GPS de tus paquetes.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1c12",
+  "theme_color": "#0b1c12",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

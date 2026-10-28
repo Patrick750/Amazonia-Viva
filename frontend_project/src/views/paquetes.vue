@@ -134,7 +134,12 @@
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75h.008v.008H12V6.75Zm1 10.5h-2v-6h2v6ZM21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
             Información del estándar
           </router-link>
-          <button @click="abrirModalCargaMasiva" 
+          <router-link to="/panel/recorridos"
+                  class="flex min-h-12 items-center gap-2 rounded-2xl border border-emerald-300/25 bg-emerald-300/10 px-5 text-[11px] font-black uppercase tracking-widest text-emerald-200 transition-all hover:-translate-y-0.5 hover:bg-emerald-300/15 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></svg>
+            Recorridos GPS
+          </router-link>
+          <button @click="abrirModalCargaMasiva"
                   class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 font-black py-4 px-6 rounded-2xl transition-all shadow-lg hover:-translate-y-0.5 active:scale-95 w-fit uppercase tracking-widest text-[11px]">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
             Carga Masiva
