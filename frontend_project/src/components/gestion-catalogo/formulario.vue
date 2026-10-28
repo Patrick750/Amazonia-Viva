@@ -290,7 +290,8 @@ const validarFormulario = () => {
     if (!newTour.capacidad || newTour.capacidad <= 0) { errores.capacidad = "Capacidad inválida."; valido = false; }
     if (!newTour.categoria_paquete) { errores.categoria_paquete = "Selecciona una categoría."; valido = false; }
     if (newTour.actividades.length === 0) { errores.actividades = "Selecciona al menos una actividad."; valido = false; }
-    if (newTour.modalidades_turismo.length === 0) { errores.modalidades_turismo = "Selecciona al menos una modalidad."; valido = false; }
+    // Igual que el backend: los paquetes anteriores a MEJ-003 pueden editarse sin modalidad mientras la completan.
+    if (!newTour.id && newTour.modalidades_turismo.length === 0) { errores.modalidades_turismo = "Selecciona al menos una modalidad."; valido = false; }
 
     if (requiereCertificacion.value) {
         if (!newTour.modalidades_turismo.includes('aventura')) {
@@ -954,6 +955,10 @@ const Enviar = async () => {
                     {{ newTour.modalidades_turismo.length }} seleccionada(s)
                   </span>
                 </div>
+
+                <p v-if="newTour.id && newTour.modalidades_turismo.length === 0" class="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-xs text-amber-200" role="status">
+                  Este paquete se registró antes del estándar. Puedes guardarlo así, pero conviene indicar sus modalidades para que el viajero vea su ficha técnica completa.
+                </p>
 
                 <!-- Buscador de Modalidades -->
                 <div class="relative mb-5">
