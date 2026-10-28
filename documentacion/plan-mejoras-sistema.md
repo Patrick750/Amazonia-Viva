@@ -340,9 +340,9 @@ Rediseñar la experiencia de inicio de sesión y creación de cuenta utilizando 
 
 | ID | Actor o contexto | Requisito |
 | --- | --- | --- |
-| RF-016 | Usuarios que inician sesión | Rediseñar la experiencia UX del inicio de sesión. |
-| RF-017 | Personas que crean una cuenta | Rediseñar la experiencia UX de creación de cuenta. |
-| RF-018 | Diseño de ambas pantallas | Aplicar la skill diseno-ux-web en la planificación y ejecución del rediseño. |
+| RF-018 | Usuarios que inician sesión | Rediseñar la experiencia UX del inicio de sesión. |
+| RF-019 | Personas que crean una cuenta | Rediseñar la experiencia UX de creación de cuenta. |
+| RF-020 | Diseño de ambas pantallas | Aplicar la skill diseno-ux-web en la planificación y ejecución del rediseño. |
 
 ### Contexto inicial del código
 
@@ -401,4 +401,7 @@ La creación de cuenta debe enlazar con el onboarding correspondiente al rol seg
 | 2026-10-16 | Se implementa MEJ-003 en una rama propia, con ficha técnica por actividad, validación de turismo de aventura, vista informativa pública y presentación en el detalle del paquete. | Implementado; pendiente de revisión e integración |
 | 2026-10-20 | Se amplía el rediseño a todo el formulario, se añaden buscadores de modalidades y actividades, navegación por secciones y dificultades clicables alimentadas desde la base de datos mediante un comando idempotente. | Implementado; pendiente de revisión e integración |
 | 2026-10-23 | Se mueve a la base de datos el catálogo maestro del estándar y se incorpora `python manage.py seed_estandar_paquetes` para cargarlo de forma idempotente. | Implementado; pendiente de revisión e integración |
+| 2026-10-28 | Se devuelven latitud y longitud en `GET /api/pack/` para que la edición conserve la ubicación guardada. | Implementado; pendiente de revisión e integración |
+| 2026-10-28 | `seed_paquetes` genera la ficha del estándar y añade `--completar-existentes` para los paquetes de demostración anteriores a MEJ-003. No se ejecuta en producción. | Implementado; pendiente de revisión e integración |
+| 2026-10-28 | La edición de un paquete anterior a MEJ-003 ya no exige modalidad en el formulario, igual que el backend (que solo la exige al crear). Se muestra un aviso para completarla. Se renumeran RF-018 a RF-020 de MEJ-004 por duplicar RF-016 y RF-017. | Implementado; pendiente de revisión e integración |
 | 2026-10-16 | A solicitud del usuario, se documenta para MEJ-002 la opción técnica recomendada: diccionarios, conjuntos, vectores y reglas explícitas, con ordenación por afinidad y heap opcional. Se incorpora el cruce planteado de características personales con requisitos y riesgo de actividades. | Propuesta documentada; reglas y campos pendientes de validación |
