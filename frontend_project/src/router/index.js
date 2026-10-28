@@ -56,6 +56,11 @@ const router = createRouter({
       component: paquetes,
     },
     {
+      path:'/panel/recorridos',
+      name:'recorridos_agencia',
+      component: () => import('@/views/recorridos-agencia.vue'),
+    },
+    {
       path:'/estandar-paquetes',
       name:'estandar_paquetes',
       component: () => import('@/views/estandar-paquetes.vue'),
@@ -235,7 +240,7 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  if (to.path.startsWith('/panel/gestion-paquetes') && rolLower !== 'agencia') {
+  if ((to.path.startsWith('/panel/gestion-paquetes') || to.path === '/panel/recorridos') && rolLower !== 'agencia') {
     return next('/')
   }
 
