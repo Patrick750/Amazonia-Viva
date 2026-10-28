@@ -11,7 +11,7 @@ Documento de trabajo que se actualizará con las necesidades indicadas por el us
 | MEJ-001 | PWA con registro GPS sin conexión, trazado asociado al paquete y acceso al recorrido para turistas con compra | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
 | MEJ-002 | Mejora UX del catálogo de paquetes y productos, onboarding por rol y recomendaciones personalizadas | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
 | MEJ-003 | Actualizar el registro de paquetes turísticos conforme al documento de referencia y mejorar su interfaz visual y de uso | Implementada en `codex/mej-003-estandar-paquetes`; pendiente de revisión e integración | En ejecución |
-| MEJ-004 | Rediseño UX de inicio de sesión y creación de cuenta utilizando la skill diseno-ux-web | Necesidad registrada; diseño por concretar | Pendiente de comparar con las demás mejoras |
+| MEJ-004 | Rediseño UX de inicio de sesión y creación de cuenta utilizando la skill diseno-ux-web | Implementada en `codex/mej-003-estandar-paquetes`; pendiente de revisión e integración | En ejecución |
 
 ## MEJ-001. Recorridos GPS vinculados a paquetes turísticos
 
@@ -376,6 +376,25 @@ La creación de cuenta debe enlazar con el onboarding correspondiente al rol seg
 - Definir el destino posterior al registro y la transición al onboarding de MEJ-002.
 - Determinar si recuperación de contraseña o verificación de cuenta requieren una mejora separada; no se incorporan como funciones nuevas confirmadas en esta solicitud.
 
+### Estado de implementación — 28 de octubre de 2026
+
+Revisión inicial, con evidencia, de `login.vue` y `signup.vue`:
+
+- **Bloqueante:** el registro ocultaba los errores del servidor (solo los registraba en consola), y el fondo del login usaba una ruta `/src/...` que no existe en el build de producción.
+- **Dificultad importante:** el ejemplo de teléfono del proveedor no pasaba su propia validación; las etiquetas no estaban asociadas a los campos; faltaban `autocomplete`; los errores del registro aparecían de uno en uno; cualquier fallo del login se mostraba como credenciales incorrectas; el registro no guardaba `refresh_token`.
+- **Contraste medido:** el botón blanco sobre teal/emerald-500 daba 2.49:1 y 2.54:1; con emerald-700 es 5.48:1.
+
+Cambios aplicados, sin modificar endpoints, cuerpos de petición ni permisos:
+
+- Componentes compartidos `components/auth/auth-layout.vue` y `campo-auth.vue`, y `composables/auth/useSesion.js` (sesión común y mensajes de conexión).
+- Inicio de sesión: título que describe la tarea, etiquetas asociadas, `autocomplete`, mostrar/ocultar contraseña, validación local, mensajes diferenciados (credenciales, límite de intentos, red, servicio) y aviso tras crear una cuenta.
+- Registro: selector de rol accesible (grupo de opciones), campos agrupados en «Tus datos» y «Acceso a tu cuenta», validación al salir del campo, todos los errores a la vez, errores del servidor visibles junto al campo, datos conservados al fallar y sin modificar lo que la persona ve. El teléfono se normaliza sin espacios también para proveedor.
+- Si el acceso automático falla tras registrar, se envía al login con el aviso de cuenta creada.
+
+Verificación realizada en el navegador (entorno local, Postgres del contenedor): login vacío, con credenciales incorrectas y correcto (con `refresh_token`); registro vacío, cambio de rol, correo duplicado y registro exitoso de un proveedor (usuario de prueba eliminado después); escritorio y móvil de 375 px sin desborde horizontal. `npm run build` compila.
+
+No comprobado: lectores de pantalla, dispositivos físicos ni los estados de red caída o límite de intentos en pantalla. No hay pruebas automáticas de frontend. El destino posterior al registro sigue siendo `/` hasta definir el onboarding de MEJ-002; recuperación de contraseña y verificación de cuenta no se incorporaron.
+
 ### Validación propuesta
 
 - Las personas distinguen iniciar sesión de crear una cuenta y pueden navegar entre ambos flujos.
@@ -404,4 +423,5 @@ La creación de cuenta debe enlazar con el onboarding correspondiente al rol seg
 | 2026-10-28 | Se devuelven latitud y longitud en `GET /api/pack/` para que la edición conserve la ubicación guardada. | Implementado; pendiente de revisión e integración |
 | 2026-10-28 | `seed_paquetes` genera la ficha del estándar y añade `--completar-existentes` para los paquetes de demostración anteriores a MEJ-003. No se ejecuta en producción. | Implementado; pendiente de revisión e integración |
 | 2026-10-28 | La edición de un paquete anterior a MEJ-003 ya no exige modalidad en el formulario, igual que el backend (que solo la exige al crear). Se muestra un aviso para completarla. Se renumeran RF-018 a RF-020 de MEJ-004 por duplicar RF-016 y RF-017. | Implementado; pendiente de revisión e integración |
+| 2026-10-28 | Se implementa el rediseño UX de inicio de sesión y registro de MEJ-004 con componentes compartidos, validación accesible y errores visibles. Se mantiene el destino `/` tras el registro hasta definir el onboarding de MEJ-002. | Implementado; pendiente de revisión e integración |
 | 2026-10-16 | A solicitud del usuario, se documenta para MEJ-002 la opción técnica recomendada: diccionarios, conjuntos, vectores y reglas explícitas, con ordenación por afinidad y heap opcional. Se incorpora el cruce planteado de características personales con requisitos y riesgo de actividades. | Propuesta documentada; reglas y campos pendientes de validación |
