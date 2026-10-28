@@ -781,6 +781,19 @@ class EstandarPaquetesTests(TestCase):
         self.assertEqual(gestion.data[0]['actividades'], [self.rafting.pk])
         self.assertEqual(gestion.data[0]['modalidades_turismo'], ['aventura', 'naturaleza'])
 
+    def test_listado_de_gestion_devuelve_coordenadas_para_editar(self):
+        data = self.datos_paquete()
+        data.update({'latitud': '-4.215300', 'longitud': '-69.940600'})
+        response = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+
+        gestion = self.client.get('/api/pack/')
+
+        self.assertEqual(gestion.status_code, 200)
+        self.assertEqual(gestion.data[0]['ubicacion'], 'Leticia, Amazonas')
+        self.assertEqual(str(gestion.data[0]['latitud']), '-4.215300')
+        self.assertEqual(str(gestion.data[0]['longitud']), '-69.940600')
+
     def test_rechaza_nivel_ajeno_a_la_escala_de_la_actividad(self):
         data = self.datos_paquete()
         data['clasificacion_actividades'][0]['nivel'] = 'alto'

@@ -250,7 +250,7 @@ class PaquetesTuristicos(APIView):
                 cursor.execute("""
                     SELECT 
                         p.id, p.activo, p.nombre, p.descripcion, p.precio, 
-                        p.duracion, p.capacidad, p.ubicacion, p.itinerario, 
+                        p.duracion, p.capacidad, p.ubicacion, p.latitud, p.longitud, p.itinerario,
                         p.incluido, p.rating, p.agencia_id, p.categoria_paquete_id,
                         p.fecha_realizacion, p.tipo_paquete,
                         p.modalidades_turismo, p.clasificacion_actividades,
