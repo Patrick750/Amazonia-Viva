@@ -13,6 +13,14 @@ const cancelando      = ref(false);
 const mensajeExito    = ref('');
 const viajeroAbierto  = ref({}); // { [reserva.id]: boolean }
 
+// Paquetes cuyo recorrido está habilitado hoy para este turista (la validación real ocurre en el servidor).
+const recorridosHoy = ref([]);
+onMounted(() => {
+  axios.get('api/turista/recorridos-habilitados/')
+    .then(({ data }) => { recorridosHoy.value = data; })
+    .catch(() => { recorridosHoy.value = []; });
+});
+
 // ── Estado Calificación ─────────────────────────────────────────────────────
 const showRatingModal = ref(false);
 const selectedReserva = ref(null);
@@ -160,6 +168,12 @@ async function submitRating() {
       <div class="absolute bottom-0 right-1/4 w-72 h-72 rounded-full bg-teal-400/4 blur-3xl pointer-events-none"></div>
 
       <div class="relative z-10 max-w-5xl mx-auto px-6">
+        <router-link v-if="recorridosHoy.length" to="/panel/mi-recorrido"
+          class="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-5 py-4 text-emerald-100 transition hover:bg-emerald-400/15 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+          <span class="text-sm font-bold">Hoy es el día de tu experiencia: consulta el recorrido en el mapa.</span>
+          <span class="text-xs font-black uppercase tracking-widest">Ver recorrido →</span>
+        </router-link>
+
         <!-- Breadcrumb etiqueta -->
         <div class="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-400/20 text-emerald-300 text-[11px] font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-6">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
