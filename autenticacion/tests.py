@@ -794,6 +794,47 @@ class EstandarPaquetesTests(TestCase):
         self.assertEqual(str(gestion.data[0]['latitud']), '-4.215300')
         self.assertEqual(str(gestion.data[0]['longitud']), '-69.940600')
 
+    @override_settings(DEBUG=True, CHECKOUT_MODE='demo')
+    def test_seed_completa_paquetes_existentes_y_quedan_editables(self):
+        antiguo = PaqueteTuristico.objects.create(
+            nombre='Aventura en el Río Yavari - Operadora',
+            descripcion='Paquete anterior a MEJ-003.',
+            precio=Decimal('850000'),
+            duracion='3 días',
+            capacidad=15,
+            ubicacion='Puerto Nariño',
+            agencia=self.agencia,
+        )
+        antiguo.actividades.set([self.rafting])
+
+        call_command('seed_paquetes', '--completar-existentes', verbosity=0)
+        antiguo.refresh_from_db()
+
+        self.assertEqual(set(antiguo.modalidades_turismo), {'nautico', 'naturaleza', 'aventura'})
+        ficha = antiguo.clasificacion_actividades[0]
+        self.assertEqual(ficha['actividad_id'], self.rafting.pk)
+        self.assertEqual(ficha['sistema'], 'Clase internacional del tramo de río')
+        self.assertIn(ficha['nivel'], {'I', 'III'})
+        self.assertEqual(antiguo.certificacion_aventura['estado'], 'vigente')
+        self.assertTrue(antiguo.medidas_seguridad)
+
+        respuesta = self.client.put(
+            f'/api/updatepack/{antiguo.pk}/', {'nombre': antiguo.nombre}, format='json'
+        )
+        self.assertEqual(respuesta.status_code, 200, respuesta.data)
+
+    @override_settings(DEBUG=True, CHECKOUT_MODE='demo')
+    def test_seed_completar_no_sobrescribe_paquetes_con_ficha(self):
+        data = self.datos_paquete()
+        creado = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(creado.status_code, 201, creado.data)
+
+        call_command('seed_paquetes', '--completar-existentes', verbosity=0)
+
+        paquete = PaqueteTuristico.objects.get(pk=creado.data['id'])
+        self.assertEqual(paquete.modalidades_turismo, ['aventura', 'naturaleza'])
+        self.assertEqual(paquete.certificacion_aventura['codigo'], 'CERT-001')
+
     def test_rechaza_nivel_ajeno_a_la_escala_de_la_actividad(self):
         data = self.datos_paquete()
         data['clasificacion_actividades'][0]['nivel'] = 'alto'
