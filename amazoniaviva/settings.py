@@ -105,12 +105,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173,http://127.0.0.1:5173,https://amazoniaviva.adsoproject.dev').split(',')
+    for origin in config('CORS_ALLOWED_ORIGINS', default='http://localhost,http://127.0.0.1,http://localhost:5173,http://127.0.0.1:5173,https://amazoniaviva.adsoproject.dev').split(',')
     if origin.strip()
 ]
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
-    for origin in config('CSRF_TRUSTED_ORIGINS', default='https://api.adsoproject.dev,https://amazoniaviva.adsoproject.dev').split(',')
+    for origin in config('CSRF_TRUSTED_ORIGINS', default='http://localhost,http://127.0.0.1,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,https://api.adsoproject.dev,https://amazoniaviva.adsoproject.dev').split(',')
     if origin.strip()
 ]
 SECURE_SSL_REDIRECT = not DEBUG
