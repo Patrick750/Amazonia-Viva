@@ -544,3 +544,48 @@ class EventoPago(models.Model):
     moneda = models.CharField(max_length=3)
     resultado = models.CharField(max_length=30)
     recibido_en = models.DateTimeField(auto_now_add=True)
+
+
+class Recorrido(models.Model):
+    """Trazado GPS grabado por una agencia y asociado a un paquete turístico.
+
+    ``id_cliente`` lo genera el dispositivo para que un recorrido registrado sin conexión
+    pueda reenviarse sin duplicarse. Solo un recorrido por paquete puede estar publicado.
+    """
+    id_cliente = models.UUIDField(unique=True, editable=False)
+    paquete = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE, related_name='recorridos')
+    nombre = models.CharField(max_length=120, blank=True)
+    iniciado_en = models.DateTimeField()
+    finalizado_en = models.DateTimeField(null=True, blank=True)
+    publicado = models.BooleanField(default=False)
+    publicado_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-iniciado_en']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['paquete'],
+                condition=models.Q(publicado=True),
+                name='recorrido_publicado_unico_por_paquete',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Recorrido {self.id_cliente} de {self.paquete_id}"
+
+
+class PuntoRecorrido(models.Model):
+    """Punto GPS de un recorrido. ``secuencia`` la asigna el dispositivo y evita duplicados al reintentar."""
+    recorrido = models.ForeignKey(Recorrido, on_delete=models.CASCADE, related_name='puntos')
+    secuencia = models.PositiveIntegerField()
+    latitud = models.DecimalField(max_digits=9, decimal_places=6)
+    longitud = models.DecimalField(max_digits=9, decimal_places=6)
+    precision_m = models.FloatField(null=True, blank=True)
+    capturado_en = models.DateTimeField()
+
+    class Meta:
+        ordering = ['secuencia']
+        constraints = [
+            models.UniqueConstraint(fields=['recorrido', 'secuencia'], name='punto_recorrido_secuencia_unica'),
+        ]

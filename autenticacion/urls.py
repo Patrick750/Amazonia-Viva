@@ -17,6 +17,10 @@ from .vistas_experiencias import (
     ExperienciasDashboardView, SubirEvidenciaView, DetalleFeedbackView,
     MisExperienciasTuristaView, DescargarEvidenciasZipView
 )
+from .vistas_recorridos import (
+    RecorridosAgenciaView, PuntosRecorridoView, FinalizarRecorridoView, PublicarRecorridoView,
+    RecorridoPublicoView, RecorridosHabilitadosTuristaView, RecorridoTuristaView
+)
 
 urlpatterns = [
     path('venta/<int:pk>/cancelar/', CancelarPedidoPendienteView.as_view(), name='cancelar_pedido_pendiente'),
@@ -83,6 +87,15 @@ urlpatterns = [
     path("experiencias/<int:pk>/evidencia/", SubirEvidenciaView.as_view(), name='subir_evidencia'),
     path("experiencias/<int:pk>/feedback/", DetalleFeedbackView.as_view(), name='detalle_feedback'),
     path("experiencias/<int:pk>/zip/", DescargarEvidenciasZipView.as_view(), name='descargar_evidencias_zip'),
+
+    # ── Recorridos GPS (MEJ-001) ──────────────────────────────────────────────
+    path("recorridos/", RecorridosAgenciaView.as_view(), name='recorridos_agencia'),
+    path("recorridos/<uuid:id_cliente>/puntos/", PuntosRecorridoView.as_view(), name='recorrido_puntos'),
+    path("recorridos/<uuid:id_cliente>/finalizar/", FinalizarRecorridoView.as_view(), name='recorrido_finalizar'),
+    path("recorridos/<uuid:id_cliente>/publicar/", PublicarRecorridoView.as_view(), name='recorrido_publicar'),
+    path("paquetes/<int:pk>/recorrido/", RecorridoPublicoView.as_view(), name='recorrido_publico'),
+    path("turista/recorridos-habilitados/", RecorridosHabilitadosTuristaView.as_view(), name='recorridos_habilitados'),
+    path("turista/paquetes/<int:pk>/recorrido/", RecorridoTuristaView.as_view(), name='recorrido_turista'),
 
     # ── Módulo Liquidación / Billetera Virtual ────────────────────────────────
     path("liquidacion/saldos/", vistas_liquidacion.LiquidacionSaldosView.as_view(), name='liquidacion_saldos'),

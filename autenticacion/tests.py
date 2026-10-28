@@ -15,7 +15,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import (Agencia, Proveedor, Turista, Usuario, Categoria, Actividad, Categorias, PaqueteTuristico,
                      Productos, Venta, Detalles_Venta, ReservaFecha, Carrito, Items, SolicitudRetiro,
                      IntentosCredenciales, CambioEstadoRetiro, EstandarPaquete, ModalidadTurismo,
-                     PrincipioEstandarPaquete, FuenteEstandarPaquete)
+                     PrincipioEstandarPaquete, FuenteEstandarPaquete, Recorrido, PuntoRecorrido)
+from .vistas_recorridos import fecha_de_hoy
 from .compras import procesar_compra, liberar_pedido
 from .retiros import cambiar_estado
 from .vistas_liquidacion import _calcular_saldos
@@ -884,3 +885,155 @@ class SeedActividadesTests(TransactionTestCase):
             {opcion['value'] for opcion in safari.opciones_dificultad},
             {'baja', 'media', 'alta'},
         )
+
+
+class RecorridosGpsTests(TestCase):
+    def setUp(self):
+        self.agencia = Agencia.objects.create_user(username='agencia-gps', email='gps@example.test', password='A-safe-pass-938!', nombre_agencia='Agencia GPS')
+        self.otra = Agencia.objects.create_user(username='otra-gps', email='otra-gps@example.test', password='A-safe-pass-938!', nombre_agencia='Otra GPS')
+        self.turista = Turista.objects.create_user(username='tur-gps', email='tur-gps@example.test', password='A-safe-pass-938!', fecha_nacimiento='1990-01-01', numero_identidad='1111111111')
+        self.ajeno = Turista.objects.create_user(username='ajeno-gps', email='ajeno-gps@example.test', password='A-safe-pass-938!', fecha_nacimiento='1990-01-01', numero_identidad='2222222222')
+        self.paquete = PaqueteTuristico.objects.create(nombre='Ruta', descripcion='Tour', precio='100', duracion='1 día', capacidad=5, ubicacion='Leticia', agencia=self.agencia)
+        self.client = APIClient()
+        self.client.force_authenticate(self.agencia)
+        self.ahora = timezone.now()
+
+    def crear(self, id_cliente=None, cliente=None):
+        id_cliente = id_cliente or str(uuid4())
+        respuesta = (cliente or self.client).post('/api/recorridos/', {
+            'id_cliente': id_cliente, 'paquete': self.paquete.pk, 'nombre': 'Ruta de prueba',
+            'iniciado_en': self.ahora.isoformat(),
+        }, format='json')
+        return id_cliente, respuesta
+
+    def punto(self, secuencia, lat=-4.2153, lng=-69.9406):
+        return {'secuencia': secuencia, 'latitud': lat, 'longitud': lng, 'precision_m': 8.5,
+                'capturado_en': (self.ahora + timedelta(seconds=secuencia * 10)).isoformat()}
+
+    def subir(self, id_cliente, puntos):
+        return self.client.post(f'/api/recorridos/{id_cliente}/puntos/', {'puntos': puntos}, format='json')
+
+    def finalizar(self, id_cliente):
+        return self.client.post(f'/api/recorridos/{id_cliente}/finalizar/', {'finalizado_en': (self.ahora + timedelta(hours=1)).isoformat()}, format='json')
+
+    def recorrido_listo(self):
+        id_cliente, _ = self.crear()
+        self.subir(id_cliente, [self.punto(0), self.punto(1, -4.2200), self.punto(2, -4.2250)])
+        self.finalizar(id_cliente)
+        return id_cliente
+
+    def reserva(self, fecha=None, estado_venta='Completado', estado_detalle='Confirmado', usuario=None):
+        venta = Venta.objects.create(usuario=usuario or self.turista, total='100', estado=estado_venta, estado_pago='Pagado')
+        Detalles_Venta.objects.create(venta=venta, producto=0, paquete=self.paquete.pk, cantidad=1, precio_unitario='100', estado=estado_detalle)
+        ReservaFecha.objects.create(paquete=self.paquete, venta=venta, fecha=fecha or fecha_de_hoy(), cantidad=1)
+
+    def test_crear_recorrido_es_idempotente(self):
+        id_cliente, primera = self.crear()
+        _, segunda = self.crear(id_cliente)
+        self.assertEqual((primera.status_code, segunda.status_code), (201, 200))
+        self.assertEqual(Recorrido.objects.count(), 1)
+
+    def test_no_permite_grabar_en_paquete_ajeno(self):
+        cliente = APIClient()
+        cliente.force_authenticate(self.otra)
+        _, respuesta = self.crear(cliente=cliente)
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertEqual(Recorrido.objects.count(), 0)
+
+    def test_otra_agencia_no_puede_reclamar_un_recorrido_existente(self):
+        id_cliente, _ = self.crear()
+        cliente = APIClient()
+        cliente.force_authenticate(self.otra)
+        respuesta = cliente.post(f'/api/recorridos/{id_cliente}/puntos/', {'puntos': [self.punto(0)]}, format='json')
+        self.assertEqual(respuesta.status_code, 404)
+
+    def test_puntos_reintentados_no_se_duplican(self):
+        id_cliente, _ = self.crear()
+        self.assertEqual(self.subir(id_cliente, [self.punto(0), self.punto(1)]).data['total'], 2)
+        reintento = self.subir(id_cliente, [self.punto(0), self.punto(1), self.punto(2)])
+        self.assertEqual(reintento.data['total'], 3)
+        self.assertEqual(PuntoRecorrido.objects.filter(recorrido__id_cliente=id_cliente).count(), 3)
+
+    def test_rechaza_coordenadas_fuera_de_rango(self):
+        id_cliente, _ = self.crear()
+        self.assertEqual(self.subir(id_cliente, [self.punto(0, lat=95)]).status_code, 400)
+        self.assertEqual(self.subir(id_cliente, [self.punto(0, lng=-181)]).status_code, 400)
+
+    def test_publicar_exige_finalizar_y_dos_puntos(self):
+        id_cliente, _ = self.crear()
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 400)
+        self.subir(id_cliente, [self.punto(0)])
+        self.finalizar(id_cliente)
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 400)
+        self.subir(id_cliente, [self.punto(1, -4.22)])
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 200)
+
+    def test_solo_un_recorrido_publicado_por_paquete(self):
+        primero, segundo = self.recorrido_listo(), self.recorrido_listo()
+        self.client.post(f'/api/recorridos/{primero}/publicar/')
+        self.client.post(f'/api/recorridos/{segundo}/publicar/')
+        publicados = list(Recorrido.objects.filter(publicado=True).values_list('id_cliente', flat=True))
+        self.assertEqual([str(x) for x in publicados], [segundo])
+
+    def test_recorrido_publicado_no_admite_mas_puntos(self):
+        id_cliente = self.recorrido_listo()
+        self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        self.assertEqual(self.subir(id_cliente, [self.punto(9)]).status_code, 409)
+
+    def test_trazado_publico_solo_si_esta_publicado_y_sin_datos_privados(self):
+        publico = APIClient()
+        self.assertEqual(publico.get(f'/api/paquetes/{self.paquete.pk}/recorrido/').data, {'disponible': False})
+        id_cliente, _ = self.crear()
+        # Dos puntos casi idénticos al inicio: el trazado público conserva uno.
+        self.subir(id_cliente, [self.punto(0), self.punto(1, -4.215301), self.punto(2, -4.2200), self.punto(3, -4.2250)])
+        self.finalizar(id_cliente)
+        self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        datos = publico.get(f'/api/paquetes/{self.paquete.pk}/recorrido/').data
+        self.assertTrue(datos['disponible'])
+        self.assertEqual(len(datos['puntos']), 3)
+        self.assertTrue(all(len(par) == 2 for par in datos['puntos']))
+        self.assertNotIn('capturado_en', json.dumps(datos, default=str))
+        self.assertGreater(datos['distancia_km'], 0)
+
+    def test_despublicar_retira_el_trazado(self):
+        id_cliente = self.recorrido_listo()
+        self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        self.client.delete(f'/api/recorridos/{id_cliente}/publicar/')
+        self.assertEqual(APIClient().get(f'/api/paquetes/{self.paquete.pk}/recorrido/').data, {'disponible': False})
+
+    def test_turista_habilitado_solo_el_dia_de_realizacion(self):
+        self.reserva()
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        habilitados = cliente.get('/api/turista/recorridos-habilitados/').data
+        self.assertEqual([h['paquete'] for h in habilitados], [self.paquete.pk])
+        self.assertEqual(cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').status_code, 200)
+
+    def test_turista_sin_compra_valida_o_fuera_de_fecha_no_accede(self):
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        url = f'/api/turista/paquetes/{self.paquete.pk}/recorrido/'
+        self.assertEqual(cliente.get(url).status_code, 403)
+        self.reserva(fecha=fecha_de_hoy() + timedelta(days=1))
+        self.assertEqual(cliente.get(url).status_code, 403)
+        self.reserva(estado_venta='Pendiente')
+        self.assertEqual(cliente.get(url).status_code, 403)
+        self.reserva(estado_detalle='Cancelado')
+        self.assertEqual(cliente.get(url).status_code, 403)
+        self.assertEqual(cliente.get('/api/turista/recorridos-habilitados/').data, [])
+
+    def test_compra_de_otro_turista_no_habilita(self):
+        self.reserva(usuario=self.ajeno)
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        self.assertEqual(cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').status_code, 403)
+
+    def test_agencia_no_usa_las_vistas_del_turista(self):
+        self.assertEqual(self.client.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').status_code, 403)
+        self.assertEqual(self.client.get('/api/turista/recorridos-habilitados/').status_code, 403)
+
+    def test_la_fecha_de_hoy_usa_la_zona_horaria_de_colombia(self):
+        # 03:00 UTC del 29 de octubre son las 22:00 del 28 en Bogotá.
+        with patch('autenticacion.vistas_recorridos.timezone.now', return_value=timezone.datetime(2026, 10, 29, 3, 0, tzinfo=timezone.UTC)):
+            self.assertEqual(str(fecha_de_hoy()), '2026-10-28')
+
