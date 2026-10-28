@@ -201,6 +201,9 @@ LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
 
+# Zona horaria del día de realización de los paquetes: define cuándo se habilita el recorrido al turista.
+RECORRIDOS_ZONA_HORARIA = config('RECORRIDOS_ZONA_HORARIA', default='America/Bogota')
+
 USE_I18N = True
 
 USE_TZ = True
