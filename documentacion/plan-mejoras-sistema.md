@@ -8,7 +8,7 @@ Documento de trabajo que se actualizará con las necesidades indicadas por el us
 
 | ID      | Mejora                                                                                                         | Estado                                     | Prioridad global                             |
 | ------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------- |
-| MEJ-001 | PWA con registro GPS sin conexión, trazado asociado al paquete y acceso al recorrido para turistas con compra | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
+| MEJ-001 | PWA con registro GPS sin conexión, trazado asociado al paquete y acceso al recorrido para turistas con compra | Primera versión implementada en `codex/mej-003-estandar-paquetes`; supuestos y pruebas en dispositivo pendientes | En ejecución |
 | MEJ-002 | Mejora UX del catálogo de paquetes y productos, onboarding por rol y recomendaciones personalizadas | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
 | MEJ-003 | Actualizar el registro de paquetes turísticos conforme al documento de referencia y mejorar su interfaz visual y de uso | Implementada en `codex/mej-003-estandar-paquetes`; pendiente de revisión e integración | En ejecución |
 | MEJ-004 | Rediseño UX de inicio de sesión y creación de cuenta utilizando la skill diseno-ux-web | Implementada en `codex/mej-003-estandar-paquetes`; pendiente de revisión e integración | En ejecución |
@@ -61,6 +61,28 @@ El registro de la agencia alimenta el trazado que verá el público. La habilita
 - **Fecha y acceso:** ¿cuándo comienza y termina la habilitación, qué zona horaria aplica y qué ocurre con cancelaciones o cambios de fecha?
 - **Control del registro:** ¿se necesitan acciones de iniciar, pausar, reanudar y finalizar?
 - **Visibilidad de ubicación:** definir qué datos del recorrido se publican y quién puede consultar las ubicaciones individuales.
+
+### Estado de implementación — 28 de octubre de 2026
+
+Primera versión funcional, construida sobre supuestos que **debes confirmar o corregir** (las decisiones pendientes anteriores siguen abiertas):
+
+| Decisión pendiente | Supuesto adoptado en esta versión |
+| --- | --- |
+| PWA | Se adapta la plataforma actual (manifiesto, iconos y service worker propios, sin dependencias nuevas). |
+| Función del turista | Solo consulta: ve el trazado y, si lo activa, su propia ubicación en pantalla. No graba ni se guarda su posición. |
+| Uso sin conexión | Se guardan los puntos GPS en el dispositivo y la aplicación abre sin conexión. El mapa no es completo sin internet: solo se guardan los mosaicos ya visitados. |
+| Captura con pantalla bloqueada | No garantizada. La app pide mantener la pantalla encendida (Wake Lock) y avisa a la agencia. Requiere validación en los dispositivos objetivo. |
+| Un recorrido por paquete | Se pueden grabar varios; solo uno está publicado a la vez y publicar uno retira el anterior. |
+| Publicación | Manual: la agencia revisa y publica; sincronizar no publica. Un recorrido publicado no admite más puntos. |
+| Fecha y acceso | El turista accede el día elegido en su reserva, según la zona horaria de Colombia (`RECORRIDOS_ZONA_HORARIA`, por defecto `America/Bogota`), con venta en estado Completado y paquete Confirmado. Una cancelación retira el acceso porque se evalúa en cada consulta. |
+| Controles del registro | Iniciar, pausar, reanudar y finalizar. |
+| Visibilidad | El público y el turista ven un trazado simplificado (sin hora ni precisión de cada punto). Los puntos originales solo los ve el sistema. |
+
+Componentes: modelos `Recorrido` y `PuntoRecorrido` (migración 0018); API en `vistas_recorridos.py` con envíos idempotentes (identificador del recorrido y secuencia del punto generados en el dispositivo); pantallas `/panel/recorridos` (agencia) y `/panel/mi-recorrido` (turista); trazado en el mapa del paquete.
+
+Verificación realizada: 15 pruebas nuevas del backend y suite completa de 90 pruebas en verde; en el navegador (entorno local, Postgres del contenedor) se probó la grabación con ubicación simulada, el corte y la recuperación de la red con sincronización automática, la publicación, el acceso del turista y el trazado en el mapa público; con el build de producción, el service worker se instala y la aplicación abre con la red cortada.
+
+No comprobado: dispositivos físicos, GPS real y su permiso, captura con la pantalla bloqueada, instalación de la PWA en Android o iOS (Safari tiene más restricciones), mosaicos del mapa sin conexión y la recuperación tras cerrar el navegador a mitad de una grabación. No hay pruebas automáticas de frontend. Pendiente además: guardar el mapa de la zona para uso completamente sin conexión, si se decide necesario.
 
 ### Validación funcional propuesta
 
@@ -424,4 +446,5 @@ No comprobado: lectores de pantalla, dispositivos físicos ni los estados de red
 | 2026-10-28 | `seed_paquetes` genera la ficha del estándar y añade `--completar-existentes` para los paquetes de demostración anteriores a MEJ-003. No se ejecuta en producción. | Implementado; pendiente de revisión e integración |
 | 2026-10-28 | La edición de un paquete anterior a MEJ-003 ya no exige modalidad en el formulario, igual que el backend (que solo la exige al crear). Se muestra un aviso para completarla. Se renumeran RF-018 a RF-020 de MEJ-004 por duplicar RF-016 y RF-017. | Implementado; pendiente de revisión e integración |
 | 2026-10-28 | Se implementa el rediseño UX de inicio de sesión y registro de MEJ-004 con componentes compartidos, validación accesible y errores visibles. Se mantiene el destino `/` tras el registro hasta definir el onboarding de MEJ-002. | Implementado; pendiente de revisión e integración |
+| 2026-10-28 | Se implementa una primera versión de MEJ-001 (PWA, grabación GPS sin conexión, sincronización idempotente, publicación manual, trazado en el paquete y acceso del turista el día de realización). Las decisiones pendientes se cubren con supuestos documentados en la sección de estado. | Implementado con supuestos; pendiente de confirmación y de pruebas en dispositivo |
 | 2026-10-16 | A solicitud del usuario, se documenta para MEJ-002 la opción técnica recomendada: diccionarios, conjuntos, vectores y reglas explícitas, con ordenación por afinidad y heap opcional. Se incorpora el cruce planteado de características personales con requisitos y riesgo de actividades. | Propuesta documentada; reglas y campos pendientes de validación |
