@@ -15,7 +15,6 @@ const CLAVE_PAQUETES = 'recorridos_paquetes'
 
 const misPaquetes = ref([])
 const paqueteId = ref('')
-const nombreRecorrido = ref('')
 const remotos = ref([])
 const locales = ref([])
 const mensaje = ref('')
@@ -163,8 +162,8 @@ const confirmarInicioLejos = () => {
 }
 
 const comenzarGrabacion = async () => {
-  await grabacion.iniciar(Number(paqueteId.value), nombreRecorrido.value)
-  nombreRecorrido.value = ''
+  // El recorrido se identifica por su paquete: no lleva un nombre propio.
+  await grabacion.iniciar(Number(paqueteId.value))
   await cargarLista()
 }
 
@@ -410,14 +409,12 @@ onBeforeRouteLeave(() => {
 
           <template v-if="estado === 'inactivo'">
             <label for="paquete-recorrido" class="mb-1.5 block text-sm font-semibold">Paquete</label>
-            <select id="paquete-recorrido" v-model="paqueteId" class="mb-3 w-full rounded-xl border border-white/20 bg-[#0b1c12] px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-emerald-400">
+            <select id="paquete-recorrido" v-model="paqueteId" class="mb-4 w-full rounded-xl border border-white/20 bg-[#0b1c12] px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-emerald-400">
               <option value="" disabled>Selecciona un paquete</option>
               <option v-for="paquete in misPaquetes" :key="paquete.id" :value="paquete.id">{{ paquete.nombre }}</option>
             </select>
             <p v-if="!misPaquetes.length" class="-mt-1 mb-3 text-xs text-amber-200">No hay paquetes disponibles. Conéctate una vez para cargar tu lista.</p>
 
-            <label for="nombre-recorrido" class="mb-1.5 block text-sm font-semibold">Nombre <span class="font-normal text-white/60">(opcional)</span></label>
-            <input id="nombre-recorrido" v-model="nombreRecorrido" type="text" maxlength="120" placeholder="Ruta del día" class="mb-4 w-full rounded-xl border border-white/20 bg-[#0b1c12] px-4 py-3 text-base text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
 
             <button type="button" :disabled="!paqueteId" class="min-h-12 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black uppercase tracking-widest text-black transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-50" @click="iniciar">
               Iniciar recorrido
@@ -494,7 +491,7 @@ onBeforeRouteLeave(() => {
         <ul class="space-y-3">
           <li v-for="item in recorridosMostrados" :key="item.id_cliente" class="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p class="font-bold">{{ item.nombre || 'Recorrido sin nombre' }} <span class="font-normal text-white/60">· {{ nombreDelPaquete(item.paquete) }}</span></p>
+              <p class="font-bold">{{ nombreDelPaquete(item.paquete) }}</p>
               <p class="mt-1 text-xs text-white/50">{{ formatoFecha(item.iniciado_en) }}<template v-if="item.total_puntos !== null"> · {{ item.total_puntos }} puntos</template></p>
               <p v-if="item.errorLocal" class="mt-1 text-xs text-rose-200">{{ item.errorLocal }}</p>
               <p v-if="item.coincide_con_paquete === false" class="mt-1 text-xs font-semibold text-amber-200" role="alert">⚠ Queda a {{ (item.distancia_paquete_m / 1000).toFixed(1) }} km de la ubicación del paquete (máximo {{ (item.limite_m / 1000).toFixed(1) }} km): no se puede publicar.</p>
@@ -504,7 +501,7 @@ onBeforeRouteLeave(() => {
               <button v-if="item.errorLocal" type="button" class="min-h-11 rounded-xl border border-white/25 px-4 text-xs font-black uppercase tracking-widest hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-300" @click="reintentar(item)">Reintentar</button>
               <button v-else-if="puedePublicar(item) && !item.publicado" type="button" class="min-h-11 rounded-xl bg-emerald-600 px-4 text-xs font-black uppercase tracking-widest text-black hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300" @click="cambiarPublicacion(item, true)">Publicar</button>
               <button v-else-if="item.publicado" type="button" class="min-h-11 rounded-xl border border-white/25 px-4 text-xs font-black uppercase tracking-widest hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-300" @click="cambiarPublicacion(item, false)">Retirar</button>
-              <button v-if="!esActivo(item)" type="button" class="min-h-11 rounded-xl border border-rose-400/40 px-4 text-xs font-black uppercase tracking-widest text-rose-200 hover:bg-rose-500/15 focus:outline-none focus:ring-2 focus:ring-rose-300" :aria-label="`Eliminar el recorrido ${item.nombre || 'sin nombre'}`" @click="pedirEliminar(item)">Eliminar</button>
+              <button v-if="!esActivo(item)" type="button" class="min-h-11 rounded-xl border border-rose-400/40 px-4 text-xs font-black uppercase tracking-widest text-rose-200 hover:bg-rose-500/15 focus:outline-none focus:ring-2 focus:ring-rose-300" :aria-label="`Eliminar el recorrido de ${nombreDelPaquete(item.paquete)}`" @click="pedirEliminar(item)">Eliminar</button>
               <span v-else class="text-xs font-bold text-sky-200">En grabación</span>
             </div>
           </li>
@@ -528,7 +525,7 @@ onBeforeRouteLeave(() => {
       <div class="w-full max-w-sm rounded-3xl bg-[#0f2318] p-6 text-white shadow-2xl ring-1 ring-white/10" role="alertdialog" aria-modal="true" aria-labelledby="titulo-eliminar" aria-describedby="detalle-eliminar">
         <h2 id="titulo-eliminar" class="mb-2 text-lg font-black">¿Eliminar este recorrido?</h2>
         <p id="detalle-eliminar" class="mb-1 text-sm text-white/80">
-          Se borrarán el recorrido «{{ porEliminar.nombre || 'sin nombre' }}» de {{ nombreDelPaquete(porEliminar.paquete) }} y todos sus puntos GPS.
+          Se borrarán el recorrido de «{{ nombreDelPaquete(porEliminar.paquete) }}» y todos sus puntos GPS.
         </p>
         <p v-if="porEliminar.publicado" class="mb-1 text-sm font-semibold text-amber-200">Está publicado: dejará de verse en el mapa del paquete.</p>
         <p class="mb-4 text-sm text-white/60">Esta acción no se puede deshacer.</p>
