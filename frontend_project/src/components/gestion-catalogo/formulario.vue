@@ -59,16 +59,53 @@ const pasoActual = ref(1);
 const pasoVisible = computed(() => pasos[pasoActual.value - 1]);
 const progresoFormulario = computed(() => (pasoActual.value / pasos.length) * 100);
 const camposPorPaso = {
-    1: ['nombre', 'descripcion', 'precio', 'duracion', 'capacidad', 'categoria_paquete'],
-    2: ['ubicacion'],
+    1: ['nombre', 'descripcion', 'precio', 'duracion', 'capacidad', 'categoria_paquete', 'fecha_realizacion'],
+    2: ['ubicacion', 'latitud', 'longitud'],
     3: ['modalidades_turismo', 'actividades'],
-    4: ['clasificacion_actividades', 'requisitos_participantes', 'condiciones_operacion', 'medidas_seguridad', 'certificacion_aventura'],
+    4: ['clasificacion_actividades', 'requisitos_participantes', 'condiciones_operacion', 'medidas_seguridad', 'certificacion_aventura', 'informacion_sostenibilidad'],
+    5: ['itinerario'],
+    6: ['incluido'],
+    7: ['archivos_subidos', 'imagen_paquete', 'imagenes_eliminar'],
 };
 const pasoTieneErrores = (numero) => (camposPorPaso[numero] || []).some(campo => errores[campo]);
+
+// Nombres que se muestran a la persona para cada campo (los errores llegan con el nombre técnico).
+const ETIQUETAS_CAMPO = {
+    nombre: 'Nombre del tour', descripcion: 'Descripción', precio: 'Precio', duracion: 'Duración', capacidad: 'Capacidad',
+    categoria_paquete: 'Categoría', fecha_realizacion: 'Fecha de realización', ubicacion: 'Ubicación', latitud: 'Punto en el mapa',
+    longitud: 'Punto en el mapa', modalidades_turismo: 'Modalidades', actividades: 'Actividades',
+    clasificacion_actividades: 'Ficha técnica de las actividades', requisitos_participantes: 'Requisitos del participante',
+    condiciones_operacion: 'Condiciones de operación', medidas_seguridad: 'Medidas de seguridad',
+    certificacion_aventura: 'Certificación de aventura', informacion_sostenibilidad: 'Sostenibilidad',
+    itinerario: 'Itinerario', incluido: 'Qué incluye', archivos_subidos: 'Imágenes', imagen_paquete: 'Imágenes',
+};
+const pasoDelCampo = (campo) => Number(Object.keys(camposPorPaso).find(numero => camposPorPaso[numero].includes(campo))) || null;
+
+// Cada error con el paso donde se corrige, para decir qué falta y poder ir directo allí.
+const listaErrores = computed(() => Object.entries(errores)
+    .filter(([, mensaje]) => mensaje)
+    .map(([campo, mensaje]) => {
+        const numero = pasoDelCampo(campo);
+        return { campo, mensaje, numero, etiqueta: ETIQUETAS_CAMPO[campo] || 'General', paso: numero ? pasos[numero - 1].titulo : null };
+    })
+    .sort((a, b) => (a.numero ?? 99) - (b.numero ?? 99)));
 const irAlPaso = async (numero) => {
     pasoActual.value = Math.min(Math.max(Number(numero) || 1, 1), pasos.length);
     await nextTick();
     formScroll.value?.scrollTo({ top: 0, behavior: 'smooth' });
+};
+const irAlPrimerError = async () => {
+    const primero = listaErrores.value.find(error => error.numero);
+    if (primero) pasoActual.value = primero.numero;
+    await nextTick();
+    formScroll.value?.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector('[data-form-error="true"]')?.focus({ preventScroll: true });
+};
+const irAlError = async (error) => {
+    if (error.numero) await irAlPaso(error.numero);
+    await nextTick();
+    // El mensaje del campo visible en ese paso: se centra en pantalla para verlo sin buscar.
+    [...document.querySelectorAll('.error-msg')].find(mensaje => mensaje.offsetParent)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 const avanzarPaso = () => irAlPaso(pasoActual.value + 1);
 const retrocederPaso = () => irAlPaso(pasoActual.value - 1);
@@ -327,14 +364,7 @@ const validarFormulario = () => {
         errores.ubicacion = "Debes seleccionar un punto en el mapa (puedes buscarlo o hacer clic).";
         valido = false;
     }
-    if (!valido) {
-        const primerPasoConError = pasos.find(({ numero }) => pasoTieneErrores(numero))?.numero || 1;
-        pasoActual.value = primerPasoConError;
-        nextTick(() => {
-            formScroll.value?.scrollTo({ top: 0, behavior: 'smooth' });
-            document.querySelector('[data-form-error="true"]')?.focus({ preventScroll: true });
-        });
-    }
+    if (!valido) irAlPrimerError();
     return valido;
 };
 
@@ -633,7 +663,13 @@ const Enviar = async () => {
                 errores[campo] = Array.isArray(mensajes) ? mensajes.join(' ') : String(mensajes);
             });
         }
-        mostrarNotificacion('Revisa los campos señalados antes de guardar.', 'error');
+        irAlPrimerError();
+        const primero = listaErrores.value[0];
+        mostrarNotificacion(
+            primero ? `No se pudo guardar. ${primero.etiqueta}: ${primero.mensaje}` : 'No se pudo guardar el paquete. Inténtalo de nuevo.',
+            'error',
+            7000,
+        );
     } finally {
         isLoading.value = false;
     }
@@ -713,6 +749,18 @@ const Enviar = async () => {
             </div>
             <span class="text-xs text-white/55">{{ pasoVisible.descripcion }}</span>
           </div>
+          <nav aria-label="Ir a un paso" class="mb-2 grid grid-cols-7 gap-1.5 md:hidden">
+            <button v-for="paso in pasos" :key="`movil-${paso.numero}`" type="button" @click="irAlPaso(paso.numero)"
+              class="relative flex h-11 items-center justify-center rounded-xl border text-sm font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-300"
+              :class="pasoActual === paso.numero
+                ? 'border-emerald-300 bg-emerald-400 text-[#052e1a]'
+                : pasoTieneErrores(paso.numero) ? 'border-rose-400/60 bg-rose-500/15 text-rose-100' : 'border-white/12 bg-white/5 text-white/80'"
+              :aria-label="`Paso ${paso.numero}: ${paso.titulo}${pasoTieneErrores(paso.numero) ? ', con errores' : ''}`"
+              :aria-current="pasoActual === paso.numero ? 'step' : undefined">
+              {{ paso.numero }}
+              <span v-if="pasoTieneErrores(paso.numero)" class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-[#0c1b12]" aria-hidden="true"></span>
+            </button>
+          </nav>
           <nav aria-label="Pasos del formulario" class="hidden grid-cols-7 gap-2 md:grid">
             <button v-for="paso in pasos" :key="paso.numero" type="button" @click="irAlPaso(paso.numero)"
               class="step-pill"
@@ -731,12 +779,18 @@ const Enviar = async () => {
         <div ref="formScroll" class="form-scroll flex-1 overflow-x-hidden overflow-y-auto bg-[#09140d] p-3 sm:p-6 lg:p-8">
           <form @submit.prevent="Enviar" class="tour-form mx-auto max-w-5xl">
 
-            <!-- Banner Alertas de Error -->
+            <!-- Resumen de lo que falta: cada punto lleva al paso y al campo -->
             <div v-if="totalErrores" data-form-error="true" role="alert" tabindex="-1" class="mb-4 flex items-start gap-3 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-100 outline-none">
-              <svg class="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-              <div>
-                <p class="font-black">Hay {{ totalErrores }} campo(s) o secciones que requieren tu atención.</p>
-                <p class="mt-1 text-rose-200/70 text-xs">Revisa los campos resaltados en rojo a continuación antes de guardar.</p>
+              <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+              <div class="min-w-0 flex-1">
+                <p class="font-black">Falta corregir {{ totalErrores }} {{ totalErrores === 1 ? 'dato' : 'datos' }} antes de guardar:</p>
+                <ul class="mt-2 space-y-1.5">
+                  <li v-for="error in listaErrores" :key="error.campo">
+                    <button type="button" class="rounded text-left text-sm text-rose-50 underline decoration-rose-300/50 underline-offset-2 hover:decoration-rose-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300" @click="irAlError(error)">
+                      <span class="font-bold">{{ error.paso ? `Paso ${error.numero} · ${error.paso}` : 'General' }} · {{ error.etiqueta }}:</span> {{ error.mensaje }}
+                    </button>
+                  </li>
+                </ul>
               </div>
             </div>
 
