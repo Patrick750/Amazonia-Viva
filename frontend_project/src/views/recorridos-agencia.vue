@@ -7,6 +7,7 @@ import clienteAxios from '@/api/axios'
 import { paquetes as pedirPaquetes } from '@/composables/gestion-tours/paquetes'
 import { PRECISION_MAXIMA_M, useGrabacion } from '@/composables/recorridos/useGrabacion'
 import { useMiUbicacion } from '@/composables/recorridos/useMiUbicacion'
+import { useNotificacion } from '@/composables/useNotificacion'
 import { eliminarRecorrido as borrarLocal, listarRecorridos } from '@/composables/recorridos/almacenLocal'
 import { reintentarRecorrido } from '@/composables/recorridos/sincronizacion'
 
@@ -26,6 +27,7 @@ const cargarLista = async () => {
   try {
     const { data } = await clienteAxios.get('api/recorridos/')
     remotos.value = data
+    if (data[0]?.limite_m) limiteM.value = data[0].limite_m
     errorLista.value = ''
   } catch {
     errorLista.value = 'Sin conexión: se muestran solo los recorridos guardados en este dispositivo.'
@@ -72,7 +74,7 @@ const etiquetaEstado = (item) => {
     : { texto: 'Sincronizado, sin publicar', clase: 'bg-white/10 text-white/70 border-white/20' }
 }
 
-const puedePublicar = (item) => !!item.finalizado_en && (!item.local || item.completo) && !item.errorLocal
+const puedePublicar = (item) => !!item.finalizado_en && (!item.local || item.completo) && !item.errorLocal && item.coincide_con_paquete !== false
 
 const cambiarPublicacion = async (item, publicar) => {
   mensaje.value = ''
@@ -80,9 +82,11 @@ const cambiarPublicacion = async (item, publicar) => {
     if (publicar) await clienteAxios.post(`api/recorridos/${item.id_cliente}/publicar/`)
     else await clienteAxios.delete(`api/recorridos/${item.id_cliente}/publicar/`)
     mensaje.value = publicar ? 'Recorrido publicado: ya se muestra en el mapa del paquete.' : 'Recorrido retirado del paquete.'
+    mostrarNotificacion(mensaje.value, 'exito')
     await cargarLista()
   } catch (error) {
     mensaje.value = error.response?.data?.detail || 'No se pudo cambiar la publicación. Revisa tu conexión e inténtalo de nuevo.'
+    mostrarNotificacion(mensaje.value, 'error', 8000)
   }
 }
 
@@ -139,15 +143,37 @@ const eliminarConfirmado = async () => {
   }
 }
 
-const iniciar = async () => {
+const iniciar = () => {
   mensaje.value = ''
+  const paquete = paqueteDelMapa.value
+  if (paquete && !ubicacionPaquete.value) {
+    mostrarNotificacion('Este paquete no tiene ubicación registrada, así que no se podrá comprobar que el recorrido coincide con él.', 'aviso', 7000)
+  } else if (lejosDelPaquete.value) {
+    // Se pide confirmación: grabar lejos del paquete casi siempre es un error de paquete o de lugar.
+    alertaLejos.value = { nombre: paquete.nombre, texto: textoDistanciaCorta.value }
+    nextTick(() => botonCambiarPaquete.value?.focus())
+    return
+  }
+  return comenzarGrabacion()
+}
+
+const confirmarInicioLejos = () => {
+  alertaLejos.value = null
+  return comenzarGrabacion()
+}
+
+const comenzarGrabacion = async () => {
   await grabacion.iniciar(Number(paqueteId.value), nombreRecorrido.value)
   nombreRecorrido.value = ''
   await cargarLista()
 }
 
 const finalizar = async () => {
+  const cercania = distanciaMinimaDelTrazoM()
   await grabacion.finalizar()
+  if (cercania !== null && cercania > limiteM.value) {
+    mostrarNotificacion(`El recorrido que grabaste queda a ${(cercania / 1000).toFixed(1)} km de la ubicación del paquete: no se podrá publicar. Revisa el paquete elegido.`, 'aviso', 9000)
+  }
   mensaje.value = enLinea.value
     ? 'Recorrido finalizado. Ya puedes publicarlo desde la lista cuando termine de sincronizarse.'
     : 'Recorrido finalizado y guardado en este dispositivo. Se enviará cuando recuperes la conexión.'
@@ -219,6 +245,92 @@ const centrarEnMiUbicacion = () => {
 
 const precisionBaja = computed(() => !!miPosicion.value && miPosicion.value.precision > PRECISION_MAXIMA_M)
 
+// --- Ubicación del paquete y alertas ---
+const { mostrarNotificacion } = useNotificacion()
+// El servidor informa el límite real con cada recorrido; este es el valor por defecto.
+const limiteM = ref(3000)
+
+const distanciaM = (a, b) => {
+  const rad = (g) => (g * Math.PI) / 180
+  const h = Math.sin(rad(b[0] - a[0]) / 2) ** 2
+    + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(rad(b[1] - a[1]) / 2) ** 2
+  return 2 * 6371000 * Math.asin(Math.sqrt(h))
+}
+
+// Paquete que se muestra en el mapa: el que se está grabando o, si no, el elegido en la lista.
+const paqueteDelMapa = computed(() => {
+  const id = estado.value !== 'inactivo' ? recorrido.value?.paquete : Number(paqueteId.value)
+  return misPaquetes.value.find(paquete => paquete.id === id) || null
+})
+const ubicacionPaquete = computed(() => {
+  const paquete = paqueteDelMapa.value
+  return paquete && paquete.latitud != null && paquete.longitud != null ? [Number(paquete.latitud), Number(paquete.longitud)] : null
+})
+const distanciaAlPaqueteM = computed(() => (
+  ubicacionPaquete.value && miPosicion.value ? distanciaM([miPosicion.value.lat, miPosicion.value.lng], ubicacionPaquete.value) : null
+))
+const textoDistanciaCorta = computed(() => {
+  const metros = distanciaAlPaqueteM.value
+  if (metros === null) return ''
+  return metros < 1000 ? `${Math.round(metros)} m` : `${(metros / 1000).toFixed(1)} km`
+})
+const textoDistancia = computed(() => (
+  distanciaAlPaqueteM.value === null ? '' : distanciaAlPaqueteM.value < 150 ? 'Estás en el punto del paquete' : `A ${textoDistanciaCorta.value} del punto del paquete`
+))
+const lejosDelPaquete = computed(() => distanciaAlPaqueteM.value !== null && distanciaAlPaqueteM.value > limiteM.value)
+
+// Menor distancia entre lo grabado y la ubicación del paquete (null si no se puede calcular).
+const distanciaMinimaDelTrazoM = () => {
+  if (!ubicacionPaquete.value || !trazado.value.length) return null
+  return Math.min(...trazado.value.map(punto => distanciaM(punto, ubicacionPaquete.value)))
+}
+
+const alertaLejos = ref(null)
+const botonCambiarPaquete = ref(null)
+
+// Pin ámbar con el punto de encuentro del paquete elegido.
+const PIN_HTML = '<svg viewBox="0 0 24 32" width="34" height="44" aria-hidden="true"><path d="M12 0C5.4 0 0 5.2 0 11.7 0 20.5 12 32 12 32s12-11.5 12-20.3C24 5.2 18.6 0 12 0z" fill="#f59e0b" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="11.5" r="4.5" fill="#fff"/></svg>'
+let pin = null
+const dibujarPin = () => {
+  if (!mapa) return
+  pin?.remove()
+  pin = null
+  if (!ubicacionPaquete.value) return
+  pin = L.marker(ubicacionPaquete.value, { icon: L.divIcon({ className: '', html: PIN_HTML, iconSize: [34, 44], iconAnchor: [17, 44] }), keyboard: false })
+    .bindTooltip(`Punto del paquete: ${paqueteDelMapa.value.nombre}`)
+    .addTo(mapa)
+}
+
+// Al elegir un paquete se enmarcan a la vez la persona y el punto del paquete.
+watch(() => ubicacionPaquete.value?.join(','), () => {
+  dibujarPin()
+  if (!mapa || !ubicacionPaquete.value || estado.value !== 'inactivo') return
+  seguir.value = false
+  if (miPosicion.value) mapa.fitBounds(L.latLngBounds([[miPosicion.value.lat, miPosicion.value.lng], ubicacionPaquete.value]), { padding: [60, 60], maxZoom: 17 })
+  else mapa.setView(ubicacionPaquete.value, 15)
+})
+
+// Alertas de eventos que la persona necesita saber mientras marca el recorrido.
+watch(enLinea, (conectado) => {
+  if (conectado) mostrarNotificacion('Conexión recuperada. Enviando los puntos guardados…', 'exito')
+  else mostrarNotificacion('Sin conexión: sigues marcando el recorrido y se enviará cuando vuelva internet.', 'aviso', 6000)
+})
+let huboPendientes = false
+watch(pendientes, (cantidad) => { if (cantidad > 0) huboPendientes = true })
+watch(sincronizando, (ahora, antes) => {
+  if (antes && !ahora && huboPendientes && pendientes.value === 0) {
+    huboPendientes = false
+    mostrarNotificacion('Todos los puntos del recorrido se enviaron al servidor.', 'exito')
+  }
+})
+watch(precisionBaja, (baja) => {
+  if (baja && estado.value === 'grabando') mostrarNotificacion(`Señal GPS débil (peor de ${PRECISION_MAXIMA_M} m): no se están marcando puntos. Sal a un lugar abierto.`, 'aviso', 7000)
+})
+watch(estadoUbicacion, (nuevo) => {
+  if (nuevo === 'denegada') mostrarNotificacion('El permiso de ubicación está denegado: no se puede marcar el recorrido.', 'error', 8000)
+  else if (nuevo === 'sin_gps') mostrarNotificacion('No se puede obtener la ubicación. Comprueba que el GPS esté activado.', 'aviso', 6000)
+})
+
 // Al empezar a grabar se muestra el mapa y se vuelve a seguir a la persona.
 watch(estado, (nuevo) => {
   if (nuevo === 'grabando') {
@@ -236,11 +348,12 @@ onMounted(async () => {
     observadorCabecera.observe(cabecera)
   }
   iniciarMapa()
+  dibujarPin()
   iniciarUbicacion()
   const cache = JSON.parse(localStorage.getItem(CLAVE_PAQUETES) || '[]')
   const traidos = await pedirPaquetes().catch(() => null)
   if (Array.isArray(traidos) && traidos.length) {
-    misPaquetes.value = traidos.map(p => ({ id: p.id, nombre: p.nombre }))
+    misPaquetes.value = traidos.map(p => ({ id: p.id, nombre: p.nombre, latitud: p.latitud ?? null, longitud: p.longitud ?? null }))
     localStorage.setItem(CLAVE_PAQUETES, JSON.stringify(misPaquetes.value))
   } else {
     misPaquetes.value = cache
@@ -348,6 +461,8 @@ onBeforeRouteLeave(() => {
               <span v-if="sincronizando" class="rounded-full bg-black/75 px-3 py-1.5 text-xs font-bold text-sky-200 backdrop-blur">Sincronizando…</span>
               <span v-if="miPosicion" class="rounded-full bg-black/75 px-3 py-1.5 text-xs font-bold backdrop-blur" :class="precisionBaja ? 'text-amber-200' : 'text-sky-100'">Precisión {{ miPosicion.precision }} m</span>
             </div>
+            <span v-if="textoDistancia" class="pointer-events-auto rounded-full bg-black/75 px-3 py-1.5 text-xs font-bold backdrop-blur" :class="lejosDelPaquete ? 'text-amber-200' : 'text-amber-100'">{{ textoDistancia }}</span>
+            <p v-if="lejosDelPaquete" class="pointer-events-auto max-w-xs rounded-xl bg-black/75 px-3 py-2 text-xs text-amber-100 backdrop-blur" role="alert">Estás lejos del punto del paquete. Un recorrido que no pase a menos de {{ (limiteM / 1000).toFixed(1) }} km de ese punto no se podrá publicar.</p>
             <p v-if="!enLinea" class="pointer-events-auto max-w-xs rounded-xl bg-black/75 px-3 py-2 text-xs text-amber-100 backdrop-blur">Sin internet: los puntos se guardan en este dispositivo y el mapa puede verse incompleto, pero el recorrido se marca igual.</p>
             <p v-if="precisionBaja" class="pointer-events-auto max-w-xs rounded-xl bg-black/75 px-3 py-2 text-xs text-amber-100 backdrop-blur" role="status">Señal débil: no se marcan puntos con precisión peor de {{ PRECISION_MAXIMA_M }} m. Sal a un lugar abierto.</p>
             <p v-if="estadoUbicacion !== 'activa'" class="pointer-events-auto max-w-xs rounded-xl bg-black/75 px-3 py-2 text-xs backdrop-blur" :class="estadoUbicacion === 'buscando' ? 'text-white/80' : 'text-amber-100'" role="status">
@@ -382,6 +497,7 @@ onBeforeRouteLeave(() => {
               <p class="font-bold">{{ item.nombre || 'Recorrido sin nombre' }} <span class="font-normal text-white/60">· {{ nombreDelPaquete(item.paquete) }}</span></p>
               <p class="mt-1 text-xs text-white/50">{{ formatoFecha(item.iniciado_en) }}<template v-if="item.total_puntos !== null"> · {{ item.total_puntos }} puntos</template></p>
               <p v-if="item.errorLocal" class="mt-1 text-xs text-rose-200">{{ item.errorLocal }}</p>
+              <p v-if="item.coincide_con_paquete === false" class="mt-1 text-xs font-semibold text-amber-200" role="alert">⚠ Queda a {{ (item.distancia_paquete_m / 1000).toFixed(1) }} km de la ubicación del paquete (máximo {{ (item.limite_m / 1000).toFixed(1) }} km): no se puede publicar.</p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
               <span class="rounded-full border px-3 py-1 text-xs font-bold" :class="etiquetaEstado(item).clase">{{ etiquetaEstado(item).texto }}</span>
@@ -395,6 +511,18 @@ onBeforeRouteLeave(() => {
         </ul>
       </section>
     </main>
+
+    <div v-if="alertaLejos" class="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-4 sm:items-center" @click.self="alertaLejos = null" @keydown.esc="alertaLejos = null">
+      <div class="w-full max-w-sm rounded-3xl bg-[#0f2318] p-6 text-white shadow-2xl ring-1 ring-white/10" role="alertdialog" aria-modal="true" aria-labelledby="titulo-lejos" aria-describedby="detalle-lejos">
+        <h2 id="titulo-lejos" class="mb-2 text-lg font-black">Estás lejos del paquete</h2>
+        <p id="detalle-lejos" class="mb-2 text-sm text-white/80">Estás a <strong>{{ alertaLejos.texto }}</strong> del punto de «{{ alertaLejos.nombre }}».</p>
+        <p class="mb-4 text-sm text-amber-200">Un recorrido que no pase a menos de {{ (limiteM / 1000).toFixed(1) }} km de ese punto no se podrá publicar. Comprueba que elegiste el paquete correcto.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button ref="botonCambiarPaquete" type="button" class="min-h-12 rounded-xl bg-emerald-600 px-4 text-sm font-black uppercase tracking-widest text-black outline-none hover:bg-emerald-500 focus-visible:ring-2 focus-visible:ring-white" @click="alertaLejos = null">Cambiar paquete</button>
+          <button type="button" class="min-h-12 rounded-xl border border-white/25 px-4 text-sm font-black uppercase tracking-widest outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white" @click="confirmarInicioLejos">Grabar igual</button>
+        </div>
+      </div>
+    </div>
 
     <div v-if="porEliminar" class="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-4 sm:items-center" @click.self="cerrarEliminar" @keydown.esc="cerrarEliminar">
       <div class="w-full max-w-sm rounded-3xl bg-[#0f2318] p-6 text-white shadow-2xl ring-1 ring-white/10" role="alertdialog" aria-modal="true" aria-labelledby="titulo-eliminar" aria-describedby="detalle-eliminar">

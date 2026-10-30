@@ -73,14 +73,37 @@ let map = null;
 let marker = null;
 // Trazado GPS publicado por la agencia (MEJ-001); si no existe, el mapa muestra solo el punto de encuentro.
 const recorrido = ref(null);
+const cargandoRecorrido = ref(true);
+const errorRecorrido = ref(false);
+let promesaRecorrido = Promise.resolve();
 let lineaRecorrido = null;
+let marcasRecorrido = [];
+
+// Distancia máxima, en km, entre el punto de encuentro y el recorrido antes de avisar de que no coinciden.
+const LIMITE_COINCIDENCIA_KM = 3;
+
+const kmEntre = (a, b) => {
+    const rad = (g) => (g * Math.PI) / 180;
+    const h = Math.sin(rad(b[0] - a[0]) / 2) ** 2
+        + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(rad(b[1] - a[1]) / 2) ** 2;
+    return 2 * 6371 * Math.asin(Math.sqrt(h));
+};
+
+// Distancia del recorrido publicado al punto de encuentro del paquete (null si no se puede calcular).
+const distanciaRecorridoKm = computed(() => {
+    if (!recorrido.value?.puntos?.length || !tour.value?.latitud || !tour.value?.longitud) return null;
+    const destino = [Number(tour.value.latitud), Number(tour.value.longitud)];
+    return Math.min(...recorrido.value.puntos.map(punto => kmEntre(punto, destino)));
+});
 
 onMounted(async () => {
+    // El trazo se pide ya, en paralelo con el paquete, para que esté listo cuando se abra el mapa.
+    promesaRecorrido = clienteAxios.get(`api/paquetes/${id}/recorrido/`)
+        .then(({ data }) => { recorrido.value = data.disponible ? data : null; })
+        .catch(() => { recorrido.value = null; errorRecorrido.value = true; })
+        .finally(() => { cargandoRecorrido.value = false; });
     tour.value = await obtenerTourPorId(id);
     cargando.value = false;
-    clienteAxios.get(`api/paquetes/${id}/recorrido/`)
-        .then(({ data }) => { recorrido.value = data.disponible ? data : null; })
-        .catch(() => { recorrido.value = null; });
     // Para paquetes fijos, consultar cupos de inmediato
     if (tour.value?.tipo_paquete === 'fijo' && tour.value?.fecha_realizacion) {
         consultarCupos(tour.value.fecha_realizacion);
@@ -126,21 +149,48 @@ const initMap = () => {
     
     marker = L.marker(position).addTo(map);
 
-    lineaRecorrido = recorrido.value?.puntos?.length > 1
-        ? L.polyline(recorrido.value.puntos, { color: '#059669', weight: 5 }).addTo(map)
-        : null;
-
     setTimeout(() => {
         if (!map) return;
         map.invalidateSize();
-        if (lineaRecorrido) map.fitBounds(lineaRecorrido.getBounds().extend(position), { padding: [30, 30] });
+        dibujarRecorrido();
     }, 200);
 };
 
+// Dibuja el trazo publicado y encuadra el mapa para ver a la vez el recorrido y el punto de encuentro.
+const dibujarRecorrido = () => {
+    if (!map) return;
+    lineaRecorrido?.remove();
+    marcasRecorrido.forEach(marca => marca.remove());
+    lineaRecorrido = null;
+    marcasRecorrido = [];
+    const puntos = recorrido.value?.puntos;
+    if (!(puntos?.length > 1)) return;
+    const posicion = [Number(tour.value.latitud), Number(tour.value.longitud)];
+    // Borde blanco bajo la línea verde para que se distinga sobre cualquier fondo.
+    marcasRecorrido.push(L.polyline(puntos, { color: '#ffffff', weight: 10, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(map));
+    lineaRecorrido = L.polyline(puntos, { color: '#059669', weight: 6, lineCap: 'round', lineJoin: 'round' }).addTo(map);
+    marcasRecorrido.push(
+        L.circleMarker(puntos[0], { radius: 7, color: '#fff', weight: 2, fillColor: '#16a34a', fillOpacity: 1 }).bindTooltip('Inicio del recorrido').addTo(map),
+        L.circleMarker(puntos.at(-1), { radius: 7, color: '#fff', weight: 2, fillColor: '#dc2626', fillOpacity: 1 }).bindTooltip('Final del recorrido').addTo(map),
+    );
+    map.fitBounds(lineaRecorrido.getBounds().extend(posicion), { padding: [30, 30] });
+};
+
+// Si el trazo llega con el mapa ya abierto, se dibuja en ese momento.
+watch(recorrido, () => dibujarRecorrido());
+
 watch(mostrarMapaModal, async (abierto) => {
-    if (abierto) {
-        await nextTick();
-        setTimeout(() => initMap(), 100);
+    if (!abierto) return;
+    await nextTick();
+    // Se espera (hasta 3 s) al trazo para que aparezca desde la primera vez que se abre el mapa.
+    await Promise.race([promesaRecorrido, new Promise(resolver => setTimeout(resolver, 3000))]);
+    setTimeout(() => initMap(), 100);
+    if (errorRecorrido.value) {
+        mostrarNotificacion('No pudimos cargar el recorrido de este paquete. Mostramos solo el punto de encuentro.', 'error');
+    } else if (!recorrido.value && !cargandoRecorrido.value) {
+        mostrarNotificacion('Este paquete aún no tiene un recorrido publicado por la agencia.', 'aviso');
+    } else if (distanciaRecorridoKm.value !== null && distanciaRecorridoKm.value > LIMITE_COINCIDENCIA_KM) {
+        mostrarNotificacion(`El recorrido queda a ${distanciaRecorridoKm.value.toFixed(1)} km del punto de encuentro del paquete.`, 'aviso', 7000);
     }
 });
 
@@ -730,7 +780,11 @@ const fichaDeActividad = (actividadId) =>
                         
                         <!-- Coordenadas overlay -->
                         <div class="absolute bottom-4 left-4 right-4 sm:right-auto bg-white/90 backdrop-blur-md px-4 py-3 rounded-2xl shadow-lg border border-slate-100/50 flex flex-col gap-1 z-10">
-                            <span v-if="recorrido" class="text-xs font-bold text-emerald-700 pl-1">Recorrido real de la agencia · {{ recorrido.distancia_km }} km</span>
+                            <span v-if="cargandoRecorrido" class="text-xs font-bold text-slate-500 pl-1" role="status">Cargando recorrido…</span>
+                            <span v-else-if="recorrido" class="text-xs font-bold text-emerald-700 pl-1">Recorrido real de la agencia · {{ recorrido.distancia_km }} km</span>
+                            <span v-else-if="errorRecorrido" class="text-xs font-bold text-red-600 pl-1" role="alert">No se pudo cargar el recorrido</span>
+                            <span v-else class="text-xs font-semibold text-slate-500 pl-1">Sin recorrido publicado</span>
+                            <span v-if="distanciaRecorridoKm !== null && distanciaRecorridoKm > LIMITE_COINCIDENCIA_KM" class="text-xs font-bold text-amber-700 pl-1" role="alert">⚠ El recorrido queda a {{ distanciaRecorridoKm.toFixed(1) }} km del punto de encuentro</span>
                             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Coordenadas exactas</span>
                             <div class="flex items-center gap-2 text-emerald-700 font-mono text-xs sm:text-sm bg-emerald-50/50 px-3 py-1.5 rounded-xl border border-emerald-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

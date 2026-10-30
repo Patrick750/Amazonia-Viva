@@ -1,20 +1,31 @@
 <script setup>
+import { computed } from 'vue';
 import { useNotificacion } from '@/composables/useNotificacion';
 
 const { notificacion, cerrarNotificacion } = useNotificacion();
+
+// 'warning' se conserva por compatibilidad con los avisos que ya existían.
+const estilo = computed(() => {
+  if (notificacion.tipo === 'exito') return 'exito';
+  return notificacion.tipo === 'aviso' || notificacion.tipo === 'warning' ? 'aviso' : 'error';
+});
 </script>
 
 <template>
   <Teleport to="body">
     <!-- Toast Notificación Centralizada -->
     <div v-if="notificacion.mostrar"
+      :role="estilo === 'exito' ? 'status' : 'alert'"
       :class="['fixed top-6 right-6 z-[200] flex items-center gap-4 px-5 py-4 rounded-2xl shadow-2xl border max-w-sm animate-slide-in',
-      notificacion.tipo === 'exito'
+      estilo === 'exito'
         ? 'bg-white border-emerald-200 shadow-emerald-100'
-        : 'bg-white border-red-200 shadow-red-100']">
+        : estilo === 'aviso'
+          ? 'bg-white border-amber-300 shadow-amber-100'
+          : 'bg-white border-red-200 shadow-red-100']">
       <div :class="['w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0',
-        notificacion.tipo === 'exito' ? 'bg-emerald-100' : 'bg-red-100']">
-        <svg v-if="notificacion.tipo === 'exito'" class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        estilo === 'exito' ? 'bg-emerald-100' : estilo === 'aviso' ? 'bg-amber-100' : 'bg-red-100']">
+        <svg v-if="estilo === 'exito'" class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        <svg v-else-if="estilo === 'aviso'" class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
         <svg v-else class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </div>
       <p :class="['text-sm font-semibold flex-1 text-slate-800']">
