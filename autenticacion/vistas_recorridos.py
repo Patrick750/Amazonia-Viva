@@ -71,6 +71,25 @@ def trazado_publico(recorrido):
     }
 
 
+def distancias_al_paquete_m(recorridos):
+    """Menor distancia (m) entre cada recorrido y la ubicación de su paquete.
+
+    Devuelve {id_del_recorrido: metros}; falta la clave si el paquete no tiene ubicación o el
+    recorrido no tiene puntos. Se resuelve con una sola consulta de puntos.
+    """
+    destinos = {
+        r.pk: (float(r.paquete.latitud), float(r.paquete.longitud))
+        for r in recorridos if r.paquete.latitud is not None and r.paquete.longitud is not None
+    }
+    minimas = {}
+    filas = PuntoRecorrido.objects.filter(recorrido_id__in=list(destinos)).values_list('recorrido_id', 'latitud', 'longitud')
+    for recorrido_id, lat, lng in filas:
+        metros = distancia_m((float(lat), float(lng)), destinos[recorrido_id])
+        if recorrido_id not in minimas or metros < minimas[recorrido_id]:
+            minimas[recorrido_id] = metros
+    return minimas
+
+
 def reserva_habilitada(usuario_id, paquete_id):
     """Reserva del turista que habilita el recorrido hoy, o None.
 
@@ -110,7 +129,8 @@ class FinalizarRecorridoSerializer(serializers.Serializer):
     finalizado_en = serializers.DateTimeField()
 
 
-def resumen(recorrido):
+def resumen(recorrido, distancia_paquete_m=None):
+    limite = settings.RECORRIDOS_DISTANCIA_MAXIMA_M
     return {
         'id_cliente': recorrido.id_cliente,
         'paquete': recorrido.paquete_id,
@@ -119,6 +139,9 @@ def resumen(recorrido):
         'finalizado_en': recorrido.finalizado_en,
         'publicado': recorrido.publicado,
         'total_puntos': getattr(recorrido, 'total_puntos', None),
+        'distancia_paquete_m': None if distancia_paquete_m is None else round(distancia_paquete_m),
+        'coincide_con_paquete': None if distancia_paquete_m is None else distancia_paquete_m <= limite,
+        'limite_m': limite,
     }
 
 
@@ -130,11 +153,13 @@ class RecorridosAgenciaView(APIView):
     permission_classes = [IsAgencia]
 
     def get(self, request):
-        recorridos = Recorrido.objects.filter(paquete__agencia_id=request.user.pk).annotate(total_puntos=Count('puntos'))
+        recorridos = Recorrido.objects.filter(paquete__agencia_id=request.user.pk).select_related('paquete').annotate(total_puntos=Count('puntos'))
         paquete = request.query_params.get('paquete')
         if paquete and paquete.isdigit():
             recorridos = recorridos.filter(paquete_id=int(paquete))
-        return Response([resumen(r) for r in recorridos[:100]])
+        lista = list(recorridos[:100])
+        distancias = distancias_al_paquete_m(lista)
+        return Response([resumen(r, distancias.get(r.pk)) for r in lista])
 
     def post(self, request):
         datos = CrearRecorridoSerializer(data=request.data)
@@ -207,6 +232,17 @@ class PublicarRecorridoView(APIView):
             return Response({'detail': 'Finaliza el recorrido antes de publicarlo.'}, status=status.HTTP_400_BAD_REQUEST)
         if recorrido.puntos.count() < MIN_PUNTOS_PARA_PUBLICAR:
             return Response({'detail': 'El recorrido necesita al menos dos puntos sincronizados.'}, status=status.HTTP_400_BAD_REQUEST)
+        distancia = distancias_al_paquete_m([recorrido]).get(recorrido.pk)
+        maximo = settings.RECORRIDOS_DISTANCIA_MAXIMA_M
+        if distancia is not None and distancia > maximo:
+            return Response({
+                'detail': (
+                    f'El recorrido queda a {distancia / 1000:.1f} km de la ubicación del paquete '
+                    f'(máximo {maximo / 1000:.1f} km). Revisa que grabaste el paquete correcto o actualiza la ubicación del paquete.'
+                ),
+                'codigo': 'lejos_del_paquete',
+                'distancia_m': round(distancia),
+            }, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             Recorrido.objects.filter(paquete_id=recorrido.paquete_id, publicado=True).exclude(pk=recorrido.pk).update(publicado=False, publicado_en=None)
             if not recorrido.publicado:
