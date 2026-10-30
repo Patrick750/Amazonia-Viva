@@ -188,6 +188,15 @@ class FinalizarRecorridoView(APIView):
         return Response(resumen(recorrido))
 
 
+class EliminarRecorridoView(APIView):
+    """Elimina un recorrido de la agencia con todos sus puntos. Si estaba publicado, deja de verse en el paquete."""
+    permission_classes = [IsAgencia]
+
+    def delete(self, request, id_cliente):
+        recorrido_de_la_agencia(request, id_cliente).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class PublicarRecorridoView(APIView):
     """POST publica el recorrido (reemplaza al publicado); DELETE lo retira."""
     permission_classes = [IsAgencia]
