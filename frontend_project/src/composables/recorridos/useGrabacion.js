@@ -6,7 +6,8 @@ import { sincronizarPendientes } from './sincronizacion'
 
 const DISTANCIA_MINIMA_M = 5
 const INTERVALO_MAXIMO_MS = 30000
-const PRECISION_MAXIMA_M = 50
+// Los puntos con una precisión peor que este valor (en metros) se descartan para no ensuciar el trazo.
+export const PRECISION_MAXIMA_M = 50
 const SINCRONIZAR_CADA_PUNTOS = 15
 
 const distancia = (a, b) => {
