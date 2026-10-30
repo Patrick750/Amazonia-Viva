@@ -995,6 +995,35 @@ class RecorridosGpsTests(TestCase):
         self.assertNotIn('capturado_en', json.dumps(datos, default=str))
         self.assertGreater(datos['distancia_km'], 0)
 
+    def test_eliminar_recorrido_borra_sus_puntos(self):
+        id_cliente = self.recorrido_listo()
+        respuesta = self.client.delete(f'/api/recorridos/{id_cliente}/')
+        self.assertEqual(respuesta.status_code, 204)
+        self.assertEqual(Recorrido.objects.count(), 0)
+        self.assertEqual(PuntoRecorrido.objects.count(), 0)
+
+    def test_eliminar_recorrido_publicado_retira_el_trazado_publico(self):
+        id_cliente = self.recorrido_listo()
+        self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        self.client.delete(f'/api/recorridos/{id_cliente}/')
+        self.assertEqual(APIClient().get(f'/api/paquetes/{self.paquete.pk}/recorrido/').data, {'disponible': False})
+
+    def test_no_se_puede_eliminar_el_recorrido_de_otra_agencia(self):
+        id_cliente = self.recorrido_listo()
+        cliente = APIClient()
+        cliente.force_authenticate(self.otra)
+        self.assertEqual(cliente.delete(f'/api/recorridos/{id_cliente}/').status_code, 404)
+        self.assertEqual(Recorrido.objects.count(), 1)
+
+    def test_eliminar_exige_rol_de_agencia_y_es_404_si_ya_no_existe(self):
+        id_cliente = self.recorrido_listo()
+        turista = APIClient()
+        turista.force_authenticate(self.turista)
+        self.assertEqual(turista.delete(f'/api/recorridos/{id_cliente}/').status_code, 403)
+        self.assertEqual(APIClient().delete(f'/api/recorridos/{id_cliente}/').status_code, 401)
+        self.client.delete(f'/api/recorridos/{id_cliente}/')
+        self.assertEqual(self.client.delete(f'/api/recorridos/{id_cliente}/').status_code, 404)
+
     def test_despublicar_retira_el_trazado(self):
         id_cliente = self.recorrido_listo()
         self.client.post(f'/api/recorridos/{id_cliente}/publicar/')

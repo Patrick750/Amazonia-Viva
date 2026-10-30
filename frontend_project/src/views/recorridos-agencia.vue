@@ -7,7 +7,7 @@ import clienteAxios from '@/api/axios'
 import { paquetes as pedirPaquetes } from '@/composables/gestion-tours/paquetes'
 import { PRECISION_MAXIMA_M, useGrabacion } from '@/composables/recorridos/useGrabacion'
 import { useMiUbicacion } from '@/composables/recorridos/useMiUbicacion'
-import { listarRecorridos } from '@/composables/recorridos/almacenLocal'
+import { eliminarRecorrido as borrarLocal, listarRecorridos } from '@/composables/recorridos/almacenLocal'
 import { reintentarRecorrido } from '@/composables/recorridos/sincronizacion'
 
 const CLAVE_PAQUETES = 'recorridos_paquetes'
@@ -55,7 +55,7 @@ const recorridosMostrados = computed(() => {
       id_cliente: local.id_cliente, paquete: local.paquete, nombre: local.nombre,
       iniciado_en: local.iniciado_en, finalizado_en: local.finalizado_en, publicado: false, total_puntos: null,
     }
-    porId.set(local.id_cliente, { ...base, local: true, completo: local.completo, errorLocal: local.error })
+    porId.set(local.id_cliente, { ...base, local: true, completo: local.completo, creadoSync: local.creado_sync, errorLocal: local.error })
   })
   return [...porId.values()].sort((a, b) => new Date(b.iniciado_en) - new Date(a.iniciado_en))
 })
@@ -89,6 +89,54 @@ const cambiarPublicacion = async (item, publicar) => {
 const reintentar = async (item) => {
   await reintentarRecorrido(item.id_cliente)
   await cargarLista()
+}
+
+// --- Eliminar ---
+const porEliminar = ref(null)
+const eliminando = ref(false)
+const errorEliminar = ref('')
+const botonCancelar = ref(null)
+
+// La grabación en curso no se puede eliminar: primero hay que finalizarla.
+const esActivo = (item) => recorrido.value?.id_cliente === item.id_cliente
+
+const pedirEliminar = async (item) => {
+  errorEliminar.value = ''
+  porEliminar.value = item
+  await nextTick()
+  botonCancelar.value?.focus()
+}
+
+const cerrarEliminar = () => {
+  if (!eliminando.value) porEliminar.value = null
+}
+
+const eliminarConfirmado = async () => {
+  const item = porEliminar.value
+  if (!item) return
+  eliminando.value = true
+  errorEliminar.value = ''
+  try {
+    // Un recorrido que nunca llegó al servidor solo existe en este dispositivo.
+    const enServidor = remotos.value.some(remoto => remoto.id_cliente === item.id_cliente) || item.creadoSync
+    if (enServidor) {
+      try {
+        await clienteAxios.delete(`api/recorridos/${item.id_cliente}/`)
+      } catch (error) {
+        if (error.response?.status !== 404) throw error // 404: ya no existe en el servidor
+      }
+    }
+    if (item.local) await borrarLocal(item.id_cliente)
+    porEliminar.value = null
+    mensaje.value = 'Recorrido eliminado.'
+    await cargarLista()
+  } catch (error) {
+    errorEliminar.value = !error.response
+      ? 'Sin conexión: conéctate para eliminar un recorrido que ya se envió al servidor.'
+      : error.response.data?.detail || 'No se pudo eliminar el recorrido. Inténtalo de nuevo.'
+  } finally {
+    eliminando.value = false
+  }
 }
 
 const iniciar = async () => {
@@ -325,6 +373,7 @@ onBeforeRouteLeave(() => {
           <h2 id="titulo-lista" class="text-lg font-black">Mis recorridos</h2>
           <button type="button" class="min-h-11 rounded-xl border border-emerald-300/40 bg-emerald-400/10 px-4 text-xs font-black uppercase tracking-widest text-emerald-100 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-emerald-300 lg:hidden" @click="vistaMovil = 'mapa'">Ver mapa</button>
         </div>
+        <p v-if="mensaje" class="mb-4 rounded-xl border border-emerald-300/25 bg-emerald-400/10 p-3 text-sm text-emerald-100 lg:hidden" role="status">{{ mensaje }}</p>
         <p v-if="errorLista" class="mb-4 text-sm text-amber-200">{{ errorLista }}</p>
         <p v-if="!recorridosMostrados.length" class="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/60">Aún no has grabado recorridos.</p>
         <ul class="space-y-3">
@@ -339,10 +388,28 @@ onBeforeRouteLeave(() => {
               <button v-if="item.errorLocal" type="button" class="min-h-11 rounded-xl border border-white/25 px-4 text-xs font-black uppercase tracking-widest hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-300" @click="reintentar(item)">Reintentar</button>
               <button v-else-if="puedePublicar(item) && !item.publicado" type="button" class="min-h-11 rounded-xl bg-emerald-600 px-4 text-xs font-black uppercase tracking-widest text-black hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-300" @click="cambiarPublicacion(item, true)">Publicar</button>
               <button v-else-if="item.publicado" type="button" class="min-h-11 rounded-xl border border-white/25 px-4 text-xs font-black uppercase tracking-widest hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-300" @click="cambiarPublicacion(item, false)">Retirar</button>
+              <button v-if="!esActivo(item)" type="button" class="min-h-11 rounded-xl border border-rose-400/40 px-4 text-xs font-black uppercase tracking-widest text-rose-200 hover:bg-rose-500/15 focus:outline-none focus:ring-2 focus:ring-rose-300" :aria-label="`Eliminar el recorrido ${item.nombre || 'sin nombre'}`" @click="pedirEliminar(item)">Eliminar</button>
+              <span v-else class="text-xs font-bold text-sky-200">En grabación</span>
             </div>
           </li>
         </ul>
       </section>
     </main>
+
+    <div v-if="porEliminar" class="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-4 sm:items-center" @click.self="cerrarEliminar" @keydown.esc="cerrarEliminar">
+      <div class="w-full max-w-sm rounded-3xl bg-[#0f2318] p-6 text-white shadow-2xl ring-1 ring-white/10" role="alertdialog" aria-modal="true" aria-labelledby="titulo-eliminar" aria-describedby="detalle-eliminar">
+        <h2 id="titulo-eliminar" class="mb-2 text-lg font-black">¿Eliminar este recorrido?</h2>
+        <p id="detalle-eliminar" class="mb-1 text-sm text-white/80">
+          Se borrarán el recorrido «{{ porEliminar.nombre || 'sin nombre' }}» de {{ nombreDelPaquete(porEliminar.paquete) }} y todos sus puntos GPS.
+        </p>
+        <p v-if="porEliminar.publicado" class="mb-1 text-sm font-semibold text-amber-200">Está publicado: dejará de verse en el mapa del paquete.</p>
+        <p class="mb-4 text-sm text-white/60">Esta acción no se puede deshacer.</p>
+        <p v-if="errorEliminar" class="mb-4 rounded-xl border border-rose-300/30 bg-rose-400/10 p-3 text-sm text-rose-100" role="alert">{{ errorEliminar }}</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button ref="botonCancelar" type="button" class="min-h-12 rounded-xl border border-white/25 px-4 text-sm font-black uppercase tracking-widest outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-50" :disabled="eliminando" @click="cerrarEliminar">Cancelar</button>
+          <button type="button" class="min-h-12 rounded-xl bg-rose-500 px-4 text-sm font-black uppercase tracking-widest text-white outline-none hover:bg-rose-400 focus-visible:ring-2 focus-visible:ring-white disabled:opacity-60" :disabled="eliminando" @click="eliminarConfirmado">{{ eliminando ? 'Eliminando…' : 'Eliminar' }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

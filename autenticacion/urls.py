@@ -18,7 +18,7 @@ from .vistas_experiencias import (
     MisExperienciasTuristaView, DescargarEvidenciasZipView
 )
 from .vistas_recorridos import (
-    RecorridosAgenciaView, PuntosRecorridoView, FinalizarRecorridoView, PublicarRecorridoView,
+    RecorridosAgenciaView, PuntosRecorridoView, FinalizarRecorridoView, PublicarRecorridoView, EliminarRecorridoView,
     RecorridoPublicoView, RecorridosHabilitadosTuristaView, RecorridoTuristaView
 )
 
@@ -90,6 +90,7 @@ urlpatterns = [
 
     # ── Recorridos GPS (MEJ-001) ──────────────────────────────────────────────
     path("recorridos/", RecorridosAgenciaView.as_view(), name='recorridos_agencia'),
+    path("recorridos/<uuid:id_cliente>/", EliminarRecorridoView.as_view(), name='recorrido_eliminar'),
     path("recorridos/<uuid:id_cliente>/puntos/", PuntosRecorridoView.as_view(), name='recorrido_puntos'),
     path("recorridos/<uuid:id_cliente>/finalizar/", FinalizarRecorridoView.as_view(), name='recorrido_finalizar'),
     path("recorridos/<uuid:id_cliente>/publicar/", PublicarRecorridoView.as_view(), name='recorrido_publicar'),
