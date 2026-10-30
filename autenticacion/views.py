@@ -198,7 +198,10 @@ class UpdatePack(APIView):
             return Response({"error": "Paquete no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
         nombre = request.data.get('nombre')
-        if nombre and PaqueteTuristico.objects.filter(agencia_id=request.user.pk, nombre__iexact=nombre).exclude(pk=pk).exists():
+        # Solo se exige un nombre único cuando se cambia: hay paquetes anteriores con nombres repetidos
+        # y no deben quedar imposibles de editar por ello.
+        cambia_nombre = bool(nombre) and str(nombre).strip().lower() != paquete.nombre.strip().lower()
+        if cambia_nombre and PaqueteTuristico.objects.filter(agencia_id=request.user.pk, nombre__iexact=nombre).exclude(pk=pk).exists():
             return Response({"nombre": ["Ya tienes un paquete con este nombre."]}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = SerializersCreateNewPack(paquete, data=request.data, partial=True)

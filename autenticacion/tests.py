@@ -836,6 +836,25 @@ class EstandarPaquetesTests(TestCase):
         self.assertEqual(paquete.modalidades_turismo, ['aventura', 'naturaleza'])
         self.assertEqual(paquete.certificacion_aventura['codigo'], 'CERT-001')
 
+    def test_editar_un_paquete_con_nombre_repetido_no_exige_cambiarlo(self):
+        datos = dict(descripcion='Paquete anterior.', precio='100', duracion='1 día', capacidad=4, ubicacion='Leticia', agencia=self.agencia)
+        primero = PaqueteTuristico.objects.create(nombre='Tour repetido', **datos)
+        PaqueteTuristico.objects.create(nombre='Tour repetido', **datos)
+
+        sin_cambiar = self.client.put(f'/api/updatepack/{primero.pk}/', {'nombre': 'Tour repetido', 'descripcion': 'Texto nuevo.'}, format='json')
+        self.assertEqual(sin_cambiar.status_code, 200, sin_cambiar.data)
+        primero.refresh_from_db()
+        self.assertEqual(primero.descripcion, 'Texto nuevo.')
+
+    def test_cambiar_el_nombre_a_uno_existente_sigue_rechazandose(self):
+        datos = dict(descripcion='Paquete.', precio='100', duracion='1 día', capacidad=4, ubicacion='Leticia', agencia=self.agencia)
+        uno = PaqueteTuristico.objects.create(nombre='Tour uno', **datos)
+        PaqueteTuristico.objects.create(nombre='Tour dos', **datos)
+
+        respuesta = self.client.put(f'/api/updatepack/{uno.pk}/', {'nombre': 'tour DOS'}, format='json')
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn('nombre', respuesta.data)
+
     def test_rechaza_nivel_ajeno_a_la_escala_de_la_actividad(self):
         data = self.datos_paquete()
         data['clasificacion_actividades'][0]['nivel'] = 'alto'
