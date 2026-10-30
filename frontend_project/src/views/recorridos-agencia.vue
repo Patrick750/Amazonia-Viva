@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import clienteAxios from '@/api/axios'
 import { paquetes as pedirPaquetes } from '@/composables/gestion-tours/paquetes'
 import { useGrabacion } from '@/composables/recorridos/useGrabacion'
+import { useMiUbicacion } from '@/composables/recorridos/useMiUbicacion'
 import { listarRecorridos } from '@/composables/recorridos/almacenLocal'
 import { reintentarRecorrido } from '@/composables/recorridos/sincronizacion'
 
@@ -33,6 +34,16 @@ const cargarLista = async () => {
 
 const grabacion = useGrabacion({ alSincronizar: cargarLista })
 const { estado, recorrido, trazado, total, pendientes, precision, aviso, enLinea, sincronizando } = grabacion
+
+// La ubicación en vivo se muestra siempre, no solo cuando se guarda un punto de la grabación.
+const { posicion: miPosicion, estado: estadoUbicacion, iniciar: iniciarUbicacion } = useMiUbicacion()
+const textoUbicacion = computed(() => ({
+  buscando: 'Buscando tu ubicación… Acepta el permiso de ubicación si el navegador lo pide.',
+  activa: `Tu ubicación está activa${miPosicion.value ? ` · precisión de ${miPosicion.value.precision} m` : ''}.`,
+  denegada: 'El permiso de ubicación está denegado. Actívalo en el candado de la barra de direcciones y pulsa «Reintentar».',
+  sin_gps: 'No se puede obtener la ubicación. Comprueba que el GPS del dispositivo esté activado y pulsa «Reintentar».',
+  no_disponible: 'Este navegador no permite usar la ubicación aquí. Se necesita una conexión segura (https).',
+}[estadoUbicacion.value]))
 
 const nombreDelPaquete = (id) => misPaquetes.value.find(p => p.id === id)?.nombre || `Paquete ${id}`
 const formatoFecha = (valor) => (valor ? new Date(valor).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '')
@@ -98,32 +109,49 @@ const finalizar = async () => {
 // --- Mapa ---
 let mapa = null
 let linea = null
-let posicion = null
+let marcador = null
+let circulo = null
+let centradoInicial = false
 
 const iniciarMapa = () => {
   if (!mapaEl.value || mapa) return
   mapa = L.map(mapaEl.value).setView([-4.2153, -69.9406], 13)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(mapa)
   linea = L.polyline([], { color: '#10b981', weight: 5 }).addTo(mapa)
-  posicion = L.circleMarker([0, 0], { radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1 })
 }
 
 watch(trazado, (puntos) => {
-  if (!mapa) return
-  linea.setLatLngs(puntos)
-  const ultimo = puntos.at(-1)
-  if (!ultimo) {
-    posicion.remove()
-    return
-  }
-  posicion.setLatLng(ultimo).addTo(mapa)
-  if (puntos.length === 1) mapa.setView(ultimo, 17)
-  else mapa.panTo(ultimo)
+  if (mapa) linea.setLatLngs(puntos)
 })
+
+// Marcador azul con el círculo de precisión del GPS: sigue al dispositivo antes y durante la grabación.
+watch(miPosicion, (actual) => {
+  if (!mapa || !actual) return
+  const punto = [actual.lat, actual.lng]
+  if (!marcador) {
+    circulo = L.circle(punto, { radius: actual.precision, color: '#0ea5e9', weight: 1, fillColor: '#0ea5e9', fillOpacity: 0.15 }).addTo(mapa)
+    marcador = L.circleMarker(punto, { radius: 9, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1 }).bindTooltip('Estás aquí').addTo(mapa)
+  } else {
+    marcador.setLatLng(punto)
+    circulo.setLatLng(punto).setRadius(actual.precision)
+  }
+  if (!centradoInicial) {
+    centradoInicial = true
+    // Si se recuperó una grabación, el mapa ya enmarca su trazado.
+    if (!trazado.value.length) mapa.setView(punto, 17)
+  } else if (estado.value === 'grabando') {
+    mapa.panTo(punto)
+  }
+})
+
+const centrarEnMiUbicacion = () => {
+  if (mapa && miPosicion.value) mapa.setView([miPosicion.value.lat, miPosicion.value.lng], Math.max(mapa.getZoom(), 17))
+}
 
 onMounted(async () => {
   await nextTick()
   iniciarMapa()
+  iniciarUbicacion()
   const cache = JSON.parse(localStorage.getItem(CLAVE_PAQUETES) || '[]')
   const traidos = await pedirPaquetes().catch(() => null)
   if (Array.isArray(traidos) && traidos.length) {
@@ -215,7 +243,12 @@ onBeforeRouteLeave(() => {
         </section>
 
         <section aria-label="Mapa del recorrido">
-          <div ref="mapaEl" class="h-80 w-full overflow-hidden rounded-3xl border border-white/10 lg:h-full lg:min-h-[26rem]"></div>
+          <div ref="mapaEl" class="h-80 w-full overflow-hidden rounded-3xl border border-white/10 lg:h-[calc(100%-4.5rem)] lg:min-h-[22rem]"></div>
+          <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p class="min-w-0 flex-1 text-sm" :class="estadoUbicacion === 'activa' ? 'text-emerald-200' : estadoUbicacion === 'buscando' ? 'text-white/70' : 'text-amber-200'" role="status">{{ textoUbicacion }}</p>
+            <button v-if="estadoUbicacion === 'activa'" type="button" class="min-h-11 shrink-0 rounded-xl border border-sky-300/40 bg-sky-400/10 px-4 text-xs font-black uppercase tracking-widest text-sky-100 hover:bg-sky-400/20 focus:outline-none focus:ring-2 focus:ring-sky-300" @click="centrarEnMiUbicacion">Mi ubicación</button>
+            <button v-else-if="estadoUbicacion !== 'buscando' && estadoUbicacion !== 'no_disponible'" type="button" class="min-h-11 shrink-0 rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 text-xs font-black uppercase tracking-widest text-amber-100 hover:bg-amber-300/20 focus:outline-none focus:ring-2 focus:ring-amber-300" @click="iniciarUbicacion">Reintentar</button>
+          </div>
         </section>
       </div>
 
