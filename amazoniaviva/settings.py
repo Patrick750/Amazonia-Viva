@@ -204,6 +204,9 @@ TIME_ZONE = 'UTC'
 # Zona horaria del día de realización de los paquetes: define cuándo se habilita el recorrido al turista.
 RECORRIDOS_ZONA_HORARIA = config('RECORRIDOS_ZONA_HORARIA', default='America/Bogota')
 
+# Un recorrido solo se puede publicar si pasa a menos de esta distancia (en metros) de la ubicación del paquete.
+RECORRIDOS_DISTANCIA_MAXIMA_M = config('RECORRIDOS_DISTANCIA_MAXIMA_M', default=3000, cast=int)
+
 USE_I18N = True
 
 USE_TZ = True

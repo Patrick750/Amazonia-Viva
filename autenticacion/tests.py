@@ -1024,6 +1024,40 @@ class RecorridosGpsTests(TestCase):
         self.client.delete(f'/api/recorridos/{id_cliente}/')
         self.assertEqual(self.client.delete(f'/api/recorridos/{id_cliente}/').status_code, 404)
 
+    def ubicar_paquete(self, lat, lng):
+        PaqueteTuristico.objects.filter(pk=self.paquete.pk).update(latitud=lat, longitud=lng)
+
+    def test_publicar_rechaza_un_recorrido_lejos_de_la_ubicacion_del_paquete(self):
+        self.ubicar_paquete('-3.000000', '-70.000000')  # ~140 km de los puntos grabados
+        id_cliente = self.recorrido_listo()
+        respuesta = self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(respuesta.data['codigo'], 'lejos_del_paquete')
+        self.assertIn('km', respuesta.data['detail'])
+        self.assertGreater(respuesta.data['distancia_m'], 100000)
+        self.assertFalse(Recorrido.objects.get(id_cliente=id_cliente).publicado)
+
+    def test_publicar_acepta_un_recorrido_que_pasa_cerca_del_paquete(self):
+        self.ubicar_paquete('-4.220500', '-69.940600')  # a ~50 m del segundo punto
+        id_cliente = self.recorrido_listo()
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 200)
+
+    def test_publicar_no_valida_distancia_si_el_paquete_no_tiene_ubicacion(self):
+        id_cliente = self.recorrido_listo()
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 200)
+
+    def test_listado_informa_si_el_recorrido_coincide_con_el_paquete(self):
+        self.ubicar_paquete('-4.220500', '-69.940600')
+        cerca = self.recorrido_listo()
+        self.ubicar_paquete('-3.000000', '-70.000000')
+        lejos_datos = {str(item['id_cliente']): item for item in self.client.get('/api/recorridos/').data}
+        self.assertFalse(lejos_datos[cerca]['coincide_con_paquete'])
+        self.ubicar_paquete('-4.220500', '-69.940600')
+        cerca_datos = {str(item['id_cliente']): item for item in self.client.get('/api/recorridos/').data}
+        self.assertTrue(cerca_datos[cerca]['coincide_con_paquete'])
+        self.assertLess(cerca_datos[cerca]['distancia_paquete_m'], 100)
+        self.assertEqual(cerca_datos[cerca]['limite_m'], 3000)
+
     def test_despublicar_retira_el_trazado(self):
         id_cliente = self.recorrido_listo()
         self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
