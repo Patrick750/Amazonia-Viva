@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from io import StringIO
 from datetime import timedelta
 from decimal import Decimal
 from threading import Barrier
@@ -6,6 +7,7 @@ from unittest.mock import patch
 from uuid import uuid4
 import json
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import close_old_connections, connection
 from django.test import TestCase, TransactionTestCase, override_settings, skipUnlessDBFeature
 from django.utils import timezone
@@ -1119,3 +1121,28 @@ class RecorridosGpsTests(TestCase):
         with patch('autenticacion.vistas_recorridos.timezone.now', return_value=timezone.datetime(2026, 10, 29, 3, 0, tzinfo=timezone.UTC)):
             self.assertEqual(str(fecha_de_hoy()), '2026-10-28')
 
+
+
+class ReservarHoyCommandTests(TestCase):
+    def setUp(self):
+        self.agencia, _, self.turista, self.otro, _, self.paquete = fixtures()
+
+    def ejecutar(self, **kwargs):
+        call_command('reservar_hoy', correos=[self.turista.email, self.otro.email], paquete='Selva',
+                     agencia=self.agencia.email, stdout=StringIO(), **kwargs)
+
+    def test_crea_una_reserva_para_hoy_por_turista_y_es_idempotente(self):
+        self.ejecutar()
+        self.ejecutar()
+        reservas = ReservaFecha.objects.filter(paquete=self.paquete, fecha=timezone.localdate())
+        self.assertEqual(reservas.count(), 2)
+        self.assertEqual(Detalles_Venta.objects.filter(paquete=self.paquete.pk, estado='Confirmado').count(), 2)
+
+    def test_dry_run_no_escribe(self):
+        self.ejecutar(dry_run=True)
+        self.assertFalse(ReservaFecha.objects.exists())
+
+    def test_falla_si_un_correo_no_es_turista(self):
+        with self.assertRaises(CommandError):
+            call_command('reservar_hoy', correos=['nadie@example.test'], paquete='Selva', agencia=self.agencia.email)
+        self.assertFalse(ReservaFecha.objects.exists())
