@@ -2,6 +2,7 @@
 import { reactive, watch, ref, computed, nextTick, onBeforeUnmount } from 'vue';
 import { GuardarRegistro } from '@/composables/gestion-tours/create-pack';
 import { useNotificacion } from '@/composables/useNotificacion';
+import { estadoPermisoUbicacion, explicarErrorUbicacion } from '@/composables/recorridos/diagnosticoUbicacion';
 import clienteAxios from '@/api/axios';
 
 import L from 'leaflet';
@@ -538,12 +539,6 @@ let miCirculo = null;
 const buscandoUbicacion = ref(false);
 const errorUbicacion = ref('');
 
-const MENSAJES_GPS = {
-    1: 'El permiso de ubicación está denegado. Actívalo en el candado de la barra de direcciones y vuelve a pulsar el botón.',
-    2: 'No se pudo obtener tu ubicación. Comprueba que el GPS del dispositivo esté activado y vuelve a intentarlo.',
-    3: 'La ubicación tardó demasiado en responder. Sal a un lugar abierto y vuelve a intentarlo.',
-};
-
 // Punto azul con el círculo de precisión, para ver exactamente dónde está la persona respecto al pin.
 const mostrarMiPosicion = (lat, lng, precision) => {
     if (!map) return;
@@ -568,9 +563,24 @@ const nombreDeLaUbicacion = async (lat, lng) => {
     }
 };
 
-const leerUbicacionActual = () => new Promise((resolver, rechazar) => {
-    navigator.geolocation.getCurrentPosition(resolver, rechazar, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+const leerUbicacionActual = (opciones = {}) => new Promise((resolver, rechazar) => {
+    navigator.geolocation.getCurrentPosition(resolver, rechazar, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0, ...opciones });
 });
+
+// Si el navegador responde «denegado» pero el permiso figura concedido, se reintenta una vez con menor precisión
+// antes de dar el error por bueno (algunos equipos de escritorio fallan con la lectura de alta precisión).
+const leerConReintento = async () => {
+    try {
+        return await leerUbicacionActual();
+    } catch (primero) {
+        if (primero?.code === 1 && (await estadoPermisoUbicacion()) === 'granted') {
+            try {
+                return await leerUbicacionActual({ enableHighAccuracy: false });
+            } catch { /* se informa el primer error */ }
+        }
+        throw primero;
+    }
+};
 
 const usarMiUbicacion = async () => {
     errorUbicacion.value = '';
@@ -581,7 +591,7 @@ const usarMiUbicacion = async () => {
     if (!map || !marker) return;
     buscandoUbicacion.value = true;
     try {
-        const { coords } = await leerUbicacionActual();
+        const { coords } = await leerConReintento();
         const punto = [coords.latitude, coords.longitude];
         const precision = Math.round(coords.accuracy);
         newTour.latitud = coords.latitude;
@@ -603,8 +613,8 @@ const usarMiUbicacion = async () => {
             mostrarNotificacion(`La precisión del GPS es baja (${precision} m). Sal a un lugar abierto o ajusta el pin a mano.`, 'aviso', 7000);
         }
     } catch (error) {
-        errorUbicacion.value = MENSAJES_GPS[error?.code] || 'No se pudo obtener tu ubicación. Inténtalo de nuevo.';
-        mostrarNotificacion(errorUbicacion.value, 'aviso', 7000);
+        errorUbicacion.value = await explicarErrorUbicacion(error);
+        mostrarNotificacion('No se pudo marcar tu ubicación. Lee el mensaje bajo el mapa para ver cómo arreglarlo.', 'aviso', 7000);
     } finally {
         buscandoUbicacion.value = false;
     }

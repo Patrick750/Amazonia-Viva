@@ -37,12 +37,12 @@ const grabacion = useGrabacion({ alSincronizar: cargarLista })
 const { estado, recorrido, trazado, total, pendientes, precision, aviso, enLinea, sincronizando } = grabacion
 
 // La ubicación en vivo se muestra siempre, no solo cuando se guarda un punto de la grabación.
-const { posicion: miPosicion, estado: estadoUbicacion, iniciar: iniciarUbicacion } = useMiUbicacion()
+const { posicion: miPosicion, estado: estadoUbicacion, detalle: detalleUbicacion, iniciar: iniciarUbicacion } = useMiUbicacion()
 const textoUbicacion = computed(() => ({
   buscando: 'Buscando tu ubicación… Acepta el permiso de ubicación si el navegador lo pide.',
   activa: `Tu ubicación está activa${miPosicion.value ? ` · precisión de ${miPosicion.value.precision} m` : ''}.`,
-  denegada: 'El permiso de ubicación está denegado. Actívalo en el candado de la barra de direcciones y pulsa «Reintentar».',
-  sin_gps: 'No se puede obtener la ubicación. Comprueba que el GPS del dispositivo esté activado y pulsa «Reintentar».',
+  denegada: detalleUbicacion.value || 'El permiso de ubicación está denegado. Actívalo en el candado de la barra de direcciones y pulsa «Reintentar».',
+  sin_gps: detalleUbicacion.value || 'No se puede obtener la ubicación. Comprueba que el GPS del dispositivo esté activado y pulsa «Reintentar».',
   no_disponible: 'Este navegador no permite usar la ubicación aquí. Se necesita una conexión segura (https).',
 }[estadoUbicacion.value]))
 
