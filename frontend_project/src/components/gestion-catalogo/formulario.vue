@@ -2,7 +2,6 @@
 import { reactive, watch, ref, computed, nextTick, onBeforeUnmount } from 'vue';
 import { GuardarRegistro } from '@/composables/gestion-tours/create-pack';
 import { useNotificacion } from '@/composables/useNotificacion';
-import { useMiUbicacion } from '@/composables/recorridos/useMiUbicacion';
 import clienteAxios from '@/api/axios';
 
 import L from 'leaflet';
@@ -505,7 +504,6 @@ const initMap = () => {
     }).addTo(map);
 
     marker = L.marker(defaultPos, { draggable: true }).addTo(map);
-    dibujarMiPosicion();
     
     if (!hasCoords) {
         marker.setOpacity(0);
@@ -528,41 +526,35 @@ const initMap = () => {
         if(map) {
             map.invalidateSize();
             if (hasCoords) map.setView(defaultPos, 15);
-            intentarMarcadoAutomatico();
         }
     }, 450);
 };
 
 // --- MI UBICACIÓN ACTUAL ---
-// La ubicación en vivo se muestra con un punto azul mientras se está en el paso del mapa. En un paquete nuevo
-// se marca sola como punto de encuentro; en uno ya guardado solo se ofrece usarla, para no cambiar en silencio
-// una ubicación que ya estaba bien.
-const { posicion: miPosicion, estado: estadoUbicacion, iniciar: iniciarUbicacion, detener: detenerUbicacion } = useMiUbicacion();
+// El botón del mapa pide la ubicación solo cuando se pulsa: marca el pin donde está la persona, acerca el mapa
+// y completa el nombre del lugar. No se activa el GPS ni se marca nada por sí solo.
 let miMarcador = null;
 let miCirculo = null;
-let marcadoAutomatico = false;
-const marcandoUbicacion = ref(false);
+const buscandoUbicacion = ref(false);
+const errorUbicacion = ref('');
 
-const textoUbicacionActual = computed(() => ({
-    buscando: 'Buscando tu ubicación… Acepta el permiso de ubicación si el navegador lo pide.',
-    activa: `Tu ubicación está activa${miPosicion.value ? ` · precisión de ${miPosicion.value.precision} m` : ''}. El punto azul eres tú.`,
-    denegada: 'El permiso de ubicación está denegado. Actívalo en el candado de la barra de direcciones y pulsa «Reintentar».',
-    sin_gps: 'No se puede obtener la ubicación. Comprueba que el GPS esté activado y pulsa «Reintentar».',
-    no_disponible: 'Este navegador no permite usar la ubicación aquí. Se necesita una conexión segura (https).',
-}[estadoUbicacion.value]));
+const MENSAJES_GPS = {
+    1: 'El permiso de ubicación está denegado. Actívalo en el candado de la barra de direcciones y vuelve a pulsar el botón.',
+    2: 'No se pudo obtener tu ubicación. Comprueba que el GPS del dispositivo esté activado y vuelve a intentarlo.',
+    3: 'La ubicación tardó demasiado en responder. Sal a un lugar abierto y vuelve a intentarlo.',
+};
 
-const tieneCoordenadas = () => [newTour.latitud, newTour.longitud].every(valor => valor !== null && valor !== undefined && valor !== '');
-
-const dibujarMiPosicion = () => {
-    if (!map || !miPosicion.value) return;
-    const punto = [miPosicion.value.lat, miPosicion.value.lng];
+// Punto azul con el círculo de precisión, para ver exactamente dónde está la persona respecto al pin.
+const mostrarMiPosicion = (lat, lng, precision) => {
+    if (!map) return;
+    const punto = [lat, lng];
     if (!miMarcador) {
         // interactive: false para que los clics sigan llegando al mapa y se pueda marcar otro punto.
-        miCirculo = L.circle(punto, { radius: miPosicion.value.precision, color: '#0ea5e9', weight: 1, fillColor: '#0ea5e9', fillOpacity: 0.15, interactive: false }).addTo(map);
+        miCirculo = L.circle(punto, { radius: precision, color: '#0ea5e9', weight: 1, fillColor: '#0ea5e9', fillOpacity: 0.15, interactive: false }).addTo(map);
         miMarcador = L.circleMarker(punto, { radius: 8, color: '#fff', weight: 3, fillColor: '#0ea5e9', fillOpacity: 1, interactive: false }).addTo(map);
     } else {
         miMarcador.setLatLng(punto);
-        miCirculo.setLatLng(punto).setRadius(miPosicion.value.precision);
+        miCirculo.setLatLng(punto).setRadius(precision);
     }
 };
 
@@ -576,50 +568,47 @@ const nombreDeLaUbicacion = async (lat, lng) => {
     }
 };
 
-const usarMiUbicacion = async ({ automatica = false } = {}) => {
-    const actual = miPosicion.value;
-    if (!actual || !map || !marker) return false;
-    const punto = [actual.lat, actual.lng];
-    newTour.latitud = actual.lat;
-    newTour.longitud = actual.lng;
-    marker.setLatLng(punto);
-    marker.setOpacity(1);
-    map.setView(punto, 17);
-    delete errores.ubicacion;
-    marcandoUbicacion.value = true;
-    try {
-        // En el marcado automático no se pisa un texto que la persona ya escribió.
-        if (!automatica || !searchQuery.value.trim()) {
-            const nombre = await nombreDeLaUbicacion(actual.lat, actual.lng);
-            const texto = nombre || `Mi ubicación actual (${actual.lat.toFixed(5)}, ${actual.lng.toFixed(5)})`;
-            // Se asignan juntos para que la búsqueda de sugerencias no se dispare con este texto.
-            searchQuery.value = texto;
-            newTour.ubicacion = texto;
-        }
-    } finally {
-        marcandoUbicacion.value = false;
-    }
-    mostrarNotificacion(
-        automatica ? 'Marcamos tu ubicación actual como punto de encuentro. Arrastra el pin si necesitas ajustarlo.' : 'Punto de encuentro marcado en tu ubicación actual.',
-        'exito',
-        5000,
-    );
-    if (actual.precision > 100) {
-        mostrarNotificacion(`La precisión del GPS es baja (${actual.precision} m). Sal a un lugar abierto o ajusta el pin a mano.`, 'aviso', 7000);
-    }
-    return true;
-};
-
-const intentarMarcadoAutomatico = () => {
-    if (marcadoAutomatico || !miPosicion.value || tieneCoordenadas() || !map || !marker || pasoActual.value !== 2 || !props.abrir) return;
-    marcadoAutomatico = true;
-    usarMiUbicacion({ automatica: true });
-};
-
-watch(miPosicion, () => {
-    dibujarMiPosicion();
-    intentarMarcadoAutomatico();
+const leerUbicacionActual = () => new Promise((resolver, rechazar) => {
+    navigator.geolocation.getCurrentPosition(resolver, rechazar, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 });
+
+const usarMiUbicacion = async () => {
+    errorUbicacion.value = '';
+    if (!('geolocation' in navigator) || !window.isSecureContext) {
+        errorUbicacion.value = 'Este navegador no permite usar la ubicación aquí. Se necesita una conexión segura (https).';
+        return;
+    }
+    if (!map || !marker) return;
+    buscandoUbicacion.value = true;
+    try {
+        const { coords } = await leerUbicacionActual();
+        const punto = [coords.latitude, coords.longitude];
+        const precision = Math.round(coords.accuracy);
+        newTour.latitud = coords.latitude;
+        newTour.longitud = coords.longitude;
+        marker.setLatLng(punto);
+        marker.setOpacity(1);
+        mostrarMiPosicion(coords.latitude, coords.longitude, precision);
+        map.setView(punto, 17);
+        delete errores.ubicacion;
+
+        const nombre = await nombreDeLaUbicacion(coords.latitude, coords.longitude);
+        const texto = nombre || `Mi ubicación actual (${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)})`;
+        // Se asignan juntos para que la búsqueda de sugerencias no se dispare con este texto.
+        searchQuery.value = texto;
+        newTour.ubicacion = texto;
+
+        mostrarNotificacion('Marcamos tu ubicación actual en el mapa. Arrastra el pin si necesitas ajustarlo.', 'exito', 5000);
+        if (precision > 100) {
+            mostrarNotificacion(`La precisión del GPS es baja (${precision} m). Sal a un lugar abierto o ajusta el pin a mano.`, 'aviso', 7000);
+        }
+    } catch (error) {
+        errorUbicacion.value = MENSAJES_GPS[error?.code] || 'No se pudo obtener tu ubicación. Inténtalo de nuevo.';
+        mostrarNotificacion(errorUbicacion.value, 'aviso', 7000);
+    } finally {
+        buscandoUbicacion.value = false;
+    }
+};
 
 // --- AUTOCOMPLETADO Y BÚSQUEDA UBICACIÓN ---
 watch(searchQuery, (newVal) => {
@@ -676,21 +665,14 @@ const irASeleccionActividades = () => {
 };
 
 watch(pasoActual, async (numero) => {
-    if (!props.abrir) return;
-    if (numero !== 2) {
-        detenerUbicacion();
-        return;
-    }
-    iniciarUbicacion();
+    if (!props.abrir || numero !== 2) return;
     await nextTick();
     if (!map) initMap();
     else map.invalidateSize();
 });
 
 watch(() => props.abrir, async (estaAbierto) => {
-    if (!estaAbierto) detenerUbicacion();
     if (estaAbierto) {
-        marcadoAutomatico = false;
         pasoActual.value = 1;
         if (!bloqueoScrollActivo) {
             bodyOverflowAnterior = document.body.style.overflow;
@@ -1028,7 +1010,7 @@ const Enviar = async () => {
                 <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black flex items-center justify-center">2</div>
                 <div>
                   <h3 class="text-sm font-black text-white uppercase tracking-wider">Punto de encuentro y mapa</h3>
-                  <p class="text-xs text-white/40">Busca el lugar, haz clic en el mapa o usa tu ubicación actual</p>
+                  <p class="text-xs text-white/40">Busca el lugar, haz clic en el mapa o pulsa el botón «Mi ubicación» del mapa</p>
                 </div>
               </div>
 
@@ -1070,6 +1052,15 @@ const Enviar = async () => {
               <div class="relative rounded-2xl overflow-hidden border border-emerald-500/20 bg-black/40 shadow-inner">
                 <div id="map" ref="mapContainer" class="w-full h-80 z-10 brightness-95"></div>
 
+                <!-- Botón sobre el mapa: marca automáticamente dónde está la persona -->
+                <button type="button" :disabled="buscandoUbicacion" @click="usarMiUbicacion"
+                  class="absolute right-3 top-3 z-20 inline-flex h-12 items-center gap-2 rounded-full bg-white px-3.5 text-xs font-black uppercase tracking-wider text-sky-700 shadow-xl ring-1 ring-black/10 outline-none transition hover:bg-sky-50 focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-wait disabled:opacity-80"
+                  aria-label="Marcar mi ubicación actual en el mapa" title="Marcar mi ubicación actual">
+                  <svg v-if="!buscandoUbicacion" class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path stroke-linecap="round" d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8"/></svg>
+                  <span v-else class="h-5 w-5 animate-spin rounded-full border-2 border-sky-600 border-t-transparent" aria-hidden="true"></span>
+                  <span class="hidden sm:inline">{{ buscandoUbicacion ? 'Buscando…' : 'Mi ubicación' }}</span>
+                </button>
+
                 <!-- Badge Coordenadas -->
                 <div class="pointer-events-none absolute bottom-4 left-4 right-4 z-20 flex justify-between items-center">
                   <div class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-black/80 px-3.5 py-2 text-white shadow-xl backdrop-blur-md">
@@ -1080,14 +1071,7 @@ const Enviar = async () => {
                   </div>
                 </div>
               </div>
-              <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <p class="min-w-0 flex-1 text-xs" :class="estadoUbicacion === 'activa' ? 'text-sky-200' : estadoUbicacion === 'buscando' ? 'text-white/60' : 'text-amber-200'" role="status">{{ textoUbicacionActual }}</p>
-                <button v-if="estadoUbicacion === 'denegada' || estadoUbicacion === 'sin_gps'" type="button" class="inline-flex min-h-11 items-center rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 text-xs font-black uppercase tracking-widest text-amber-100 hover:bg-amber-300/20 focus:outline-none focus:ring-2 focus:ring-amber-300" @click="iniciarUbicacion">Reintentar</button>
-                <button v-else type="button" :disabled="!miPosicion || marcandoUbicacion" class="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-300/40 bg-sky-400/10 px-4 text-xs font-black uppercase tracking-widest text-sky-100 hover:bg-sky-400/20 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50" @click="usarMiUbicacion()">
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path stroke-linecap="round" d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8"/></svg>
-                  {{ marcandoUbicacion ? 'Marcando…' : 'Usar mi ubicación actual' }}
-                </button>
-              </div>
+              <p v-if="errorUbicacion" class="mt-3 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs text-amber-100" role="alert">{{ errorUbicacion }}</p>
               <p v-if="errores.ubicacion" class="error-msg mt-3">{{ errores.ubicacion }}</p>
             </section>
 
