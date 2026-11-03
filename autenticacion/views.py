@@ -1655,7 +1655,10 @@ class MisReservasView(APIView):
                     }
 
             resultado = []
-            hoy = date_type.today()
+            # La fecha de la experiencia es un día de Colombia: con la fecha UTC, una reserva de hoy pasaba a
+            # «Realizado» desde las 7 p. m. y el turista perdía el acceso al mapa el mismo día.
+            from .vistas_recorridos import fecha_de_hoy
+            hoy = fecha_de_hoy()
             detalles_a_actualizar = []
 
             for detalle in detalles:

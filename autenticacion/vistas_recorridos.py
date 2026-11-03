@@ -309,5 +309,10 @@ class RecorridoTuristaView(APIView):
             )
         recorrido = Recorrido.objects.filter(paquete_id=pk, publicado=True).first()
         datos = trazado_publico(recorrido) if recorrido else {'disponible': False}
-        datos.update({'paquete': pk, 'nombre_paquete': reserva.paquete.nombre, 'fecha': reserva.fecha})
+        paquete = reserva.paquete
+        # El punto de encuentro se envía aunque no haya recorrido publicado: el mapa del turista lo necesita para orientarse.
+        ubicacion = None
+        if paquete.latitud is not None and paquete.longitud is not None:
+            ubicacion = {'latitud': float(paquete.latitud), 'longitud': float(paquete.longitud), 'lugar': paquete.ubicacion}
+        datos.update({'paquete': pk, 'nombre_paquete': paquete.nombre, 'fecha': reserva.fecha, 'ubicacion_paquete': ubicacion})
         return Response(datos)

@@ -1106,6 +1106,39 @@ class RecorridosGpsTests(TestCase):
         self.assertEqual(cliente.get(url).status_code, 403)
         self.assertEqual(cliente.get('/api/turista/recorridos-habilitados/').data, [])
 
+    def test_turista_recibe_el_punto_de_encuentro_aunque_no_haya_recorrido(self):
+        self.ubicar_paquete('-4.215300', '-69.940600')
+        self.reserva()
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        datos = cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').data
+        self.assertFalse(datos['disponible'])
+        self.assertEqual(datos['ubicacion_paquete']['latitud'], -4.2153)
+        self.assertEqual(datos['ubicacion_paquete']['longitud'], -69.9406)
+        self.assertEqual(datos['ubicacion_paquete']['lugar'], 'Leticia')
+
+    def test_turista_sin_ubicacion_del_paquete_recibe_none(self):
+        self.reserva()
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        self.assertIsNone(cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').data['ubicacion_paquete'])
+
+    def test_reserva_de_hoy_no_pasa_a_realizado_por_la_noche_en_colombia(self):
+        # A las 03:00 UTC todavía es la noche del día anterior en Bogotá (22:00): la experiencia de ese día no terminó.
+        # El día de la reserva es «ayer» según el UTC real pero «hoy» en Colombia, así que la prueba solo pasa
+        # si el servidor usa la fecha de Colombia y no la del reloj UTC.
+        hoy_utc = timezone.now().date()
+        ahora = timezone.datetime(hoy_utc.year, hoy_utc.month, hoy_utc.day, 3, 0, tzinfo=timezone.UTC)
+        self.reserva(fecha=hoy_utc - timedelta(days=1))
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        with patch('autenticacion.vistas_recorridos.timezone.now', return_value=ahora):
+            reservas = cliente.get('/api/mis-reservas/').data
+            acceso = cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/')
+        self.assertEqual([r['estado'] for r in reservas], ['Confirmado'])
+        self.assertEqual(Detalles_Venta.objects.get(paquete=self.paquete.pk).estado, 'Confirmado')
+        self.assertEqual(acceso.status_code, 200)
+
     def test_compra_de_otro_turista_no_habilita(self):
         self.reserva(usuario=self.ajeno)
         cliente = APIClient()
