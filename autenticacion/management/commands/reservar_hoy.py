@@ -10,7 +10,7 @@ from autenticacion.models import (
 from autenticacion.serializers import calcular_cupos_disponibles
 
 CORREOS = ['karolquesada76@gmail.com', 'ortizpatrick750@gmail.com']
-PAQUETE = 'Caminata Ancestral Tikuna'
+PAQUETE = 'Caminata Ancestral Tikuna - Amazonia E'
 AGENCIA = 'amazoniaexpeditions@test.com'
 
 
