@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from '@/api/axios';
+import { useInstalarPwa } from '@/composables/useInstalarPwa';
 
 // ── Estado ──────────────────────────────────────────────────────────────────
 const reservas        = ref([]);
@@ -20,6 +21,13 @@ onMounted(() => {
     .then(({ data }) => { recorridosHoy.value = data; })
     .catch(() => { recorridosHoy.value = []; });
 });
+
+// El servidor decide qué reservas tienen el mapa habilitado hoy; aquí solo se usa su respuesta.
+const habilitadoHoy = (r) => r.estado === 'Confirmado' && recorridosHoy.value.some(h => h.paquete === r.paquete_id);
+// Aviso informativo para las reservas futuras (la habilitación real la valida el servidor).
+const fechaLocalHoy = () => new Date().toLocaleDateString('en-CA');
+const habilitaDespues = (r) => r.estado === 'Confirmado' && !!r.fecha_actividad && r.fecha_actividad > fechaLocalHoy();
+const { puedeInstalar, instalar } = useInstalarPwa();
 
 // ── Estado Calificación ─────────────────────────────────────────────────────
 const showRatingModal = ref(false);
@@ -168,7 +176,7 @@ async function submitRating() {
       <div class="absolute bottom-0 right-1/4 w-72 h-72 rounded-full bg-teal-400/4 blur-3xl pointer-events-none"></div>
 
       <div class="relative z-10 max-w-5xl mx-auto px-6">
-        <router-link v-if="recorridosHoy.length" to="/panel/mi-recorrido"
+        <router-link v-if="recorridosHoy.length" :to="{ path: '/panel/mi-recorrido', query: { paquete: recorridosHoy[0].paquete } }"
           class="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-5 py-4 text-emerald-100 transition hover:bg-emerald-400/15 focus:outline-none focus:ring-2 focus:ring-emerald-300">
           <span class="text-sm font-bold">Hoy es el día de tu experiencia: consulta el recorrido en el mapa.</span>
           <span class="text-xs font-black uppercase tracking-widest">Ver recorrido →</span>
@@ -377,6 +385,19 @@ async function submitRating() {
                   </div>
                 </div>
               </div>
+
+              <!-- Mapa del recorrido: se habilita el día de la experiencia -->
+              <div v-if="habilitadoHoy(r)" class="rounded-2xl border border-sky-300/30 bg-sky-400/10 p-4">
+                <p class="text-sm font-bold text-sky-100">¡Hoy es el día de tu experiencia!</p>
+                <p class="mt-1 text-xs text-sky-100/70">Abre el mapa para ver el recorrido y dónde estás, en tiempo real.</p>
+                <router-link :to="{ path: '/panel/mi-recorrido', query: { paquete: r.paquete_id } }"
+                  class="mt-3 inline-flex min-h-12 items-center gap-2 rounded-xl bg-sky-500 px-5 text-xs font-black uppercase tracking-widest text-white outline-none transition hover:bg-sky-400 focus-visible:ring-2 focus-visible:ring-white">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20 3 17V4l6 3m0 13 6-3m-6 3V7m6 10 6 3V7l-6-3m0 13V4"/></svg>
+                  Ir al mapa del recorrido
+                </router-link>
+                <button v-if="puedeInstalar" type="button" class="mt-3 block text-xs font-bold text-sky-200 underline underline-offset-2" @click="instalar">Instalar la app para usarlo durante el recorrido</button>
+              </div>
+              <p v-else-if="habilitaDespues(r)" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/60">El mapa del recorrido se habilita el día de tu experiencia ({{ formatFecha(r.fecha_actividad) }}).</p>
 
               <!-- Footer: precio + acción -->
               <div class="flex items-center justify-between pt-1 mt-auto flex-wrap gap-3">
