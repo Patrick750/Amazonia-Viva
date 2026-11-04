@@ -14,6 +14,8 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.files.uploadedfile import SimpleUploadedFile
+from cloudinary import CloudinaryResource
 from .models import (Agencia, Proveedor, Turista, Usuario, Categoria, Actividad, Categorias, PaqueteTuristico,
                      Productos, Venta, Detalles_Venta, ReservaFecha, Carrito, Items, SolicitudRetiro,
                      IntentosCredenciales, CambioEstadoRetiro, EstandarPaquete, ModalidadTurismo,
@@ -1261,6 +1263,95 @@ class GrupoRecorridoTests(TestCase):
         self.assertEqual(self.cliente(self.sin_reserva).get(url).status_code, 404)
         # Tampoco el propio perfil por esta vía.
         self.assertEqual(self.cliente(self.ana).get(url).status_code, 404)
+
+
+class ImagenesPerfilTests(TestCase):
+    """Foto de perfil y portada: agregar, reemplazar y eliminar solo en la cuenta propia."""
+    def setUp(self):
+        self.turista = Turista.objects.create_user(username='img-tur', email='img-tur@example.test', password='A-safe-pass-938!', fecha_nacimiento='1990-01-01', numero_identidad='5555555555')
+        self.agencia = Agencia.objects.create_user(username='img-ag', email='img-ag@example.test', password='A-safe-pass-938!', nombre_agencia='Agencia Img')
+        self.contador = 0
+
+    def cliente(self, usuario):
+        cliente = APIClient()
+        cliente.force_authenticate(usuario)
+        return cliente
+
+    def imagen(self, tipo='image/png', tamano=100):
+        return SimpleUploadedFile('foto.png', b'x' * tamano, content_type=tipo)
+
+    def subir(self, usuario, tipo='perfil', archivo=None, campo='foto'):
+        def falso_upload(*args, **kwargs):
+            self.contador += 1
+            return CloudinaryResource(public_id=f'prueba/{self.contador}', version='1', format='png', type='upload', resource_type='image')
+        with patch('cloudinary.uploader.upload_resource', side_effect=falso_upload), patch('cloudinary.uploader.destroy') as borrar:
+            respuesta = self.cliente(usuario).post(f'/api/perfil/foto/?tipo={tipo}', {campo: archivo or self.imagen()}, format='multipart')
+        return respuesta, borrar
+
+    def test_agrega_foto_y_portada_del_turista(self):
+        for tipo, campo in (('perfil', 'foto_perfil'), ('portada', 'foto_portada')):
+            respuesta, _ = self.subir(self.turista, tipo)
+            self.assertEqual(respuesta.status_code, 200)
+            self.turista.refresh_from_db()
+            self.assertTrue(getattr(self.turista, campo))
+            self.assertEqual(respuesta.json()['foto_url'], getattr(self.turista, campo).url)
+        perfil = self.cliente(self.turista).get('/api/perfil/').json()
+        self.assertTrue(perfil['foto_url'] and perfil['foto_portada_url'])
+
+    def test_reemplazar_borra_la_imagen_anterior(self):
+        self.subir(self.turista, 'portada')
+        _, borrar = self.subir(self.turista, 'portada')
+        borrar.assert_called_once()
+        self.assertEqual(borrar.call_args.args[0], 'prueba/1')
+
+    def test_eliminar_quita_la_imagen_y_la_borra_de_cloudinary(self):
+        self.subir(self.turista, 'portada')
+        self.subir(self.turista, 'perfil')
+        with patch('cloudinary.uploader.destroy') as borrar:
+            respuesta = self.cliente(self.turista).delete('/api/perfil/foto/?tipo=portada')
+        self.assertEqual((respuesta.status_code, respuesta.json()), (200, {'foto_url': None}))
+        borrar.assert_called_once()
+        self.turista.refresh_from_db()
+        self.assertFalse(self.turista.foto_portada)
+        self.assertTrue(self.turista.foto_perfil)  # la otra imagen no se toca
+
+    def test_eliminar_sin_imagen_no_falla(self):
+        with patch('cloudinary.uploader.destroy') as borrar:
+            respuesta = self.cliente(self.turista).delete('/api/perfil/foto/?tipo=perfil')
+        self.assertEqual(respuesta.status_code, 200)
+        borrar.assert_not_called()
+
+    def test_si_cloudinary_falla_al_borrar_la_imagen_igual_se_quita(self):
+        self.subir(self.turista, 'perfil')
+        with patch('cloudinary.uploader.destroy', side_effect=RuntimeError('sin red')):
+            respuesta = self.cliente(self.turista).delete('/api/perfil/foto/?tipo=perfil')
+        self.assertEqual(respuesta.status_code, 200)
+        self.turista.refresh_from_db()
+        self.assertFalse(self.turista.foto_perfil)
+
+    def test_rechaza_archivos_que_no_son_imagen_o_pesan_demasiado(self):
+        self.assertEqual(self.subir(self.turista, archivo=self.imagen('application/pdf'))[0].status_code, 400)
+        self.assertEqual(self.subir(self.turista, archivo=self.imagen('image/svg+xml'))[0].status_code, 400)
+        self.assertEqual(self.subir(self.turista, archivo=self.imagen(tamano=5 * 1024 * 1024 + 1))[0].status_code, 400)
+        self.turista.refresh_from_db()
+        self.assertFalse(self.turista.foto_perfil)
+
+    def test_tipo_desconocido_se_rechaza(self):
+        self.assertEqual(self.subir(self.turista, 'otra')[0].status_code, 400)
+        self.assertEqual(self.cliente(self.turista).delete('/api/perfil/foto/?tipo=otra').status_code, 400)
+
+    def test_la_agencia_usa_logotipo_y_portada(self):
+        self.assertEqual(self.subir(self.agencia, 'perfil')[0].status_code, 200)
+        self.assertEqual(self.subir(self.agencia, 'portada')[0].status_code, 200)
+        self.agencia.refresh_from_db()
+        self.assertTrue(self.agencia.logotipo and self.agencia.foto_portada)
+        with patch('cloudinary.uploader.destroy'):
+            self.assertEqual(self.cliente(self.agencia).delete('/api/perfil/foto/?tipo=perfil').status_code, 200)
+        self.agencia.refresh_from_db()
+        self.assertFalse(self.agencia.logotipo)
+
+    def test_exige_sesion(self):
+        self.assertEqual(APIClient().delete('/api/perfil/foto/?tipo=perfil').status_code, 401)
 
 
 class ReservarHoyCommandTests(TestCase):

@@ -932,10 +932,16 @@ class TuristaPerfilSerializer(serializers.ModelSerializer):
     - foto_url         → URL pública de la foto de perfil en Cloudinary.
     """
     foto_url = serializers.SerializerMethodField()
+    foto_portada_url = serializers.SerializerMethodField()
 
     def get_foto_url(self, obj):
         if obj.foto_perfil:
             return obj.foto_perfil.url
+        return None
+
+    def get_foto_portada_url(self, obj):
+        if obj.foto_portada:
+            return obj.foto_portada.url
         return None
 
     def validate(self, attrs):
@@ -955,9 +961,9 @@ class TuristaPerfilSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'fecha_nacimiento', 'numero_identidad', 'numero_telefonico',
-            'foto_url',
+            'foto_url', 'foto_portada_url',
         ]
-        read_only_fields = ['id', 'email', 'username', 'foto_url']
+        read_only_fields = ['id', 'email', 'username', 'foto_url', 'foto_portada_url']
 
 class ExperienciaEvidenciaSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
