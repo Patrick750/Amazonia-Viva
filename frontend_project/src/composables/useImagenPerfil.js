@@ -4,7 +4,7 @@ import clienteAxios from '@/api/axios'
 // Foto de perfil y portada de la cuenta: agregar, reemplazar y eliminar.
 // El servidor vuelve a validar formato y tamaño; aquí solo se evita subir un archivo que será rechazado.
 const FORMATOS = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-const MAX_BYTES = 5 * 1024 * 1024
+const MAX_BYTES = 20 * 1024 * 1024
 
 // El encabezado de la aplicación muestra la foto de perfil y se entera por este evento.
 const avisarEncabezado = (url) => {
@@ -26,7 +26,7 @@ export function useImagenPerfil() {
     // tipo: 'perfil' | 'portada'. Devuelve { url } si salió bien o { error } con el motivo.
     const subir = async (tipo, archivo) => {
         if (!FORMATOS.includes(archivo.type)) return { error: 'Solo se permiten imágenes JPG, PNG, WEBP o GIF.' }
-        if (archivo.size > MAX_BYTES) return { error: 'La imagen no puede superar los 5 MB.' }
+        if (archivo.size > MAX_BYTES) return { error: `La imagen no puede superar los ${MAX_BYTES / (1024 * 1024)} MB.` }
         ocupado.value = true
         try {
             const datos = new FormData()

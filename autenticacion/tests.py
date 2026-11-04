@@ -1337,7 +1337,7 @@ class ImagenesPerfilTests(TestCase):
     def test_rechaza_archivos_que_no_son_imagen_o_pesan_demasiado(self):
         self.assertEqual(self.subir(self.turista, archivo=self.imagen('application/pdf'))[0].status_code, 400)
         self.assertEqual(self.subir(self.turista, archivo=self.imagen('image/svg+xml'))[0].status_code, 400)
-        self.assertEqual(self.subir(self.turista, archivo=self.imagen(tamano=5 * 1024 * 1024 + 1))[0].status_code, 400)
+        self.assertEqual(self.subir(self.turista, archivo=self.imagen(tamano=20 * 1024 * 1024 + 1))[0].status_code, 400)
         self.turista.refresh_from_db()
         self.assertFalse(self.turista.foto_perfil)
 

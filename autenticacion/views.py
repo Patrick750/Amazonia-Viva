@@ -1425,7 +1425,7 @@ class PerfilView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-IMAGEN_PERFIL_MAX_BYTES = 5 * 1024 * 1024
+IMAGEN_PERFIL_MAX_BYTES = 20 * 1024 * 1024
 IMAGEN_PERFIL_FORMATOS = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
 
 
@@ -1488,7 +1488,7 @@ class PerfilFotoView(APIView):
         if archivo.content_type not in IMAGEN_PERFIL_FORMATOS:
             return Response({'error': 'Solo se permiten imágenes JPG, PNG, WEBP o GIF.'}, status=status.HTTP_400_BAD_REQUEST)
         if archivo.size > IMAGEN_PERFIL_MAX_BYTES:
-            return Response({'error': 'La imagen no puede superar los 5 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'La imagen no puede superar los {IMAGEN_PERFIL_MAX_BYTES // (1024 * 1024)} MB.'}, status=status.HTTP_400_BAD_REQUEST)
 
         anterior = getattr(cuenta, campo)
         try:
