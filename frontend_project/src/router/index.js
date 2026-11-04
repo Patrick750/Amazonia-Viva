@@ -66,6 +66,11 @@ const router = createRouter({
       component: () => import('@/views/mi-recorrido.vue'),
     },
     {
+      path:'/viajero/:id',
+      name:'viajero_publico',
+      component: () => import('@/views/viajero-publico.vue'),
+    },
+    {
       path:'/estandar-paquetes',
       name:'estandar_paquetes',
       component: () => import('@/views/estandar-paquetes.vue'),
@@ -249,7 +254,7 @@ router.beforeEach((to, from, next) => {
     return next('/')
   }
 
-  if (to.path === '/panel/mi-recorrido' && rolLower !== 'turista') {
+  if ((to.path === '/panel/mi-recorrido' || to.path.startsWith('/viajero/')) && rolLower !== 'turista') {
     return next('/')
   }
 

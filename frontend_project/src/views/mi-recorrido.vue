@@ -5,6 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import clienteAxios from '@/api/axios'
 import { useMiUbicacion } from '@/composables/recorridos/useMiUbicacion'
+import { useGrupo } from '@/composables/recorridos/useGrupo'
 import { useNotificacion } from '@/composables/useNotificacion'
 import { OPCIONES_MOSAICOS, URL_MOSAICOS } from '@/config/mapa'
 import { guardadosParaHoy, guardarPaquete, hoyEnColombia, obtenerGuardado } from '@/composables/recorridos/almacenOffline'
@@ -26,7 +27,15 @@ const mapaEl = ref(null)
 
 const { posicion: miPosicion, estado: estadoUbicacion, detalle: detalleUbicacion, iniciar: iniciarUbicacion, detener: detenerUbicacion } = useMiUbicacion()
 
+const { compartiendo, personas, error: errorGrupo, preparar: prepararGrupo, alternar: alternarGrupo } = useGrupo(() => miPosicion.value)
+// Compartir es voluntario: la casilla empieza apagada y solo se enciende si la persona ya lo eligió hoy.
+const compartirActivo = computed({
+  get: () => compartiendo.value,
+  set: (activo) => alternarGrupo(activo),
+})
+
 let mapa = null
+let capaPersonas = null
 let capa = null
 let marcadorYo = null
 let circuloYo = null
@@ -100,6 +109,45 @@ const dibujar = () => {
   }
   encuadrar()
 }
+
+const haceCuanto = (segundos) => (segundos < 60 ? 'ahora mismo' : `hace ${Math.round(segundos / 60)} min`)
+
+// El contenido del globo se arma con nodos de texto: el nombre lo escribe otra persona y nunca se interpreta como HTML.
+const contenidoPersona = (persona) => {
+  const caja = document.createElement('div')
+  caja.className = 'persona-popup'
+  if (persona.foto) {
+    const foto = document.createElement('img')
+    foto.src = persona.foto
+    foto.alt = ''
+    caja.append(foto)
+  }
+  const nombre = document.createElement('strong')
+  nombre.textContent = persona.nombre
+  const cuando = document.createElement('span')
+  cuando.textContent = `Ubicación ${haceCuanto(persona.hace_segundos)}`
+  const enlace = document.createElement('a')
+  enlace.href = `/viajero/${persona.id}`
+  enlace.target = '_blank'
+  enlace.rel = 'noopener'
+  enlace.textContent = 'Ver su cuenta'
+  caja.append(nombre, cuando, enlace)
+  return caja
+}
+
+// Las demás personas se dibujan como círculos morados, distintos del azul de «tú».
+const dibujarPersonas = () => {
+  if (!mapa || !capaPersonas) return
+  capaPersonas.clearLayers()
+  for (const persona of personas.value) {
+    L.circleMarker([persona.latitud, persona.longitud], { radius: 11, color: '#fff', weight: 3, fillColor: '#9333ea', fillOpacity: 1 })
+      .bindPopup(() => contenidoPersona(persona))
+      .bindTooltip(persona.nombre, { direction: 'top', offset: [0, -10] })
+      .addTo(capaPersonas)
+  }
+}
+
+watch(personas, dibujarPersonas)
 
 const quitarMiMarcador = () => {
   marcadorYo?.remove()
@@ -176,6 +224,7 @@ const mostrarCopiaGuardada = (paquete) => {
 const cargarRecorrido = async (paquete) => {
   seleccionado.value = paquete
   datos.value = null
+  personas.value = []
   error.value = ''
   encuadradoInicial = false
   try {
@@ -194,6 +243,7 @@ const cargarRecorrido = async (paquete) => {
     await nextTick()
     dibujar()
     dibujarYo()
+    if (!sinConexion.value) prepararGrupo(paquete, datos.value.fecha)
   }
 }
 
@@ -204,6 +254,7 @@ onMounted(async () => {
   if (window.matchMedia('(min-width: 640px)').matches) L.control.zoom({ position: 'topleft' }).addTo(mapa)
   L.tileLayer(URL_MOSAICOS, OPCIONES_MOSAICOS).addTo(mapa)
   capa = L.layerGroup().addTo(mapa)
+  capaPersonas = L.layerGroup().addTo(mapa)
   // Si la persona arrastra el mapa, deja de seguirla hasta que pulse «Mi ubicación».
   mapa.on('dragstart', () => { siguiendo = false })
   if (mostrarUbicacion.value) iniciarUbicacion()
@@ -288,12 +339,23 @@ onBeforeUnmount(() => {
           <li class="flex items-center gap-2"><span class="inline-block h-3 w-3 rounded-full bg-green-600 ring-2 ring-white"></span>Inicio</li>
           <li class="flex items-center gap-2"><span class="inline-block h-3 w-3 rounded-full bg-red-600 ring-2 ring-white"></span>Final</li>
           <li class="flex items-center gap-2"><span class="inline-block h-3 w-3 rounded-full bg-amber-500 ring-2 ring-white"></span>Punto de encuentro</li>
+          <li class="flex items-center gap-2"><span class="inline-block h-3 w-3 rounded-full bg-purple-600 ring-2 ring-white"></span>Otras personas</li>
         </ul>
 
         <label class="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
           <input v-model="mostrarUbicacion" type="checkbox" class="h-5 w-5 accent-blue-500" />
           Mostrar mi ubicación en el mapa
         </label>
+
+        <div v-if="!sinConexion" class="rounded-xl border border-violet-300/25 bg-violet-400/10 p-3">
+          <label class="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
+            <input v-model="compartirActivo" type="checkbox" class="h-5 w-5 accent-violet-500" :disabled="!mostrarUbicacion" />
+            Ver y compartir mi ubicación con quienes hacen este paquete hoy
+          </label>
+          <p class="mt-1 text-xs text-white/60">Es voluntario y recíproco: solo ves a quien también comparte, y solo ven tu nombre, tu foto y tu posición mientras esté activo. Se borra al apagarlo o al cerrar el mapa.</p>
+          <p v-if="compartiendo" class="mt-2 text-xs font-bold text-violet-200" role="status">{{ personas.length ? `Ves a ${personas.length} ${personas.length === 1 ? 'persona' : 'personas'}. Toca un círculo morado para ver su información.` : 'Aún no hay otras personas compartiendo. Aparecerán aquí.' }}</p>
+          <p v-if="errorGrupo" class="mt-2 text-xs text-amber-200" role="alert">{{ errorGrupo }}</p>
+        </div>
 
         <p v-if="mostrarUbicacion && estadoUbicacion !== 'activa'" class="rounded-xl border p-3 text-xs" :class="estadoUbicacion === 'buscando' ? 'border-white/15 bg-white/5 text-white/70' : 'border-amber-300/30 bg-amber-300/10 text-amber-100'" role="status">
           {{ textoUbicacion }}
@@ -314,4 +376,8 @@ onBeforeUnmount(() => {
 .etiqueta-yo::before { border-top-color: #2563eb !important; }
 @keyframes pulso-yo { 0% { transform: scale(0.6); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .marcador-yo__halo { animation: none; opacity: 0.5; } }
+.persona-popup { display: flex; flex-direction: column; gap: 2px; min-width: 9rem; font-size: 13px; }
+.persona-popup img { width: 48px; height: 48px; border-radius: 9999px; object-fit: cover; margin-bottom: 4px; }
+.persona-popup span { color: #4b5563; }
+.persona-popup a { margin-top: 4px; font-weight: 800; color: #7e22ce; text-decoration: underline; }
 </style>
