@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import tarjetaTour from '@/components/catalogo/tarjeta-tour.vue'
 import tarjetaProducto from '@/components/catalogo/tarjeta-producto.vue'
+import ControlesImagen from './ControlesImagen.vue'
 
 const props = defineProps({
   perfil: {
@@ -18,40 +19,17 @@ const props = defineProps({
   }
 })
 
-const portadaPreview = ref(null)
-const cargandoPortada = ref(false)
+// Foto y portada se guardan al instante en el servidor; el componente que lo usa se entera por el evento.
+const emit = defineEmits(['imagen-cambiada'])
+const fotoUrl = ref(props.perfil.foto_url || null)
+const portadaUrl = ref(props.perfil.foto_portada_url || null)
+watch(() => props.perfil.foto_url, (url) => { fotoUrl.value = url || null })
+watch(() => props.perfil.foto_portada_url, (url) => { portadaUrl.value = url || null })
 
-const triggerPortadaInput = () => {
-  const el = document.getElementById('input-portada')
-  if(el) el.click()
-}
-
-const onPortadaSeleccionada = async (e) => {
-  const file = e.target.files[0]
-  if (!file) return
-
-  // Previsualización local inmediata
-  portadaPreview.value = URL.createObjectURL(file)
-  cargandoPortada.value = true
-
-  try {
-    const formData = new FormData()
-    formData.append('portada', file)
-
-    const res = await clienteAxios.post('/api/perfil/foto/?tipo=portada', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-
-    if (res.data.foto_url) {
-      // Éxito: La imagen se guardó en Cloudinary
-      console.log('Portada guardada:', res.data.foto_url)
-    }
-  } catch (err) {
-    console.error('Error subiendo portada:', err)
-    alert('No se pudo guardar la portada en el servidor.')
-  } finally {
-    cargandoPortada.value = false
-  }
+const alCambiarImagen = (tipo, url) => {
+  if (tipo === 'perfil') fotoUrl.value = url
+  else portadaUrl.value = url
+  emit('imagen-cambiada', { tipo, url })
 }
 
 const categorias = ref(['Todos'])
@@ -147,30 +125,12 @@ const tagUsuario = computed(() => {
   <div class="bg-white min-h-screen pb-20 font-sans selection:bg-emerald-200">
     <!-- BLOQUE 1: Header de Identidad Estilo Facebook Reimagined -->
     <header class="relative bg-white border-b border-slate-100">
-      <!-- Portada (16:9) -->
-      <div class="relative w-full aspect-[21/9] md:h-64 bg-slate-600 overflow-hidden">
-        <!-- Imagen de Portada: Prioridad: 1. Preview local, 2. URL del backend, 3. Placeholder -->
-        <img :src="portadaPreview || perfil.foto_portada_url || 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?q=80&w=1200&auto=format&fit=crop'" 
-             alt="Portada" 
-             class="w-full h-full object-cover mix-blend-overlay opacity-80"
-             :class="{ 'animate-pulse': cargandoPortada }">
-             
-        <!-- Loader Overlay -->
-        <div v-if="cargandoPortada" class="absolute inset-0 bg-black/40 flex items-center justify-center z-20">
-          <svg class="w-8 h-8 text-white animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-        </div>
-             
-        <div v-if="esPropietario" @click="triggerPortadaInput" class="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 backdrop-blur text-white text-[10px] uppercase font-bold px-3 py-1.5 rounded flex items-center gap-2 cursor-pointer transition-all border border-white/20 z-10">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          Editar portada
-        </div>
-        
-        <input v-if="esPropietario" id="input-portada" type="file" accept="image/*" class="hidden" @change="onPortadaSeleccionada">
-        
-        <div class="absolute top-4 right-4 animate-pulse bg-black/60 backdrop-blur text-white text-[9px] uppercase font-bold tracking-widest px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-lg">
+      <!-- Portada (16:9): al tocarla se ve en grande y, si es tuya, puedes agregarla, cambiarla o eliminarla -->
+      <div class="relative w-full aspect-[21/9] md:h-64 bg-gradient-to-br from-emerald-800 to-slate-700 overflow-hidden">
+        <img v-if="portadaUrl" :src="portadaUrl" alt="Portada" class="h-full w-full object-cover">
+        <ControlesImagen tipo="portada" :url="portadaUrl" :editable="esPropietario" @cambio="alCambiarImagen('portada', $event)" />
+
+        <div v-if="esPropietario" class="pointer-events-none absolute top-4 right-4 animate-pulse bg-black/60 backdrop-blur text-white text-[9px] uppercase font-bold tracking-widest px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-lg">
           <svg class="w-3 h-3 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg>
           Modo Previsualización
         </div>
@@ -181,9 +141,10 @@ const tagUsuario = computed(() => {
         <!-- Avatar floting partially over cover -->
         <div class="relative -mt-12 sm:-mt-16 mb-4 inline-block">
           <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-3xl border-4 border-white shadow-2xl bg-white flex items-center justify-center overflow-hidden">
-            <img v-if="perfil.foto_url" :src="perfil.foto_url" class="w-full h-full object-cover">
+            <img v-if="fotoUrl" :src="fotoUrl" alt="Foto de perfil" class="w-full h-full object-cover">
             <span v-else class="text-3xl font-black text-slate-300">{{ getIniciales }}</span>
           </div>
+          <ControlesImagen tipo="perfil" :url="fotoUrl" :editable="esPropietario" redondeo="rounded-3xl" posicion-boton="-bottom-1 -right-1" @cambio="alCambiarImagen('perfil', $event)" />
         </div>
 
         <!-- Info Grid -->
