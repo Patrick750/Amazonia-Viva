@@ -19,7 +19,8 @@ from .vistas_experiencias import (
 )
 from .vistas_recorridos import (
     RecorridosAgenciaView, PuntosRecorridoView, FinalizarRecorridoView, PublicarRecorridoView, EliminarRecorridoView,
-    RecorridoPublicoView, RecorridosHabilitadosTuristaView, RecorridoTuristaView
+    RecorridoPublicoView, RecorridosHabilitadosTuristaView, RecorridoTuristaView, GrupoRecorridoView,
+    PerfilViajeroGrupoView
 )
 
 urlpatterns = [
@@ -97,6 +98,8 @@ urlpatterns = [
     path("paquetes/<int:pk>/recorrido/", RecorridoPublicoView.as_view(), name='recorrido_publico'),
     path("turista/recorridos-habilitados/", RecorridosHabilitadosTuristaView.as_view(), name='recorridos_habilitados'),
     path("turista/paquetes/<int:pk>/recorrido/", RecorridoTuristaView.as_view(), name='recorrido_turista'),
+    path("turista/paquetes/<int:pk>/grupo/", GrupoRecorridoView.as_view(), name='recorrido_grupo'),
+    path("turista/grupo/viajeros/<int:usuario_id>/", PerfilViajeroGrupoView.as_view(), name='perfil_viajero_grupo'),
 
     # ── Módulo Liquidación / Billetera Virtual ────────────────────────────────
     path("liquidacion/saldos/", vistas_liquidacion.LiquidacionSaldosView.as_view(), name='liquidacion_saldos'),

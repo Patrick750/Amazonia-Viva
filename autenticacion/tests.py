@@ -17,7 +17,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import (Agencia, Proveedor, Turista, Usuario, Categoria, Actividad, Categorias, PaqueteTuristico,
                      Productos, Venta, Detalles_Venta, ReservaFecha, Carrito, Items, SolicitudRetiro,
                      IntentosCredenciales, CambioEstadoRetiro, EstandarPaquete, ModalidadTurismo,
-                     PrincipioEstandarPaquete, FuenteEstandarPaquete, Recorrido, PuntoRecorrido)
+                     PrincipioEstandarPaquete, FuenteEstandarPaquete, Recorrido, PuntoRecorrido, UbicacionCompartida)
 from .vistas_recorridos import fecha_de_hoy
 from .compras import procesar_compra, liberar_pedido
 from .retiros import cambiar_estado
@@ -1164,6 +1164,103 @@ class RecorridosGpsTests(TestCase):
         with patch('autenticacion.vistas_recorridos.timezone.now', return_value=timezone.datetime(2026, 10, 29, 3, 0, tzinfo=timezone.UTC)):
             self.assertEqual(str(fecha_de_hoy()), '2026-10-28')
 
+
+
+class GrupoRecorridoTests(TestCase):
+    """Las personas con reserva confirmada para hoy se ven entre sí, solo si lo deciden."""
+    def setUp(self):
+        agencia = Agencia.objects.create_user(username='ag-grupo', email='ag-grupo@example.test', password='A-safe-pass-938!', nombre_agencia='Agencia Grupo')
+        self.paquete = PaqueteTuristico.objects.create(nombre='Ruta', descripcion='Tour', precio='100', duracion='1 día', capacidad=9, ubicacion='Leticia', agencia=agencia)
+        self.otro_paquete = PaqueteTuristico.objects.create(nombre='Otra ruta', descripcion='Tour', precio='100', duracion='1 día', capacidad=9, ubicacion='Leticia', agencia=agencia)
+        self.ana = self.turista('ana', 'Ana', 'Pérez', '1')
+        self.luis = self.turista('luis', 'Luis', 'Gómez', '2')
+        self.sin_reserva = self.turista('sinreserva', 'Eva', 'Ríos', '3')
+        for usuario in (self.ana, self.luis):
+            self.reservar(usuario, self.paquete)
+
+    def turista(self, usuario, nombre, apellido, documento):
+        return Turista.objects.create_user(
+            username=usuario, email=f'{usuario}@example.test', password='A-safe-pass-938!', first_name=nombre,
+            last_name=apellido, fecha_nacimiento='1990-01-01', numero_identidad=documento * 10,
+        )
+
+    def reservar(self, usuario, paquete):
+        venta = Venta.objects.create(usuario=usuario, total='100', estado='Completado', estado_pago='Pagado')
+        Detalles_Venta.objects.create(venta=venta, producto=0, paquete=paquete.pk, cantidad=1, precio_unitario='100', estado='Confirmado')
+        ReservaFecha.objects.create(paquete=paquete, venta=venta, fecha=fecha_de_hoy(), cantidad=1)
+
+    def cliente(self, usuario):
+        cliente = APIClient()
+        cliente.force_authenticate(usuario)
+        return cliente
+
+    def compartir(self, usuario, lat=-4.2153, lng=-69.9406, paquete=None):
+        return self.cliente(usuario).post(
+            f'/api/turista/paquetes/{(paquete or self.paquete).pk}/grupo/',
+            {'latitud': lat, 'longitud': lng, 'precision_m': 6}, format='json')
+
+    def test_sin_reserva_para_hoy_no_se_puede_compartir(self):
+        self.assertEqual(self.compartir(self.sin_reserva).status_code, 403)
+        self.assertEqual(UbicacionCompartida.objects.count(), 0)
+
+    def test_dos_personas_se_ven_solo_cuando_ambas_comparten(self):
+        self.assertEqual(self.compartir(self.ana).json()['personas'], [])
+        respuesta = self.compartir(self.luis).json()
+        self.assertEqual([p['id'] for p in respuesta['personas']], [self.ana.pk])
+        self.assertEqual(respuesta['personas'][0]['nombre'], 'Ana P.')
+        # Ana vuelve a consultar y ya ve a Luis; nunca se ve a sí misma.
+        UbicacionCompartida.objects.filter(usuario=self.ana).update(actualizado_en=timezone.now() - timedelta(seconds=10))
+        self.assertEqual([p['id'] for p in self.compartir(self.ana).json()['personas']], [self.luis.pk])
+
+    def test_no_expone_datos_privados(self):
+        self.compartir(self.ana)
+        persona = self.compartir(self.luis).json()['personas'][0]
+        self.assertEqual(set(persona), {'id', 'nombre', 'foto', 'latitud', 'longitud', 'precision_m', 'hace_segundos'})
+
+    def test_una_posicion_antigua_deja_de_mostrarse(self):
+        self.compartir(self.ana)
+        with patch('autenticacion.vistas_recorridos.timezone.now', return_value=timezone.now() + timedelta(minutes=6)):
+            self.assertEqual(self.compartir(self.luis).json()['personas'], [])
+
+    def test_no_se_ve_a_quien_va_a_otro_paquete(self):
+        self.reservar(self.ana, self.otro_paquete)
+        self.compartir(self.ana, paquete=self.otro_paquete)
+        self.assertEqual(self.compartir(self.luis).json()['personas'], [])
+
+    def test_dejar_de_compartir_me_oculta(self):
+        self.compartir(self.ana)
+        respuesta = self.cliente(self.ana).delete(f'/api/turista/paquetes/{self.paquete.pk}/grupo/')
+        self.assertEqual(respuesta.status_code, 204)
+        self.assertEqual(self.compartir(self.luis).json()['personas'], [])
+
+    def test_las_posiciones_de_dias_anteriores_se_borran(self):
+        UbicacionCompartida.objects.create(
+            usuario=self.ana, paquete=self.paquete, fecha=fecha_de_hoy() - timedelta(days=1),
+            latitud='-4.2', longitud='-69.9', actualizado_en=timezone.now() - timedelta(days=1))
+        self.compartir(self.luis)
+        self.assertFalse(UbicacionCompartida.objects.filter(fecha__lt=fecha_de_hoy()).exists())
+
+    def test_coordenadas_invalidas_se_rechazan(self):
+        self.assertEqual(self.compartir(self.ana, lat=123).status_code, 400)
+
+    def test_agencia_no_puede_compartir(self):
+        respuesta = self.cliente(self.paquete.agencia).post(
+            f'/api/turista/paquetes/{self.paquete.pk}/grupo/', {'latitud': -4.2, 'longitud': -69.9}, format='json')
+        self.assertEqual(respuesta.status_code, 403)
+
+    def test_perfil_solo_de_quien_comparte_en_mi_paquete(self):
+        url = f'/api/turista/grupo/viajeros/{self.ana.pk}/'
+        # Ana aún no comparte: no se distingue de que no exista.
+        self.assertEqual(self.cliente(self.luis).get(url).status_code, 404)
+        self.compartir(self.ana)
+        respuesta = self.cliente(self.luis).get(url)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(set(respuesta.json()), {'id', 'nombre', 'foto', 'miembro_desde', 'viaja_en'})
+        self.assertNotIn('ana@example.test', json.dumps(respuesta.json()))
+        # Quien no tiene reserva en ese paquete no puede verlo.
+        self.assertEqual(self.cliente(self.sin_reserva).get(url).status_code, 404)
+        # Tampoco el propio perfil por esta vía.
+        self.assertEqual(self.cliente(self.ana).get(url).status_code, 404)
 
 
 class ReservarHoyCommandTests(TestCase):

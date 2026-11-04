@@ -7,6 +7,7 @@ simplificado y publicado por la agencia; los puntos originales (con hora y preci
 no se exponen.
 """
 import math
+from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -19,13 +20,19 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Detalles_Venta, PaqueteTuristico, PuntoRecorrido, Recorrido, ReservaFecha
+from .models import (
+    Detalles_Venta, PaqueteTuristico, PuntoRecorrido, Recorrido, ReservaFecha, Turista, UbicacionCompartida,
+)
 from .permissions import IsAgencia, IsTurista
 
 MAX_PUNTOS_POR_LOTE = 500
 MIN_PUNTOS_PARA_PUBLICAR = 2
 DISTANCIA_MINIMA_PUBLICA_M = 5
 MAX_PUNTOS_PUBLICOS = 1000
+# Una posición compartida deja de mostrarse a los demás pasado este tiempo sin actualizarse.
+VIGENCIA_UBICACION_COMPARTIDA = timedelta(minutes=5)
+# Para no escribir en la base de datos con cada lectura del GPS.
+INTERVALO_MINIMO_ACTUALIZACION = timedelta(seconds=2)
 
 
 def fecha_de_hoy():
@@ -316,3 +323,108 @@ class RecorridoTuristaView(APIView):
             ubicacion = {'latitud': float(paquete.latitud), 'longitud': float(paquete.longitud), 'lugar': paquete.ubicacion}
         datos.update({'paquete': pk, 'nombre_paquete': paquete.nombre, 'fecha': reserva.fecha, 'ubicacion_paquete': ubicacion})
         return Response(datos)
+
+
+# ── Ver a las demás personas del recorrido (opcional y recíproco) ──────────────────────────────────
+
+class UbicacionGrupoSerializer(serializers.Serializer):
+    latitud = serializers.FloatField(min_value=-90, max_value=90)
+    longitud = serializers.FloatField(min_value=-180, max_value=180)
+    precision_m = serializers.FloatField(required=False, allow_null=True, min_value=0)
+
+
+def nombre_publico(usuario):
+    """Nombre y la inicial del apellido: lo justo para reconocer a alguien sin exponer su identidad completa."""
+    nombre = (usuario.first_name or '').strip()
+    inicial = (usuario.last_name or '').strip()[:1]
+    if not nombre:
+        return 'Viajero'
+    return f'{nombre} {inicial}.' if inicial else nombre
+
+
+def foto_publica(turista):
+    try:
+        return turista.foto_perfil.url if turista and turista.foto_perfil else None
+    except Exception:
+        return None
+
+
+def personas_del_grupo(paquete_id, excluir_usuario_id, hoy, ahora):
+    """Quienes comparten ubicación hoy en este paquete y la actualizaron hace poco, sin la persona que consulta."""
+    vigentes = UbicacionCompartida.objects.filter(
+        paquete_id=paquete_id, fecha=hoy, actualizado_en__gte=ahora - VIGENCIA_UBICACION_COMPARTIDA,
+    ).exclude(usuario_id=excluir_usuario_id).select_related('usuario')
+    turistas = {t.pk: t for t in Turista.objects.filter(pk__in=[u.usuario_id for u in vigentes])}
+    return [
+        {
+            'id': u.usuario_id,
+            'nombre': nombre_publico(u.usuario),
+            'foto': foto_publica(turistas.get(u.usuario_id)),
+            'latitud': float(u.latitud),
+            'longitud': float(u.longitud),
+            'precision_m': u.precision_m,
+            'hace_segundos': max(0, int((ahora - u.actualizado_en).total_seconds())),
+        }
+        for u in vigentes
+    ]
+
+
+class GrupoRecorridoView(APIView):
+    """POST: comparte mi posición y devuelve a las demás personas. DELETE: dejo de compartirla.
+
+    Solo ve al grupo quien también comparte (reciprocidad) y solo si tiene una reserva confirmada de este
+    paquete para hoy. Todo se valida en el servidor.
+    """
+    permission_classes = [IsTurista]
+
+    def post(self, request, pk):
+        if reserva_habilitada(request.user.pk, pk) is None:
+            return Response({'detail': 'Solo puedes compartir tu ubicación el día de realización de un paquete que hayas comprado y confirmado.'}, status=status.HTTP_403_FORBIDDEN)
+        datos = UbicacionGrupoSerializer(data=request.data)
+        datos.is_valid(raise_exception=True)
+        valores = datos.validated_data
+        ahora = timezone.now()
+        hoy = fecha_de_hoy()
+        # Las posiciones de días anteriores ya no sirven para nada: se borran.
+        UbicacionCompartida.objects.filter(fecha__lt=hoy).delete()
+        actual = UbicacionCompartida.objects.filter(usuario_id=request.user.pk, paquete_id=pk, fecha=hoy).first()
+        if actual is None or ahora - actual.actualizado_en >= INTERVALO_MINIMO_ACTUALIZACION:
+            UbicacionCompartida.objects.update_or_create(
+                usuario_id=request.user.pk, paquete_id=pk, fecha=hoy,
+                defaults={
+                    'latitud': round(valores['latitud'], 6), 'longitud': round(valores['longitud'], 6),
+                    'precision_m': valores.get('precision_m'), 'actualizado_en': ahora,
+                },
+            )
+        return Response({
+            'personas': personas_del_grupo(pk, request.user.pk, hoy, ahora),
+            'vigencia_segundos': int(VIGENCIA_UBICACION_COMPARTIDA.total_seconds()),
+        })
+
+    def delete(self, request, pk):
+        UbicacionCompartida.objects.filter(usuario_id=request.user.pk, paquete_id=pk, fecha=fecha_de_hoy()).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PerfilViajeroGrupoView(APIView):
+    """Perfil mínimo de otra persona del recorrido, solo mientras comparte ubicación en un paquete que yo también hago hoy."""
+    permission_classes = [IsTurista]
+
+    def get(self, request, usuario_id):
+        hoy = fecha_de_hoy()
+        ahora = timezone.now()
+        compartidos = UbicacionCompartida.objects.filter(
+            usuario_id=usuario_id, fecha=hoy, actualizado_en__gte=ahora - VIGENCIA_UBICACION_COMPARTIDA,
+        ).select_related('paquete').exclude(usuario_id=request.user.pk)
+        for compartido in compartidos:
+            if reserva_habilitada(request.user.pk, compartido.paquete_id) is not None:
+                turista = get_object_or_404(Turista, pk=usuario_id)
+                return Response({
+                    'id': turista.pk,
+                    'nombre': nombre_publico(turista),
+                    'foto': foto_publica(turista),
+                    'miembro_desde': turista.date_joined.year,
+                    'viaja_en': compartido.paquete.nombre,
+                })
+        # No se distingue «no existe» de «no comparte contigo»: así no se pueden sondear perfiles.
+        return Response({'detail': 'Este perfil no está disponible.'}, status=status.HTTP_404_NOT_FOUND)

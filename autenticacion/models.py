@@ -589,3 +589,23 @@ class PuntoRecorrido(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['recorrido', 'secuencia'], name='punto_recorrido_secuencia_unica'),
         ]
+
+
+class UbicacionCompartida(models.Model):
+    """Última posición que una persona comparte con quienes hacen el mismo paquete el mismo día.
+
+    Es efímera a propósito: solo se conserva la más reciente, se considera vigente unos minutos y se
+    borra al terminar el día. Se crea únicamente si la persona decide compartirla.
+    """
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='ubicaciones_compartidas')
+    paquete = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE, related_name='ubicaciones_compartidas')
+    fecha = models.DateField()
+    latitud = models.DecimalField(max_digits=9, decimal_places=6)
+    longitud = models.DecimalField(max_digits=9, decimal_places=6)
+    precision_m = models.FloatField(null=True, blank=True)
+    actualizado_en = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['usuario', 'paquete', 'fecha'], name='ubicacion_compartida_unica'),
+        ]
