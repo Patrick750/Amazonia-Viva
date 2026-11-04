@@ -342,9 +342,10 @@ def nombre_publico(usuario):
     return f'{nombre} {inicial}.' if inicial else nombre
 
 
-def foto_publica(turista):
+def foto_publica(turista, campo='foto_perfil'):
     try:
-        return turista.foto_perfil.url if turista and turista.foto_perfil else None
+        imagen = getattr(turista, campo, None) if turista else None
+        return imagen.url if imagen else None
     except Exception:
         return None
 
@@ -423,6 +424,7 @@ class PerfilViajeroGrupoView(APIView):
                     'id': turista.pk,
                     'nombre': nombre_publico(turista),
                     'foto': foto_publica(turista),
+                    'portada': foto_publica(turista, 'foto_portada'),
                     'miembro_desde': turista.date_joined.year,
                     'viaja_en': compartido.paquete.nombre,
                 })

@@ -1255,7 +1255,7 @@ class GrupoRecorridoTests(TestCase):
         self.compartir(self.ana)
         respuesta = self.cliente(self.luis).get(url)
         self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(set(respuesta.json()), {'id', 'nombre', 'foto', 'miembro_desde', 'viaja_en'})
+        self.assertEqual(set(respuesta.json()), {'id', 'nombre', 'foto', 'portada', 'miembro_desde', 'viaja_en'})
         self.assertNotIn('ana@example.test', json.dumps(respuesta.json()))
         # Quien no tiene reserva en ese paquete no puede verlo.
         self.assertEqual(self.cliente(self.sin_reserva).get(url).status_code, 404)
