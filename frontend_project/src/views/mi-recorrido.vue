@@ -6,6 +6,8 @@ import 'leaflet/dist/leaflet.css'
 import clienteAxios from '@/api/axios'
 import { useMiUbicacion } from '@/composables/recorridos/useMiUbicacion'
 import { useNotificacion } from '@/composables/useNotificacion'
+import { OPCIONES_MOSAICOS, URL_MOSAICOS } from '@/config/mapa'
+import { guardadosParaHoy, guardarPaquete, hoyEnColombia, obtenerGuardado } from '@/composables/recorridos/almacenOffline'
 
 const route = useRoute()
 const { mostrarNotificacion } = useNotificacion()
@@ -15,6 +17,9 @@ const habilitados = ref([])
 const seleccionado = ref(null)
 const datos = ref(null)
 const error = ref('')
+// Sin conexión se usa la copia guardada en el dispositivo al abrir «Mis reservas» con internet.
+const sinConexion = ref(false)
+const guardadoEl = ref('')
 // La ubicación se muestra por defecto: la persona llega aquí desde su reserva para orientarse en el recorrido.
 const mostrarUbicacion = ref(true)
 const mapaEl = ref(null)
@@ -146,6 +151,28 @@ const centrarEnMi = () => {
   if (mapa && miPosicion.value) mapa.setView([miPosicion.value.lat, miPosicion.value.lng], Math.max(mapa.getZoom(), 17))
 }
 
+const aDatos = (guardado) => ({
+  disponible: guardado.disponible,
+  puntos: guardado.puntos,
+  distancia_km: guardado.distancia_km,
+  nombre_paquete: guardado.nombre,
+  fecha: guardado.fecha,
+  ubicacion_paquete: guardado.ubicacion_paquete,
+})
+
+// Sin internet solo se muestra lo guardado para HOY; el servidor no puede validar la compra, pero lo guardado
+// salió de una reserva confirmada de este turista y el recorrido publicado es público.
+const mostrarCopiaGuardada = (paquete) => {
+  const guardado = obtenerGuardado(paquete)
+  if (!guardado || guardado.fecha !== hoyEnColombia()) {
+    error.value = 'Sin conexión: este mapa no está guardado en el dispositivo. Abre «Mis reservas» con internet, antes de salir, para guardarlo.'
+    return
+  }
+  sinConexion.value = true
+  guardadoEl.value = new Date(guardado.guardado_en).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+  datos.value = aDatos(guardado)
+}
+
 const cargarRecorrido = async (paquete) => {
   seleccionado.value = paquete
   datos.value = null
@@ -154,11 +181,19 @@ const cargarRecorrido = async (paquete) => {
   try {
     const { data } = await clienteAxios.get(`api/turista/paquetes/${paquete}/recorrido/`)
     datos.value = data
+    // Si ya había una copia guardada, se renueva con lo último del servidor.
+    const copia = obtenerGuardado(paquete)
+    if (copia) {
+      guardarPaquete({ ...copia, nombre: data.nombre_paquete, fecha: data.fecha, disponible: data.disponible, puntos: data.puntos || [], distancia_km: data.distancia_km || 0, ubicacion_paquete: data.ubicacion_paquete, guardado_en: new Date().toISOString() })
+    }
+  } catch (fallo) {
+    if (!fallo.response) mostrarCopiaGuardada(paquete)
+    else error.value = fallo.response?.data?.detail || 'No pudimos cargar el recorrido. Revisa tu conexión e inténtalo de nuevo.'
+  }
+  if (datos.value) {
     await nextTick()
     dibujar()
     dibujarYo()
-  } catch (fallo) {
-    error.value = fallo.response?.data?.detail || 'No pudimos cargar el recorrido. Revisa tu conexión e inténtalo de nuevo.'
   }
 }
 
@@ -167,7 +202,7 @@ onMounted(async () => {
   // En móvil el zoom se hace con los dedos; los botones +/- solo estorbarían al resto de controles.
   mapa = L.map(mapaEl.value, { zoomControl: false }).setView([-4.2153, -69.9406], 12)
   if (window.matchMedia('(min-width: 640px)').matches) L.control.zoom({ position: 'topleft' }).addTo(mapa)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(mapa)
+  L.tileLayer(URL_MOSAICOS, OPCIONES_MOSAICOS).addTo(mapa)
   capa = L.layerGroup().addTo(mapa)
   // Si la persona arrastra el mapa, deja de seguirla hasta que pulse «Mi ubicación».
   mapa.on('dragstart', () => { siguiendo = false })
@@ -179,8 +214,17 @@ onMounted(async () => {
     const pedido = Number(route.query.paquete)
     const elegido = data.find(item => item.paquete === pedido) || data[0]
     if (elegido) await cargarRecorrido(elegido.paquete)
-  } catch {
-    error.value = 'No pudimos consultar tus reservas. Revisa tu conexión e inténtalo de nuevo.'
+  } catch (fallo) {
+    if (!fallo.response) {
+      // Sin conexión: se usan los mapas guardados para hoy.
+      sinConexion.value = true
+      habilitados.value = guardadosParaHoy().map(item => ({ paquete: item.paquete, nombre: item.nombre, fecha: item.fecha, tiene_recorrido: item.disponible }))
+      const elegido = habilitados.value.find(item => item.paquete === Number(route.query.paquete)) || habilitados.value[0]
+      if (elegido) await cargarRecorrido(elegido.paquete)
+      else error.value = 'Sin conexión: no hay un mapa guardado para hoy en este dispositivo. Abre «Mis reservas» con internet, antes de salir, para guardarlo.'
+    } else {
+      error.value = 'No pudimos consultar tus reservas. Revisa tu conexión e inténtalo de nuevo.'
+    }
   } finally {
     cargando.value = false
   }
@@ -199,6 +243,10 @@ onBeforeUnmount(() => {
       <router-link to="/panel/reservas" class="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-400/70 hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-300">← Mis reservas</router-link>
       <h1 class="text-2xl font-black tracking-tight sm:text-5xl">Recorrido de <span class="text-emerald-500">hoy</span></h1>
       <p class="mt-2 hidden text-sm text-white/60 sm:block">Disponible el día de realización de los paquetes que compraste y están confirmados.</p>
+
+      <p v-if="sinConexion" class="mt-3 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-xs text-amber-100" role="status">
+        Sin conexión: estás viendo el recorrido guardado en este dispositivo<span v-if="guardadoEl"> (guardado el {{ guardadoEl }})</span>. Tu ubicación sigue funcionando con el GPS.
+      </p>
 
       <p v-if="cargando" class="mt-6 text-white/60" role="status">Cargando…</p>
 

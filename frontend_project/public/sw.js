@@ -5,10 +5,18 @@
 const VERSION = 'v1'
 const CACHE_APP = `amazonia-app-${VERSION}`
 const CACHE_MAPA = 'amazonia-mapa-v1'
-const MAX_MOSAICOS = 400
+const MAX_MOSAICOS = 1200
 
 self.addEventListener('install', (evento) => {
-  evento.waitUntil(caches.open(CACHE_APP).then(cache => cache.addAll(['/', '/manifest.webmanifest'])))
+  evento.waitUntil((async () => {
+    const cache = await caches.open(CACHE_APP)
+    await cache.addAll(['/', '/manifest.webmanifest'])
+    // En la primera visita el código principal ya se cargó antes de que existiera el worker y no pasó por él:
+    // se descarga ahora lo que la carcasa necesita para arrancar (sale del propio index.html).
+    const html = await (await cache.match('/')).text()
+    const recursos = [...new Set([...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map(coincidencia => coincidencia[1]))]
+    await Promise.all(recursos.map(url => cache.add(url).catch(() => {})))
+  })())
   self.skipWaiting()
 })
 
@@ -29,7 +37,8 @@ async function recortar(cache) {
 
 async function mosaico(peticion) {
   const cache = await caches.open(CACHE_MAPA)
-  const guardado = await cache.match(peticion)
+  // ignoreVary: el mosaico guardado debe servir aunque cambien las cabeceras de la petición.
+  const guardado = await cache.match(peticion, { ignoreVary: true })
   if (guardado) return guardado
   try {
     const respuesta = await fetch(peticion)
@@ -73,6 +82,6 @@ self.addEventListener('fetch', (evento) => {
     evento.respondWith(mosaico(peticion))
   } else if (url.origin === self.location.origin) {
     if (peticion.mode === 'navigate') evento.respondWith(navegacion(peticion))
-    else if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) evento.respondWith(recursoEstatico(peticion))
+    else if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/') || url.pathname === '/manifest.webmanifest') evento.respondWith(recursoEstatico(peticion))
   }
 })

@@ -8,6 +8,7 @@ import { paquetes as pedirPaquetes } from '@/composables/gestion-tours/paquetes'
 import { PRECISION_MAXIMA_M, useGrabacion } from '@/composables/recorridos/useGrabacion'
 import { useMiUbicacion } from '@/composables/recorridos/useMiUbicacion'
 import { useNotificacion } from '@/composables/useNotificacion'
+import { OPCIONES_MOSAICOS, URL_MOSAICOS } from '@/config/mapa'
 import { eliminarRecorrido as borrarLocal, listarRecorridos } from '@/composables/recorridos/almacenLocal'
 import { reintentarRecorrido } from '@/composables/recorridos/sincronizacion'
 
@@ -201,7 +202,7 @@ const iniciarMapa = () => {
   mapa = L.map(mapaEl.value, { zoomControl: false }).setView([-4.2153, -69.9406], 13)
   // En móvil se hace zoom con los dedos; los botones +/- solo estorbarían a los controles.
   if (window.matchMedia('(min-width: 1024px)').matches) L.control.zoom({ position: 'topleft' }).addTo(mapa)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(mapa)
+  L.tileLayer(URL_MOSAICOS, OPCIONES_MOSAICOS).addTo(mapa)
   // Borde blanco bajo la línea verde para que el trazo se distinga sobre cualquier fondo.
   lineaBorde = L.polyline([], { color: '#ffffff', weight: 10, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(mapa)
   linea = L.polyline([], { color: '#059669', weight: 6, lineCap: 'round', lineJoin: 'round' }).addTo(mapa)
