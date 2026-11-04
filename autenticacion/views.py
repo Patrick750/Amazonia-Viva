@@ -1729,6 +1729,9 @@ class MisReservasView(APIView):
                     'imagen': imagen_portada,
                     'agencia': paquete.agencia.nombre_agencia if (paquete.agencia and hasattr(paquete.agencia, 'nombre_agencia')) else '',
                     'ubicacion': paquete.ubicacion,
+                    # Punto de encuentro, para guardar el mapa del recorrido y usarlo sin conexión.
+                    'latitud': float(paquete.latitud) if paquete.latitud is not None else None,
+                    'longitud': float(paquete.longitud) if paquete.longitud is not None else None,
                     'fecha_actividad': fecha_actividad,
                     'cantidad': cant,
                     'precio_unitario': str(p_unit),

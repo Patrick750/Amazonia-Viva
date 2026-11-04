@@ -1139,6 +1139,16 @@ class RecorridosGpsTests(TestCase):
         self.assertEqual(Detalles_Venta.objects.get(paquete=self.paquete.pk).estado, 'Confirmado')
         self.assertEqual(acceso.status_code, 200)
 
+    def test_mis_reservas_incluye_la_ubicacion_del_paquete_para_uso_sin_conexion(self):
+        self.ubicar_paquete('-4.215300', '-69.940600')
+        self.reserva()
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        reserva = cliente.get('/api/mis-reservas/').data[0]
+        self.assertEqual((reserva['latitud'], reserva['longitud']), (-4.2153, -69.9406))
+        self.assertEqual(reserva['paquete_id'], self.paquete.pk)
+        self.assertEqual(reserva['fecha_actividad'], str(fecha_de_hoy()))
+
     def test_compra_de_otro_turista_no_habilita(self):
         self.reserva(usuario=self.ajeno)
         cliente = APIClient()
