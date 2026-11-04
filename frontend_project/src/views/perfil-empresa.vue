@@ -2,11 +2,18 @@
   <div class="min-h-screen bg-slate-50 font-sans">
 
     <!-- ═══ HEADER-PERFIL ═══ -->
-    <div class="bg-gradient-to-r from-emerald-900 to-emerald-700 pt-10 pb-20 px-4">
-      <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-6">
+    <div class="relative overflow-hidden bg-gradient-to-r from-emerald-900 to-emerald-700 pt-10 pb-20 px-4">
+      <!-- Portada: se ve aquí desde el primer momento; tócala para verla en grande o usa la cámara para cambiarla o eliminarla -->
+      <div class="absolute inset-0 z-0">
+        <img v-if="perfil.foto_portada_url" :src="perfil.foto_portada_url" alt="Portada" class="h-full w-full object-cover" />
+        <div v-if="perfil.foto_portada_url" class="pointer-events-none absolute inset-0 bg-black/35"></div>
+        <ControlesImagen tipo="portada" :url="perfil.foto_portada_url" editable posicion-boton="top-3 right-3" @cambio="perfil.foto_portada_url = $event" />
+      </div>
+      <!-- El contenido deja pasar los toques a la portada salvo en la foto y los textos -->
+      <div class="relative z-10 pointer-events-none max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-6">
 
         <!-- Logotipo: tocarlo lo abre en grande; el botón de cámara permite agregarlo, cambiarlo o eliminarlo -->
-        <div class="relative shrink-0">
+        <div class="pointer-events-auto relative shrink-0">
           <div class="relative w-24 h-24 rounded-2xl bg-white/20 border-2 border-white/40 flex items-center justify-center overflow-hidden shadow-xl">
             <img v-if="perfil.foto_url" :src="perfil.foto_url" alt="Logo empresa" class="w-full h-full object-cover" />
             <span v-else class="text-3xl font-bold text-white select-none">{{ iniciales }}</span>
@@ -18,7 +25,7 @@
         </div>
 
         <!-- Nombre empresa + email -->
-        <div class="text-center sm:text-left">
+        <div class="pointer-events-auto text-center sm:text-left">
           <h1 class="text-2xl font-bold text-white">{{ nombreEmpresa }}</h1>
           <p class="text-emerald-200 text-sm mt-1">{{ perfil.email }}</p>
           <div class="flex items-center justify-center sm:justify-start gap-2 mt-2">
@@ -32,10 +39,10 @@
     </div>
 
     <!-- ═══ LAYOUT CON SIDEBAR ═══ -->
-    <div class="max-w-6xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
+    <div class="relative z-10 max-w-6xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
       
       <!-- Menú Lateral -->
-      <MenuLateralPerfil v-model="currentView" />
+      <MenuLateralPerfil v-model="currentView" :rol="rol" />
 
       <!-- CONTENIDO DINÁMICO -->
       <div class="flex-1 min-w-0">
@@ -143,6 +150,9 @@
             </transition>
           </div>
 
+          <!-- ── MIS PAQUETES / MIS PRODUCTOS ── -->
+          <MiCatalogo v-else-if="currentView === 'catalogo'" key="catalogo" :rol="rol" />
+
           <!-- ── VISTA PERFIL (PREVIEW SOCIAL COMMERCE) ── -->
           <VistaPerfilPublico 
             v-else 
@@ -202,6 +212,7 @@ import InformacionAvanzada from '@/components/perfil/InformacionAvanzada.vue'
 import MenuLateralPerfil from '@/components/perfil/MenuLateralPerfil.vue'
 import VistaPerfilPublico from '@/components/perfil/VistaPerfilPublico.vue'
 import ControlesImagen from '@/components/perfil/ControlesImagen.vue'
+import MiCatalogo from '@/components/perfil/MiCatalogo.vue'
 
 
 const route = useRoute()

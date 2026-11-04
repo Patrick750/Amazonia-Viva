@@ -5,12 +5,17 @@ const props = defineProps({
   modelValue: {
     type: String,
     default: 'info'
+  },
+  // 'agencia' o 'proveedor' añaden la sección con su propio catálogo
+  rol: {
+    type: String,
+    default: ''
   }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
-const menuItems = [
+const itemsBase = [
   {
     id: 'info',
     label: 'Información cuenta',
@@ -22,6 +27,15 @@ const menuItems = [
     icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
   }
 ]
+
+const itemCatalogo = computed(() => {
+  const rol = (props.rol || '').toLowerCase()
+  if (rol === 'agencia') return { id: 'catalogo', label: 'Mis paquetes', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>` }
+  if (rol === 'proveedor') return { id: 'catalogo', label: 'Mis productos', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>` }
+  return null
+})
+
+const menuItems = computed(() => (itemCatalogo.value ? [...itemsBase, itemCatalogo.value] : itemsBase))
 
 function selectItem(id) {
   emit('update:modelValue', id)

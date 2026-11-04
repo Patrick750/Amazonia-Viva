@@ -2,11 +2,18 @@
   <div class="min-h-screen bg-slate-50 font-sans">
 
     <!-- ═══ HEADER ═══ -->
-    <div class="bg-gradient-to-r from-emerald-900 to-emerald-700 pt-10 pb-20 px-4">
-      <div class="max-w-2xl mx-auto flex flex-col sm:flex-row items-center gap-6">
+    <div class="relative overflow-hidden bg-gradient-to-r from-emerald-900 to-emerald-700 pt-10 pb-20 px-4">
+      <!-- Portada: se ve aquí desde el primer momento; tócala para verla en grande o usa la cámara para cambiarla o eliminarla -->
+      <div class="absolute inset-0 z-0">
+        <img v-if="perfil.foto_portada_url" :src="perfil.foto_portada_url" alt="Portada" class="h-full w-full object-cover" />
+        <div v-if="perfil.foto_portada_url" class="pointer-events-none absolute inset-0 bg-black/35"></div>
+        <ControlesImagen tipo="portada" :url="perfil.foto_portada_url" editable posicion-boton="top-3 right-3" @cambio="perfil.foto_portada_url = $event" />
+      </div>
+      <!-- El contenido deja pasar los toques a la portada salvo en la foto y los textos -->
+      <div class="relative z-10 pointer-events-none max-w-2xl mx-auto flex flex-col sm:flex-row items-center gap-6">
 
         <!-- Foto de perfil: tocarla la abre en grande; el botón de cámara permite agregarla, cambiarla o eliminarla -->
-        <div class="relative shrink-0">
+        <div class="pointer-events-auto relative shrink-0">
           <div class="relative w-20 h-20 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shadow-xl overflow-hidden">
             <img v-if="perfil.foto_url" :src="perfil.foto_url" alt="Foto de perfil" class="w-full h-full object-cover" />
             <span v-else class="text-2xl font-bold text-white select-none">{{ iniciales }}</span>
@@ -14,7 +21,7 @@
           <ControlesImagen tipo="perfil" :url="perfil.foto_url" editable redondeo="rounded-full" posicion-boton="-bottom-1 -right-1" @cambio="perfil.foto_url = $event" />
         </div>
 
-        <div class="text-center sm:text-left">
+        <div class="pointer-events-auto text-center sm:text-left">
           <h1 class="text-2xl font-bold text-white">{{ perfil.first_name }} {{ perfil.last_name }}</h1>
           <p class="text-emerald-200 text-sm mt-1">{{ perfil.email }}</p>
           <span class="inline-flex items-center gap-1 mt-2 bg-emerald-600/60 border border-emerald-400/40 text-emerald-100 text-xs px-2.5 py-1 rounded-full">
@@ -26,7 +33,7 @@
     </div>
 
     <!-- ═══ LAYOUT CON SIDEBAR ═══ -->
-    <div class="max-w-5xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
+    <div class="relative z-10 max-w-5xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
       
       <!-- Menú Lateral -->
       <MenuLateralPerfil v-model="currentView" />
