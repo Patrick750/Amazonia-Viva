@@ -222,7 +222,7 @@ const tagUsuario = computed(() => {
           </div>
           
           <div class="flex items-center gap-2">
-            <button v-if="!esPropietario" class="flex-1 md:flex-none px-8 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-xl shadow-slate-900/20 active:scale-95 transition-all">
+            <button v-if="!esPropietario && (rolLabel || '').toLowerCase() !== 'turista'" class="flex-1 md:flex-none px-8 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm shadow-xl shadow-slate-900/20 active:scale-95 transition-all">
               Contactar
             </button>
           </div>

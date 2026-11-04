@@ -112,27 +112,58 @@ const dibujar = () => {
 
 const haceCuanto = (segundos) => (segundos < 60 ? 'ahora mismo' : `hace ${Math.round(segundos / 60)} min`)
 
-// El contenido del globo se arma con nodos de texto: el nombre lo escribe otra persona y nunca se interpreta como HTML.
+// El contenido de la tarjeta se arma con nodos de texto: el nombre lo escribe otra persona y nunca se interpreta como HTML.
 const contenidoPersona = (persona) => {
   const caja = document.createElement('div')
   caja.className = 'persona-popup'
-  if (persona.foto) {
-    const foto = document.createElement('img')
-    foto.src = persona.foto
-    foto.alt = ''
-    caja.append(foto)
-  }
   const nombre = document.createElement('strong')
   nombre.textContent = persona.nombre
   const cuando = document.createElement('span')
   cuando.textContent = `Ubicación ${haceCuanto(persona.hace_segundos)}`
   const enlace = document.createElement('a')
-  enlace.href = `/viajero/${persona.id}`
+  enlace.href = `/perfil/${persona.id}?tipo=turista`
   enlace.target = '_blank'
   enlace.rel = 'noopener'
-  enlace.textContent = 'Ver su cuenta'
+  enlace.textContent = 'Ver perfil'
   caja.append(nombre, cuando, enlace)
   return caja
+}
+
+// Pin de ubicación con la foto de la persona (o su inicial) dentro de la cabeza del pin.
+const iconoPin = (persona) => {
+  const pin = document.createElement('span')
+  pin.className = 'pin-persona'
+  const cara = document.createElement('span')
+  cara.className = 'pin-persona__cara'
+  if (persona.foto) {
+    const foto = document.createElement('img')
+    foto.src = persona.foto
+    foto.alt = ''
+    cara.append(foto)
+  } else {
+    cara.textContent = persona.nombre.charAt(0).toUpperCase()
+  }
+  pin.append(cara)
+  return L.divIcon({ className: '', html: pin, iconSize: [44, 52], iconAnchor: [22, 50], popupAnchor: [0, -50] })
+}
+
+let personaElegida = null
+let pinPersona = null
+
+const quitarPin = () => {
+  pinPersona?.remove()
+  pinPersona = null
+}
+
+// Al tocar el punto de otra persona aparece su pin con la tarjeta de su perfil.
+const mostrarPin = (persona) => {
+  quitarPin()
+  personaElegida = persona.id
+  pinPersona = L.marker([persona.latitud, persona.longitud], { icon: iconoPin(persona), zIndexOffset: 2000, keyboard: false })
+    .bindPopup(() => contenidoPersona(persona), { offset: [0, 0] })
+    .addTo(mapa)
+    .openPopup()
+  pinPersona.on('popupclose', () => { if (pinPersona) { quitarPin(); personaElegida = null } })
 }
 
 // Las demás personas se dibujan como círculos morados, distintos del azul de «tú».
@@ -141,9 +172,15 @@ const dibujarPersonas = () => {
   capaPersonas.clearLayers()
   for (const persona of personas.value) {
     L.circleMarker([persona.latitud, persona.longitud], { radius: 11, color: '#fff', weight: 3, fillColor: '#9333ea', fillOpacity: 1 })
-      .bindPopup(() => contenidoPersona(persona))
-      .bindTooltip(persona.nombre, { direction: 'top', offset: [0, -10] })
+      .on('click', () => mostrarPin(persona))
       .addTo(capaPersonas)
+  }
+  // Si hay un pin abierto, sigue a la persona; si dejó de compartir, desaparece.
+  const elegida = personas.value.find(persona => persona.id === personaElegida)
+  if (!elegida) {
+    if (personaElegida !== null) { quitarPin(); personaElegida = null }
+  } else if (pinPersona) {
+    pinPersona.setLatLng([elegida.latitud, elegida.longitud])
   }
 }
 
@@ -376,8 +413,12 @@ onBeforeUnmount(() => {
 .etiqueta-yo::before { border-top-color: #2563eb !important; }
 @keyframes pulso-yo { 0% { transform: scale(0.6); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .marcador-yo__halo { animation: none; opacity: 0.5; } }
-.persona-popup { display: flex; flex-direction: column; gap: 2px; min-width: 9rem; font-size: 13px; }
-.persona-popup img { width: 48px; height: 48px; border-radius: 9999px; object-fit: cover; margin-bottom: 4px; }
+.persona-popup { display: flex; flex-direction: column; gap: 2px; min-width: 8rem; font-size: 13px; }
 .persona-popup span { color: #4b5563; }
 .persona-popup a { margin-top: 4px; font-weight: 800; color: #7e22ce; text-decoration: underline; }
+/* Pin de ubicación de otra persona: gota morada con su foto dentro. */
+.pin-persona { position: relative; display: block; width: 44px; height: 52px; }
+.pin-persona::before { content: ''; position: absolute; left: 2px; top: 0; width: 40px; height: 40px; background: #9333ea; border: 3px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); transform-origin: 50% 50%; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45); }
+.pin-persona__cara { position: absolute; left: 8px; top: 6px; width: 28px; height: 28px; border-radius: 9999px; overflow: hidden; background: #fff; color: #7e22ce; font-weight: 900; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+.pin-persona__cara img { width: 100%; height: 100%; object-fit: cover; }
 </style>

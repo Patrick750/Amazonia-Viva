@@ -25,6 +25,21 @@ const cargarPerfil = async () => {
     // Intentar obtener el perfil público
     // Opcionalmente podemos pasar el tipo si lo tenemos desde la tarjeta, 
     // pero el backend intentará buscar en ambos si no se pasa.
+    if (route.query.tipo === 'turista') {
+      // Perfil de otro turista del recorrido de hoy: el servidor solo lo entrega mientras comparte ubicación en un
+      // paquete que también haces hoy, y solo con los datos que muestra el mapa (nunca correo ni teléfono).
+      const { data } = await clienteAxios.get(`/api/turista/grupo/viajeros/${idStr}/`)
+      perfilData.value = {
+        id: data.id,
+        es_turista: true,
+        first_name: data.nombre,
+        last_name: '',
+        foto_url: data.foto,
+        foto_portada_url: data.portada,
+        descripcion: `Viajero desde ${data.miembro_desde}. Hoy hace contigo: ${data.viaja_en}.`,
+      }
+      return
+    }
     const tipoQuery = route.query.tipo ? `?tipo=${route.query.tipo}` : ''
     const { data } = await clienteAxios.get(`/api/perfil/publico/${idStr}/${tipoQuery}`)
     perfilData.value = data
@@ -59,7 +74,7 @@ watch(() => route.params.id, cargarPerfil)
           <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         </div>
         <h2 class="text-2xl font-black text-slate-800 mb-2">Perfil no encontrado</h2>
-        <p class="text-slate-500 mb-6">El perfil que buscas no existe o no está disponible públicamente.</p>
+        <p class="text-slate-500 mb-6">El perfil que buscas no existe o no está disponible. El de un viajero solo se puede ver mientras comparte su ubicación hoy en un paquete que tú también haces.</p>
         <button @click="router.push('/catalogo')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-sm transition-colors">
           Volver al catálogo
         </button>
@@ -70,7 +85,7 @@ watch(() => route.params.id, cargarPerfil)
         <VistaPerfilPublico 
           :perfil="perfilData" 
           :esPropietario="false"
-          :rolLabel="perfilData.es_agencia ? 'Agencia' : (perfilData.es_proveedor ? 'Proveedor' : 'Usuario')"
+          :rolLabel="perfilData.es_agencia ? 'Agencia' : (perfilData.es_proveedor ? 'Proveedor' : (perfilData.es_turista ? 'Turista' : 'Usuario'))"
         />
       </div>
     </main>
