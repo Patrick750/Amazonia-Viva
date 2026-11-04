@@ -15,6 +15,7 @@ from rest_framework.test import APIClient
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.files.uploadedfile import SimpleUploadedFile
+import cloudinary
 from cloudinary import CloudinaryResource
 from .models import (Agencia, Proveedor, Turista, Usuario, Categoria, Actividad, Categorias, PaqueteTuristico,
                      Productos, Venta, Detalles_Venta, ReservaFecha, Carrito, Items, SolicitudRetiro,
@@ -1268,6 +1269,10 @@ class GrupoRecorridoTests(TestCase):
 class ImagenesPerfilTests(TestCase):
     """Foto de perfil y portada: agregar, reemplazar y eliminar solo en la cuenta propia."""
     def setUp(self):
+        # Las URL de Cloudinary exigen un nombre de nube; en CI no hay credenciales, así que se usa uno ficticio.
+        anterior = cloudinary.config().cloud_name
+        cloudinary.config(cloud_name='nube-de-prueba')
+        self.addCleanup(lambda: cloudinary.config(cloud_name=anterior))
         self.turista = Turista.objects.create_user(username='img-tur', email='img-tur@example.test', password='A-safe-pass-938!', fecha_nacimiento='1990-01-01', numero_identidad='5555555555')
         self.agencia = Agencia.objects.create_user(username='img-ag', email='img-ag@example.test', password='A-safe-pass-938!', nombre_agencia='Agencia Img')
         self.contador = 0
