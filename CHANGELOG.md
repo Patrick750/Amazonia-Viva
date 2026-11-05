@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.28.0 — 2026-11-04 — feat(perfil): low [0.1.0] ampliar a 20 MB el tamaño de la foto y la portada
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `02f7f8b305df25f2c355df176ee70fbcd5eaed26`. Versión calculada automáticamente desde VERSION.
+
 ### 5.27.2 — 2026-11-04 — fix(perfil): parch [0.0.1] pruebas de imágenes sin credenciales de Cloudinary
 
 - Autor del commit: AI Bot.
