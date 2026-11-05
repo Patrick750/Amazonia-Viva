@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.11.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar implementación de MEJ-001
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `24bd370a62f309c03ccb75da1a2be499dfe89114`. Versión calculada automáticamente desde VERSION.
+
 ### 5.11.0 — 2026-11-04 — feat(recorridos): low [0.1.0] mostrar recorrido en el paquete y acceso del turista
 
 - Autor del commit: AI Bot.
