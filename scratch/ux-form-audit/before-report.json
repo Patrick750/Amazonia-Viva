@@ -1,0 +1,662 @@
+[
+  {
+    "viewport": {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900
+    },
+    "consoleErrors": [],
+    "pageErrors": [],
+    "failedResponses": [],
+    "metrics": {
+      "viewport": {
+        "w": 1440,
+        "h": 900
+      },
+      "bodyOverflowX": false,
+      "modalRect": {
+        "x": 144,
+        "y": 27,
+        "width": 1152,
+        "height": 846,
+        "top": 27,
+        "right": 1296,
+        "bottom": 873,
+        "left": 144
+      },
+      "scrollHeight": 4863,
+      "clientHeight": 557,
+      "sections": 7,
+      "fields": 63,
+      "smallTargets": [
+        {
+          "tag": "A",
+          "text": "Amazonia\nVIVA",
+          "w": 126,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Inicio",
+          "w": 68,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Catálogo",
+          "w": 93,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Mis compras",
+          "w": 119,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Dashboard",
+          "w": 106,
+          "h": 36
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "w": 40,
+          "h": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "w": 40,
+          "h": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "AM\nAmazonia Expeditions",
+          "w": 176,
+          "h": 40
+        },
+        {
+          "tag": "A",
+          "text": "VOLVER AL DASHBOARD",
+          "w": 219,
+          "h": 32
+        },
+        {
+          "tag": "INPUT",
+          "text": "Buscar tour o destino...",
+          "w": 256,
+          "h": 42
+        },
+        {
+          "tag": "LABEL",
+          "text": "ESTADO:",
+          "w": 52,
+          "h": 15
+        },
+        {
+          "tag": "SELECT",
+          "text": "Todos\nActivos\nInactivos",
+          "w": 93,
+          "h": 16
+        },
+        {
+          "tag": "A",
+          "text": "Instagram",
+          "w": 36,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Facebook",
+          "w": 36,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "YouTube",
+          "w": 36,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Amazonas",
+          "w": 69,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Putumayo",
+          "w": 66,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Caquetá",
+          "w": 56,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Guaviare",
+          "w": 59,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Blog Viajero",
+          "w": 79,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Preguntas Frecuentes",
+          "w": 145,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Cómo Funciona",
+          "w": 103,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Trabaja con nosotros",
+          "w": 140,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Términos y Condiciones",
+          "w": 143,
+          "h": 16
+        },
+        {
+          "tag": "A",
+          "text": "Política de Privacidad",
+          "w": 129,
+          "h": 16
+        },
+        {
+          "tag": "A",
+          "text": "1\nInformación",
+          "w": 124,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "2\nUbicación",
+          "w": 112,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "3\nModalidades & Actividades",
+          "w": 214,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "4\nDificultad & Seguridad",
+          "w": 185,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "5\nItinerario",
+          "w": 107,
+          "h": 35
+        }
+      ],
+      "smallTargetCount": 100,
+      "lowOpacityLeafTextCount": 0
+    },
+    "stepNavigation": {
+      "scrollBefore": 0,
+      "scrollAfter": 2971,
+      "securityVisible": true
+    }
+  },
+  {
+    "viewport": {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024
+    },
+    "consoleErrors": [],
+    "pageErrors": [],
+    "failedResponses": [],
+    "metrics": {
+      "viewport": {
+        "w": 768,
+        "h": 1024
+      },
+      "bodyOverflowX": false,
+      "modalRect": {
+        "x": 24,
+        "y": 30.71875,
+        "width": 720,
+        "height": 962.546875,
+        "top": 30.71875,
+        "right": 744,
+        "bottom": 993.265625,
+        "left": 24
+      },
+      "scrollHeight": 5388,
+      "clientHeight": 654,
+      "sections": 7,
+      "fields": 63,
+      "smallTargets": [
+        {
+          "tag": "A",
+          "text": "Amazonia\nVIVA",
+          "w": 126,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Inicio",
+          "w": 68,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Catálogo",
+          "w": 93,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Dashboard",
+          "w": 106,
+          "h": 36
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "w": 40,
+          "h": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "w": 40,
+          "h": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "AM",
+          "w": 68,
+          "h": 40
+        },
+        {
+          "tag": "A",
+          "text": "VOLVER AL DASHBOARD",
+          "w": 201,
+          "h": 33
+        },
+        {
+          "tag": "INPUT",
+          "text": "Buscar tour o destino...",
+          "w": 222,
+          "h": 42
+        },
+        {
+          "tag": "LABEL",
+          "text": "ESTADO:",
+          "w": 52,
+          "h": 15
+        },
+        {
+          "tag": "SELECT",
+          "text": "Todos\nActivos\nInactivos",
+          "w": 74,
+          "h": 16
+        },
+        {
+          "tag": "A",
+          "text": "Instagram",
+          "w": 36,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Facebook",
+          "w": 36,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "YouTube",
+          "w": 36,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Amazonas",
+          "w": 69,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Putumayo",
+          "w": 66,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Caquetá",
+          "w": 56,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Guaviare",
+          "w": 59,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Blog Viajero",
+          "w": 79,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Preguntas Frecuentes",
+          "w": 145,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Cómo Funciona",
+          "w": 103,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Trabaja con nosotros",
+          "w": 140,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Términos y Condiciones",
+          "w": 138,
+          "h": 32
+        },
+        {
+          "tag": "A",
+          "text": "Política de Privacidad",
+          "w": 124,
+          "h": 32
+        },
+        {
+          "tag": "A",
+          "text": "1\nInformación",
+          "w": 124,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "2\nUbicación",
+          "w": 112,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "3\nModalidades & Actividades",
+          "w": 214,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "4\nDificultad & Seguridad",
+          "w": 185,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "5\nItinerario",
+          "w": 107,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "6\nIncluye",
+          "w": 96,
+          "h": 35
+        }
+      ],
+      "smallTargetCount": 99,
+      "lowOpacityLeafTextCount": 0
+    },
+    "stepNavigation": {
+      "scrollBefore": 0,
+      "scrollAfter": 3487,
+      "securityVisible": true
+    }
+  },
+  {
+    "viewport": {
+      "name": "mobile",
+      "width": 375,
+      "height": 812
+    },
+    "consoleErrors": [],
+    "pageErrors": [],
+    "failedResponses": [],
+    "metrics": {
+      "viewport": {
+        "w": 375,
+        "h": 812
+      },
+      "bodyOverflowX": true,
+      "modalRect": {
+        "x": 8.00421142578125,
+        "y": 16.265380859375,
+        "width": 358.9915771484375,
+        "height": 779.4973754882812,
+        "top": 16.265380859375,
+        "right": 366.99578857421875,
+        "bottom": 795.7627563476562,
+        "left": 8.00421142578125
+      },
+      "scrollHeight": 8267,
+      "clientHeight": 443,
+      "sections": 7,
+      "fields": 63,
+      "smallTargets": [
+        {
+          "tag": "A",
+          "text": "Amazonia\nVIVA",
+          "w": 126,
+          "h": 36
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "w": 40,
+          "h": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "w": 40,
+          "h": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "AM",
+          "w": 68,
+          "h": 40
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "w": 40,
+          "h": 40
+        },
+        {
+          "tag": "A",
+          "text": "VOLVER AL DASHBOARD",
+          "w": 219,
+          "h": 32
+        },
+        {
+          "tag": "INPUT",
+          "text": "Buscar tour o destino...",
+          "w": 261,
+          "h": 42
+        },
+        {
+          "tag": "LABEL",
+          "text": "ESTADO:",
+          "w": 52,
+          "h": 15
+        },
+        {
+          "tag": "SELECT",
+          "text": "Todos\nActivos\nInactivos",
+          "w": 165,
+          "h": 16
+        },
+        {
+          "tag": "A",
+          "text": "Instagram",
+          "w": 36,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Facebook",
+          "w": 36,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "YouTube",
+          "w": 36,
+          "h": 36
+        },
+        {
+          "tag": "A",
+          "text": "Amazonas",
+          "w": 69,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Putumayo",
+          "w": 66,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Caquetá",
+          "w": 56,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Guaviare",
+          "w": 59,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Blog Viajero",
+          "w": 79,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Preguntas Frecuentes",
+          "w": 145,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Cómo Funciona",
+          "w": 103,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Trabaja con nosotros",
+          "w": 140,
+          "h": 17
+        },
+        {
+          "tag": "A",
+          "text": "Términos y Condiciones",
+          "w": 143,
+          "h": 16
+        },
+        {
+          "tag": "A",
+          "text": "Política de Privacidad",
+          "w": 129,
+          "h": 16
+        },
+        {
+          "tag": "A",
+          "text": "1\nInformación",
+          "w": 124,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "2\nUbicación",
+          "w": 112,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "3\nModalidades & Actividades",
+          "w": 214,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "4\nDificultad & Seguridad",
+          "w": 185,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "5\nItinerario",
+          "w": 107,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "6\nIncluye",
+          "w": 96,
+          "h": 35
+        },
+        {
+          "tag": "A",
+          "text": "7\nGalería",
+          "w": 95,
+          "h": 35
+        },
+        {
+          "tag": "INPUT",
+          "text": "",
+          "w": 1,
+          "h": 1
+        }
+      ],
+      "smallTargetCount": 90,
+      "lowOpacityLeafTextCount": 0
+    },
+    "stepNavigation": {
+      "scrollBefore": 0,
+      "scrollAfter": 5582,
+      "securityVisible": true
+    }
+  }
+]

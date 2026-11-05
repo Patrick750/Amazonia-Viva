@@ -56,6 +56,21 @@ const router = createRouter({
       component: paquetes,
     },
     {
+      path:'/panel/recorridos',
+      name:'recorridos_agencia',
+      component: () => import('@/views/recorridos-agencia.vue'),
+    },
+    {
+      path:'/panel/mi-recorrido',
+      name:'mi_recorrido',
+      component: () => import('@/views/mi-recorrido.vue'),
+    },
+    {
+      path:'/estandar-paquetes',
+      name:'estandar_paquetes',
+      component: () => import('@/views/estandar-paquetes.vue'),
+    },
+    {
       path:'/panel/productos',
       name:'productos',
       component: productos,
@@ -192,7 +207,7 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
   const rol = localStorage.getItem('rol')
 
-  const publicPaths = ['/', '/auth/login', '/auth/signup', '/catalogo']
+  const publicPaths = ['/', '/auth/login', '/auth/signup', '/catalogo', '/estandar-paquetes']
   const isPublic = publicPaths.includes(to.path) || to.path.startsWith('/catalogo/') || to.name === 'perfil_publico'
 
   // Si no está autenticado y no es una ruta pública, al inicio
@@ -230,7 +245,11 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  if (to.path === '/panel/gestion-paquetes' && rolLower !== 'agencia') {
+  if ((to.path.startsWith('/panel/gestion-paquetes') || to.path === '/panel/recorridos') && rolLower !== 'agencia') {
+    return next('/')
+  }
+
+  if (to.path === '/panel/mi-recorrido' && rolLower !== 'turista') {
     return next('/')
   }
 

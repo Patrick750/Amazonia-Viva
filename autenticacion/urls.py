@@ -8,13 +8,19 @@ from .views import (
     CategoriaProductoListView, FavoritoView, CarritoView, DetalleTourPublico,
     DetalleProductoPublico, UserStatsView, PerfilView, PerfilFotoView,
     VerificarCredenciales, ConfirmarPasswordView, PerfilPublicoView, ProcesarPagoView,
-    CuposDisponiblesView, MisReservasView, CancelarReservaView, DashboardKPIsView, CargaMasivaPaquetesAPIView
+    CuposDisponiblesView, MisReservasView, CancelarReservaView, DashboardKPIsView,
+    CargaMasivaPaquetesAPIView, EstandarPaquetesView
 )
 from .vistas_pagos import WompiWebhookView, EstadoPedidoView, CancelarPedidoPendienteView
 from .views_productos import ProductosAPIView, ProductoDetalleAPIView, CargaMasivaProductosAPIView
 from .vistas_experiencias import (
     ExperienciasDashboardView, SubirEvidenciaView, DetalleFeedbackView,
     MisExperienciasTuristaView, DescargarEvidenciasZipView
+)
+from .vistas_recorridos import (
+    RecorridosAgenciaView, PuntosRecorridoView, FinalizarRecorridoView, PublicarRecorridoView, EliminarRecorridoView,
+    RecorridoPublicoView, RecorridosHabilitadosTuristaView, RecorridoTuristaView, GrupoRecorridoView,
+    PerfilViajeroGrupoView
 )
 
 urlpatterns = [
@@ -30,6 +36,7 @@ urlpatterns = [
     path('login/', Login.as_view(), name='auth_login'),
     path("logout/", Logout.as_view(), name="logout"),
     path("actividades/", Actividades.as_view(), name="actividades"),
+    path("estandar-paquetes/", EstandarPaquetesView.as_view(), name="estandar_paquetes"),
     path("createnewpack/", NewPack.as_view(), name="createnewpack"),
     path("updatepack/<int:pk>/", UpdatePack.as_view(), name="updatepack"),
     path("deletepack/<int:pk>/", DeletePack.as_view(), name="deletepack"),
@@ -81,6 +88,18 @@ urlpatterns = [
     path("experiencias/<int:pk>/evidencia/", SubirEvidenciaView.as_view(), name='subir_evidencia'),
     path("experiencias/<int:pk>/feedback/", DetalleFeedbackView.as_view(), name='detalle_feedback'),
     path("experiencias/<int:pk>/zip/", DescargarEvidenciasZipView.as_view(), name='descargar_evidencias_zip'),
+
+    # ── Recorridos GPS (MEJ-001) ──────────────────────────────────────────────
+    path("recorridos/", RecorridosAgenciaView.as_view(), name='recorridos_agencia'),
+    path("recorridos/<uuid:id_cliente>/", EliminarRecorridoView.as_view(), name='recorrido_eliminar'),
+    path("recorridos/<uuid:id_cliente>/puntos/", PuntosRecorridoView.as_view(), name='recorrido_puntos'),
+    path("recorridos/<uuid:id_cliente>/finalizar/", FinalizarRecorridoView.as_view(), name='recorrido_finalizar'),
+    path("recorridos/<uuid:id_cliente>/publicar/", PublicarRecorridoView.as_view(), name='recorrido_publicar'),
+    path("paquetes/<int:pk>/recorrido/", RecorridoPublicoView.as_view(), name='recorrido_publico'),
+    path("turista/recorridos-habilitados/", RecorridosHabilitadosTuristaView.as_view(), name='recorridos_habilitados'),
+    path("turista/paquetes/<int:pk>/recorrido/", RecorridoTuristaView.as_view(), name='recorrido_turista'),
+    path("turista/paquetes/<int:pk>/grupo/", GrupoRecorridoView.as_view(), name='recorrido_grupo'),
+    path("turista/grupo/viajeros/<int:usuario_id>/", PerfilViajeroGrupoView.as_view(), name='perfil_viajero_grupo'),
 
     # ── Módulo Liquidación / Billetera Virtual ────────────────────────────────
     path("liquidacion/saldos/", vistas_liquidacion.LiquidacionSaldosView.as_view(), name='liquidacion_saldos'),

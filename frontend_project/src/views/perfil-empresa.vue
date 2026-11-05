@@ -2,49 +2,30 @@
   <div class="min-h-screen bg-slate-50 font-sans">
 
     <!-- ═══ HEADER-PERFIL ═══ -->
-    <div class="bg-gradient-to-r from-emerald-900 to-emerald-700 pt-10 pb-20 px-4">
-      <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-6">
+    <div class="relative overflow-hidden bg-gradient-to-r from-emerald-900 to-emerald-700 pt-10 pb-20 px-4">
+      <!-- Portada: se ve aquí desde el primer momento; tócala para verla en grande o usa la cámara para cambiarla o eliminarla -->
+      <div class="absolute inset-0 z-0">
+        <img v-if="perfil.foto_portada_url" :src="perfil.foto_portada_url" alt="Portada" class="h-full w-full object-cover" />
+        <div v-if="perfil.foto_portada_url" class="pointer-events-none absolute inset-0 bg-black/35"></div>
+        <ControlesImagen tipo="portada" :url="perfil.foto_portada_url" editable posicion-boton="top-3 right-3" @cambio="perfil.foto_portada_url = $event" />
+      </div>
+      <!-- El contenido deja pasar los toques a la portada salvo en la foto y los textos -->
+      <div class="relative z-10 pointer-events-none max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-6">
 
-        <!-- Avatar / Logo — clickeable para subir foto -->
-        <div class="relative shrink-0 group">
-          <div
-            @click="triggerFotoInput"
-            class="w-24 h-24 rounded-2xl bg-white/20 border-2 border-white/40 flex items-center justify-center overflow-hidden shadow-xl cursor-pointer"
-            title="Haz clic para cambiar el logotipo"
-          >
-            <!-- Mientras sube: spinner -->
-            <div v-if="subiendoFoto" class="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center z-10">
-              <svg class="w-8 h-8 text-white animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-            </div>
-            <!-- Overlay de edición al hover -->
-            <div class="absolute inset-0 bg-black/40 rounded-2xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 gap-1">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-              <span class="text-white text-[10px] font-semibold">Cambiar</span>
-            </div>
-            <!-- Imagen o iniciales -->
-            <img v-if="fotoPreview || perfil.foto_url" :src="fotoPreview || perfil.foto_url" alt="Logo empresa" class="w-full h-full object-cover" />
+        <!-- Logotipo: tocarlo lo abre en grande; el botón de cámara permite agregarlo, cambiarlo o eliminarlo -->
+        <div class="pointer-events-auto relative shrink-0">
+          <div class="relative w-24 h-24 rounded-2xl bg-white/20 border-2 border-white/40 flex items-center justify-center overflow-hidden shadow-xl">
+            <img v-if="perfil.foto_url" :src="perfil.foto_url" alt="Logo empresa" class="w-full h-full object-cover" />
             <span v-else class="text-3xl font-bold text-white select-none">{{ iniciales }}</span>
           </div>
+          <ControlesImagen tipo="perfil" :url="perfil.foto_url" editable redondeo="rounded-2xl" posicion-boton="-bottom-1 -left-1" @cambio="perfil.foto_url = $event" />
 
           <!-- Badge de rol -->
           <span class="absolute -bottom-2 -right-2 bg-amber-400 text-amber-900 text-xs font-bold px-2 py-0.5 rounded-full shadow">{{ rolLabel }}</span>
-
-          <!-- Input file oculto -->
-          <input
-            ref="fotoInputRef"
-            id="input-foto-perfil"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            @change="onFotoSeleccionada"
-          />
         </div>
 
         <!-- Nombre empresa + email -->
-        <div class="text-center sm:text-left">
+        <div class="pointer-events-auto text-center sm:text-left">
           <h1 class="text-2xl font-bold text-white">{{ nombreEmpresa }}</h1>
           <p class="text-emerald-200 text-sm mt-1">{{ perfil.email }}</p>
           <div class="flex items-center justify-center sm:justify-start gap-2 mt-2">
@@ -53,20 +34,15 @@
               Perfil verificado
             </span>
           </div>
-          <!-- Mensaje de foto subida -->
-          <transition name="fade">
-            <p v-if="fotoMsg" class="text-emerald-300 text-xs mt-2 font-medium">✓ {{ fotoMsg }}</p>
-            <p v-else-if="fotoError" class="text-red-300 text-xs mt-2">{{ fotoError }}</p>
-          </transition>
         </div>
       </div>
     </div>
 
     <!-- ═══ LAYOUT CON SIDEBAR ═══ -->
-    <div class="max-w-6xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
+    <div class="relative z-10 max-w-6xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
       
       <!-- Menú Lateral -->
-      <MenuLateralPerfil v-model="currentView" />
+      <MenuLateralPerfil v-model="currentView" :rol="rol" />
 
       <!-- CONTENIDO DINÁMICO -->
       <div class="flex-1 min-w-0">
@@ -174,12 +150,16 @@
             </transition>
           </div>
 
+          <!-- ── MIS PAQUETES / MIS PRODUCTOS ── -->
+          <MiCatalogo v-else-if="currentView === 'catalogo'" key="catalogo" :rol="rol" />
+
           <!-- ── VISTA PERFIL (PREVIEW SOCIAL COMMERCE) ── -->
           <VistaPerfilPublico 
             v-else 
             key="view" 
             :perfil="perfil" 
             :rol-label="rolLabel" 
+            @imagen-cambiada="({ tipo, url }) => perfil[tipo === 'perfil' ? 'foto_url' : 'foto_portada_url'] = url"
           />
         </transition>
       </div>
@@ -231,6 +211,8 @@ import clienteAxios from '@/api/axios.js'
 import InformacionAvanzada from '@/components/perfil/InformacionAvanzada.vue'
 import MenuLateralPerfil from '@/components/perfil/MenuLateralPerfil.vue'
 import VistaPerfilPublico from '@/components/perfil/VistaPerfilPublico.vue'
+import ControlesImagen from '@/components/perfil/ControlesImagen.vue'
+import MiCatalogo from '@/components/perfil/MiCatalogo.vue'
 
 
 const route = useRoute()
@@ -290,13 +272,6 @@ const successMsg  = ref(false)
 const errorMsg    = ref('')
 const activeTab   = ref('basica')
 
-// Foto
-const fotoInputRef  = ref(null)
-const fotoPreview   = ref(null)
-const subiendoFoto  = ref(false)
-const fotoMsg       = ref('')
-const fotoError     = ref('')
-
 const perfil = reactive({
   id: null, username: '', email: '',
   first_name: '', last_name: '',
@@ -305,6 +280,7 @@ const perfil = reactive({
   informacion_contacto: {}, horario_atencion: '',
   nit: '', rnt: '', rut: '',
   foto_url: null,
+  foto_portada_url: null,
 })
 
 const form = reactive({
@@ -371,60 +347,6 @@ onMounted(async () => {
     console.error('Error cargando perfil:', err)
   }
 })
-
-// ─── Upload de foto ────────────────────────────────────────
-function triggerFotoInput() {
-  fotoInputRef.value?.click()
-}
-
-async function onFotoSeleccionada(event) {
-  const archivo = event.target.files[0]
-  if (!archivo) return
-
-  // Validar tipo y tamaño (max 5 MB)
-  if (!archivo.type.startsWith('image/')) {
-    fotoError.value = 'Solo se permiten archivos de imagen.'
-    setTimeout(() => { fotoError.value = '' }, 4000)
-    return
-  }
-  if (archivo.size > 5 * 1024 * 1024) {
-    fotoError.value = 'La imagen no puede superar los 5 MB.'
-    setTimeout(() => { fotoError.value = '' }, 4000)
-    return
-  }
-
-  // Vista previa local inmediata
-  fotoPreview.value = URL.createObjectURL(archivo)
-
-  // Subir al backend → Cloudinary
-  subiendoFoto.value = true
-  fotoMsg.value = ''
-  fotoError.value = ''
-  try {
-    const fd = new FormData()
-    fd.append('foto', archivo)
-    const { data } = await clienteAxios.post('api/perfil/foto/', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    perfil.foto_url = data.foto_url
-    // ── Actualizar header en tiempo real ──
-    localStorage.setItem('foto_url', data.foto_url)
-    window.dispatchEvent(new CustomEvent('perfil:foto-actualizada', {
-      detail: { foto_url: data.foto_url }
-    }))
-    fotoMsg.value = 'Foto actualizada correctamente'
-    setTimeout(() => { fotoMsg.value = '' }, 4000)
-  } catch (err) {
-    console.error('Error subiendo foto:', err)
-    fotoPreview.value = null   // revertir preview
-    fotoError.value = 'Error al subir la imagen. Inténtalo de nuevo.'
-    setTimeout(() => { fotoError.value = '' }, 5000)
-  } finally {
-    subiendoFoto.value = false
-    // Limpiar el input para que se pueda volver a seleccionar el mismo archivo
-    event.target.value = ''
-  }
-}
 
 // ─── Guardar datos básicos ─────────────────────────────────
 async function guardar() {

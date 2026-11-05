@@ -1,18 +1,27 @@
 from concurrent.futures import ThreadPoolExecutor
+from io import StringIO
 from datetime import timedelta
 from decimal import Decimal
 from threading import Barrier
 from unittest.mock import patch
 from uuid import uuid4
+import json
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.db import close_old_connections, connection
 from django.test import TestCase, TransactionTestCase, override_settings, skipUnlessDBFeature
 from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import (Agencia, Proveedor, Turista, Usuario, Categorias, PaqueteTuristico,
+from django.core.files.uploadedfile import SimpleUploadedFile
+import cloudinary
+from cloudinary import CloudinaryResource
+from .models import (Agencia, Proveedor, Turista, Usuario, Categoria, Actividad, Categorias, PaqueteTuristico,
                      Productos, Venta, Detalles_Venta, ReservaFecha, Carrito, Items, SolicitudRetiro,
-                     IntentosCredenciales, CambioEstadoRetiro)
+                     IntentosCredenciales, CambioEstadoRetiro, EstandarPaquete, ModalidadTurismo,
+                     PrincipioEstandarPaquete, FuenteEstandarPaquete, Recorrido, PuntoRecorrido, UbicacionCompartida)
+from .vistas_recorridos import fecha_de_hoy
 from .compras import procesar_compra, liberar_pedido
 from .retiros import cambiar_estado
 from .vistas_liquidacion import _calcular_saldos
@@ -659,3 +668,717 @@ class WompiTests(TestCase):
         response = self.client.post('/api/venta/procesar/', payload(self.producto), format='json')
         self.assertEqual(response.status_code, 503)
         self.assertEqual(Venta.objects.count(), 1)
+
+
+@override_settings(
+    DEBUG=True,
+    SECURE_SSL_REDIRECT=False,
+    PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'],
+)
+class EstandarPaquetesTests(TestCase):
+    def setUp(self):
+        self.agencia = Agencia.objects.create_user(
+            username='agencia-estandar',
+            email='estandar@example.test',
+            password='A-safe-pass-938!',
+            nombre_agencia='Operadora de aventura',
+        )
+        categoria = Categoria.objects.create(nombre='Aventura')
+        self.rafting = Actividad.objects.create(
+            nombre='Rafting / Canotaje',
+            nivel_riesgo=7,
+            categoria=categoria,
+            es_turismo_aventura=True,
+            norma_tecnica='NTS-AV 010',
+            sistema_dificultad='Clase internacional del tramo de río',
+            opciones_dificultad=[
+                {'value': 'I', 'label': 'Clase I · Fácil'},
+                {'value': 'III', 'label': 'Clase III · Intermedio'},
+            ],
+        )
+        call_command('seed_estandar_paquetes', verbosity=0)
+        self.client = APIClient()
+        self.client.force_authenticate(self.agencia)
+
+    def datos_paquete(self):
+        return {
+            'activo': True,
+            'nombre': 'Río de prueba',
+            'descripcion': 'Descenso guiado con ficha técnica.',
+            'precio': '150000.00',
+            'duracion': '4 horas',
+            'capacidad': 8,
+            'ubicacion': 'Leticia, Amazonas',
+            'actividades': [self.rafting.pk],
+            'itinerario': [],
+            'incluido': [],
+            'modalidades_turismo': ['aventura', 'naturaleza'],
+            'clasificacion_actividades': [{
+                'actividad_id': self.rafting.pk,
+                'nivel': 'III',
+                'descripcion': 'Tramo con maniobra activa y reconocimiento previo.',
+            }],
+            'requisitos_participantes': 'Mayores de 14 años con condición física adecuada.',
+            'condiciones_operacion': 'Sujeto al caudal y al pronóstico meteorológico.',
+            'medidas_seguridad': 'Inducción, casco, chaleco, guía y plan de respuesta.',
+            'informacion_sostenibilidad': 'No dejar residuos y respetar la fauna.',
+            'certificacion_aventura': {
+                'estado': 'vigente',
+                'organismo': 'OEC de prueba',
+                'codigo': 'CERT-001',
+                'vigente_hasta': '2027-12-31',
+            },
+        }
+
+    def test_info_estandar_es_publica_y_trazable(self):
+        self.client.force_authenticate(None)
+        response = self.client.get('/api/estandar-paquetes/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['version'], '2026-10-16')
+        self.assertTrue(all(modalidad['description'] for modalidad in response.data['modalidades']))
+        normas = {actividad['norma_tecnica'] for actividad in response.data['actividades_reguladas']}
+        self.assertIn('NTS-AV 010', normas)
+        self.assertTrue(any(fuente['verificada'] for fuente in response.data['fuentes']))
+
+    def test_seed_estandar_persiste_catalogo_completo_y_es_idempotente(self):
+        call_command('seed_estandar_paquetes', verbosity=0)
+
+        self.assertEqual(EstandarPaquete.objects.filter(activo=True).count(), 1)
+        self.assertEqual(ModalidadTurismo.objects.filter(activa=True).count(), 8)
+        self.assertEqual(PrincipioEstandarPaquete.objects.filter(activo=True).count(), 4)
+        self.assertEqual(FuenteEstandarPaquete.objects.filter(activa=True).count(), 4)
+
+    def test_api_lee_modalidades_desde_base_de_datos(self):
+        ModalidadTurismo.objects.filter(codigo='naturaleza').update(
+            nombre='Naturaleza administrada desde DB',
+        )
+
+        response = self.client.get('/api/estandar-paquetes/')
+
+        modalidad = next(
+            item for item in response.data['modalidades'] if item['value'] == 'naturaleza'
+        )
+        self.assertEqual(modalidad['label'], 'Naturaleza administrada desde DB')
+
+    def test_tour_aventura_activo_exige_certificacion_vigente(self):
+        data = self.datos_paquete()
+        data['certificacion_aventura'] = {'estado': 'pendiente'}
+        response = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('certificacion_aventura', response.data)
+
+    def test_paquete_nuevo_exige_modalidad(self):
+        data = self.datos_paquete()
+        data['modalidades_turismo'] = []
+        response = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('modalidades_turismo', response.data)
+
+    def test_guarda_clasificacion_especifica_sin_mezclar_riesgo(self):
+        response = self.client.post('/api/createnewpack/', self.datos_paquete(), format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        paquete = PaqueteTuristico.objects.get(pk=response.data['id'])
+        ficha = paquete.clasificacion_actividades[0]
+        self.assertEqual(ficha['sistema'], 'Clase internacional del tramo de río')
+        self.assertEqual(ficha['nivel'], 'III')
+        self.assertEqual(paquete.actividades.get().nivel_riesgo, 7)
+        gestion = self.client.get('/api/pack/')
+        self.assertEqual(gestion.status_code, 200)
+        self.assertEqual(gestion.data[0]['actividades'], [self.rafting.pk])
+        self.assertEqual(gestion.data[0]['modalidades_turismo'], ['aventura', 'naturaleza'])
+
+    def test_listado_de_gestion_devuelve_coordenadas_para_editar(self):
+        data = self.datos_paquete()
+        data.update({'latitud': '-4.215300', 'longitud': '-69.940600'})
+        response = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+
+        gestion = self.client.get('/api/pack/')
+
+        self.assertEqual(gestion.status_code, 200)
+        self.assertEqual(gestion.data[0]['ubicacion'], 'Leticia, Amazonas')
+        self.assertEqual(str(gestion.data[0]['latitud']), '-4.215300')
+        self.assertEqual(str(gestion.data[0]['longitud']), '-69.940600')
+
+    @override_settings(DEBUG=True, CHECKOUT_MODE='demo')
+    def test_seed_completa_paquetes_existentes_y_quedan_editables(self):
+        antiguo = PaqueteTuristico.objects.create(
+            nombre='Aventura en el Río Yavari - Operadora',
+            descripcion='Paquete anterior a MEJ-003.',
+            precio=Decimal('850000'),
+            duracion='3 días',
+            capacidad=15,
+            ubicacion='Puerto Nariño',
+            agencia=self.agencia,
+        )
+        antiguo.actividades.set([self.rafting])
+
+        call_command('seed_paquetes', '--completar-existentes', verbosity=0)
+        antiguo.refresh_from_db()
+
+        self.assertEqual(set(antiguo.modalidades_turismo), {'nautico', 'naturaleza', 'aventura'})
+        ficha = antiguo.clasificacion_actividades[0]
+        self.assertEqual(ficha['actividad_id'], self.rafting.pk)
+        self.assertEqual(ficha['sistema'], 'Clase internacional del tramo de río')
+        self.assertIn(ficha['nivel'], {'I', 'III'})
+        self.assertEqual(antiguo.certificacion_aventura['estado'], 'vigente')
+        self.assertTrue(antiguo.medidas_seguridad)
+
+        respuesta = self.client.put(
+            f'/api/updatepack/{antiguo.pk}/', {'nombre': antiguo.nombre}, format='json'
+        )
+        self.assertEqual(respuesta.status_code, 200, respuesta.data)
+
+    @override_settings(DEBUG=True, CHECKOUT_MODE='demo')
+    def test_seed_completar_no_sobrescribe_paquetes_con_ficha(self):
+        data = self.datos_paquete()
+        creado = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(creado.status_code, 201, creado.data)
+
+        call_command('seed_paquetes', '--completar-existentes', verbosity=0)
+
+        paquete = PaqueteTuristico.objects.get(pk=creado.data['id'])
+        self.assertEqual(paquete.modalidades_turismo, ['aventura', 'naturaleza'])
+        self.assertEqual(paquete.certificacion_aventura['codigo'], 'CERT-001')
+
+    def test_editar_un_paquete_con_nombre_repetido_no_exige_cambiarlo(self):
+        datos = dict(descripcion='Paquete anterior.', precio='100', duracion='1 día', capacidad=4, ubicacion='Leticia', agencia=self.agencia)
+        primero = PaqueteTuristico.objects.create(nombre='Tour repetido', **datos)
+        PaqueteTuristico.objects.create(nombre='Tour repetido', **datos)
+
+        sin_cambiar = self.client.put(f'/api/updatepack/{primero.pk}/', {'nombre': 'Tour repetido', 'descripcion': 'Texto nuevo.'}, format='json')
+        self.assertEqual(sin_cambiar.status_code, 200, sin_cambiar.data)
+        primero.refresh_from_db()
+        self.assertEqual(primero.descripcion, 'Texto nuevo.')
+
+    def test_cambiar_el_nombre_a_uno_existente_sigue_rechazandose(self):
+        datos = dict(descripcion='Paquete.', precio='100', duracion='1 día', capacidad=4, ubicacion='Leticia', agencia=self.agencia)
+        uno = PaqueteTuristico.objects.create(nombre='Tour uno', **datos)
+        PaqueteTuristico.objects.create(nombre='Tour dos', **datos)
+
+        respuesta = self.client.put(f'/api/updatepack/{uno.pk}/', {'nombre': 'tour DOS'}, format='json')
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn('nombre', respuesta.data)
+
+    def test_rechaza_nivel_ajeno_a_la_escala_de_la_actividad(self):
+        data = self.datos_paquete()
+        data['clasificacion_actividades'][0]['nivel'] = 'alto'
+        response = self.client.post('/api/createnewpack/', data, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('clasificacion_actividades', response.data)
+
+    def test_acepta_campos_json_desde_formdata_del_frontend(self):
+        data = self.datos_paquete()
+        for campo in ('modalidades_turismo', 'clasificacion_actividades', 'certificacion_aventura', 'itinerario', 'incluido'):
+            data[campo] = json.dumps(data[campo])
+        response = self.client.post('/api/createnewpack/', data, format='multipart')
+        self.assertEqual(response.status_code, 201, response.data)
+
+
+class SeedActividadesTests(TransactionTestCase):
+    reset_sequences = True
+
+    def test_seed_deja_secuencia_lista_para_nuevas_actividades(self):
+        call_command('seed_actividades', verbosity=0)
+        maximo_antes = Actividad.objects.order_by('-pk').values_list('pk', flat=True).first()
+        categoria = Categoria.objects.first()
+
+        nueva = Actividad.objects.create(
+            nombre='Actividad creada después del catálogo',
+            nivel_riesgo=1,
+            categoria=categoria,
+        )
+
+        self.assertGreater(nueva.pk, maximo_antes)
+
+    def test_seed_carga_dificultades_seleccionables_sin_duplicar_actividades(self):
+        call_command('seed_actividades', verbosity=0)
+        total_antes = Actividad.objects.count()
+
+        call_command('seed_dificultades_actividades', verbosity=0)
+        call_command('seed_dificultades_actividades', verbosity=0)
+
+        canopy = Actividad.objects.get(nombre='Canopy / Tirolesa')
+        rafting = Actividad.objects.get(nombre='Rafting / Canotaje')
+        safari = Actividad.objects.get(nombre='Safaris fotográficos')
+        self.assertEqual(Actividad.objects.count(), total_antes)
+        self.assertGreaterEqual(len(canopy.opciones_dificultad), 3)
+        self.assertEqual(rafting.opciones_dificultad[0]['value'], 'I')
+        self.assertEqual(safari.sistema_dificultad, 'Nivel de exigencia del recorrido (referencia interna)')
+        self.assertEqual(
+            {opcion['value'] for opcion in safari.opciones_dificultad},
+            {'baja', 'media', 'alta'},
+        )
+
+
+class RecorridosGpsTests(TestCase):
+    def setUp(self):
+        self.agencia = Agencia.objects.create_user(username='agencia-gps', email='gps@example.test', password='A-safe-pass-938!', nombre_agencia='Agencia GPS')
+        self.otra = Agencia.objects.create_user(username='otra-gps', email='otra-gps@example.test', password='A-safe-pass-938!', nombre_agencia='Otra GPS')
+        self.turista = Turista.objects.create_user(username='tur-gps', email='tur-gps@example.test', password='A-safe-pass-938!', fecha_nacimiento='1990-01-01', numero_identidad='1111111111')
+        self.ajeno = Turista.objects.create_user(username='ajeno-gps', email='ajeno-gps@example.test', password='A-safe-pass-938!', fecha_nacimiento='1990-01-01', numero_identidad='2222222222')
+        self.paquete = PaqueteTuristico.objects.create(nombre='Ruta', descripcion='Tour', precio='100', duracion='1 día', capacidad=5, ubicacion='Leticia', agencia=self.agencia)
+        self.client = APIClient()
+        self.client.force_authenticate(self.agencia)
+        self.ahora = timezone.now()
+
+    def crear(self, id_cliente=None, cliente=None):
+        id_cliente = id_cliente or str(uuid4())
+        respuesta = (cliente or self.client).post('/api/recorridos/', {
+            'id_cliente': id_cliente, 'paquete': self.paquete.pk, 'nombre': 'Ruta de prueba',
+            'iniciado_en': self.ahora.isoformat(),
+        }, format='json')
+        return id_cliente, respuesta
+
+    def punto(self, secuencia, lat=-4.2153, lng=-69.9406):
+        return {'secuencia': secuencia, 'latitud': lat, 'longitud': lng, 'precision_m': 8.5,
+                'capturado_en': (self.ahora + timedelta(seconds=secuencia * 10)).isoformat()}
+
+    def subir(self, id_cliente, puntos):
+        return self.client.post(f'/api/recorridos/{id_cliente}/puntos/', {'puntos': puntos}, format='json')
+
+    def finalizar(self, id_cliente):
+        return self.client.post(f'/api/recorridos/{id_cliente}/finalizar/', {'finalizado_en': (self.ahora + timedelta(hours=1)).isoformat()}, format='json')
+
+    def recorrido_listo(self):
+        id_cliente, _ = self.crear()
+        self.subir(id_cliente, [self.punto(0), self.punto(1, -4.2200), self.punto(2, -4.2250)])
+        self.finalizar(id_cliente)
+        return id_cliente
+
+    def reserva(self, fecha=None, estado_venta='Completado', estado_detalle='Confirmado', usuario=None):
+        venta = Venta.objects.create(usuario=usuario or self.turista, total='100', estado=estado_venta, estado_pago='Pagado')
+        Detalles_Venta.objects.create(venta=venta, producto=0, paquete=self.paquete.pk, cantidad=1, precio_unitario='100', estado=estado_detalle)
+        ReservaFecha.objects.create(paquete=self.paquete, venta=venta, fecha=fecha or fecha_de_hoy(), cantidad=1)
+
+    def test_crear_recorrido_es_idempotente(self):
+        id_cliente, primera = self.crear()
+        _, segunda = self.crear(id_cliente)
+        self.assertEqual((primera.status_code, segunda.status_code), (201, 200))
+        self.assertEqual(Recorrido.objects.count(), 1)
+
+    def test_no_permite_grabar_en_paquete_ajeno(self):
+        cliente = APIClient()
+        cliente.force_authenticate(self.otra)
+        _, respuesta = self.crear(cliente=cliente)
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertEqual(Recorrido.objects.count(), 0)
+
+    def test_otra_agencia_no_puede_reclamar_un_recorrido_existente(self):
+        id_cliente, _ = self.crear()
+        cliente = APIClient()
+        cliente.force_authenticate(self.otra)
+        respuesta = cliente.post(f'/api/recorridos/{id_cliente}/puntos/', {'puntos': [self.punto(0)]}, format='json')
+        self.assertEqual(respuesta.status_code, 404)
+
+    def test_puntos_reintentados_no_se_duplican(self):
+        id_cliente, _ = self.crear()
+        self.assertEqual(self.subir(id_cliente, [self.punto(0), self.punto(1)]).data['total'], 2)
+        reintento = self.subir(id_cliente, [self.punto(0), self.punto(1), self.punto(2)])
+        self.assertEqual(reintento.data['total'], 3)
+        self.assertEqual(PuntoRecorrido.objects.filter(recorrido__id_cliente=id_cliente).count(), 3)
+
+    def test_rechaza_coordenadas_fuera_de_rango(self):
+        id_cliente, _ = self.crear()
+        self.assertEqual(self.subir(id_cliente, [self.punto(0, lat=95)]).status_code, 400)
+        self.assertEqual(self.subir(id_cliente, [self.punto(0, lng=-181)]).status_code, 400)
+
+    def test_publicar_exige_finalizar_y_dos_puntos(self):
+        id_cliente, _ = self.crear()
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 400)
+        self.subir(id_cliente, [self.punto(0)])
+        self.finalizar(id_cliente)
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 400)
+        self.subir(id_cliente, [self.punto(1, -4.22)])
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 200)
+
+    def test_solo_un_recorrido_publicado_por_paquete(self):
+        primero, segundo = self.recorrido_listo(), self.recorrido_listo()
+        self.client.post(f'/api/recorridos/{primero}/publicar/')
+        self.client.post(f'/api/recorridos/{segundo}/publicar/')
+        publicados = list(Recorrido.objects.filter(publicado=True).values_list('id_cliente', flat=True))
+        self.assertEqual([str(x) for x in publicados], [segundo])
+
+    def test_recorrido_publicado_no_admite_mas_puntos(self):
+        id_cliente = self.recorrido_listo()
+        self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        self.assertEqual(self.subir(id_cliente, [self.punto(9)]).status_code, 409)
+
+    def test_trazado_publico_solo_si_esta_publicado_y_sin_datos_privados(self):
+        publico = APIClient()
+        self.assertEqual(publico.get(f'/api/paquetes/{self.paquete.pk}/recorrido/').data, {'disponible': False})
+        id_cliente, _ = self.crear()
+        # Dos puntos casi idénticos al inicio: el trazado público conserva uno.
+        self.subir(id_cliente, [self.punto(0), self.punto(1, -4.215301), self.punto(2, -4.2200), self.punto(3, -4.2250)])
+        self.finalizar(id_cliente)
+        self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        datos = publico.get(f'/api/paquetes/{self.paquete.pk}/recorrido/').data
+        self.assertTrue(datos['disponible'])
+        self.assertEqual(len(datos['puntos']), 3)
+        self.assertTrue(all(len(par) == 2 for par in datos['puntos']))
+        self.assertNotIn('capturado_en', json.dumps(datos, default=str))
+        self.assertGreater(datos['distancia_km'], 0)
+
+    def test_eliminar_recorrido_borra_sus_puntos(self):
+        id_cliente = self.recorrido_listo()
+        respuesta = self.client.delete(f'/api/recorridos/{id_cliente}/')
+        self.assertEqual(respuesta.status_code, 204)
+        self.assertEqual(Recorrido.objects.count(), 0)
+        self.assertEqual(PuntoRecorrido.objects.count(), 0)
+
+    def test_eliminar_recorrido_publicado_retira_el_trazado_publico(self):
+        id_cliente = self.recorrido_listo()
+        self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        self.client.delete(f'/api/recorridos/{id_cliente}/')
+        self.assertEqual(APIClient().get(f'/api/paquetes/{self.paquete.pk}/recorrido/').data, {'disponible': False})
+
+    def test_no_se_puede_eliminar_el_recorrido_de_otra_agencia(self):
+        id_cliente = self.recorrido_listo()
+        cliente = APIClient()
+        cliente.force_authenticate(self.otra)
+        self.assertEqual(cliente.delete(f'/api/recorridos/{id_cliente}/').status_code, 404)
+        self.assertEqual(Recorrido.objects.count(), 1)
+
+    def test_eliminar_exige_rol_de_agencia_y_es_404_si_ya_no_existe(self):
+        id_cliente = self.recorrido_listo()
+        turista = APIClient()
+        turista.force_authenticate(self.turista)
+        self.assertEqual(turista.delete(f'/api/recorridos/{id_cliente}/').status_code, 403)
+        self.assertEqual(APIClient().delete(f'/api/recorridos/{id_cliente}/').status_code, 401)
+        self.client.delete(f'/api/recorridos/{id_cliente}/')
+        self.assertEqual(self.client.delete(f'/api/recorridos/{id_cliente}/').status_code, 404)
+
+    def ubicar_paquete(self, lat, lng):
+        PaqueteTuristico.objects.filter(pk=self.paquete.pk).update(latitud=lat, longitud=lng)
+
+    def test_publicar_rechaza_un_recorrido_lejos_de_la_ubicacion_del_paquete(self):
+        self.ubicar_paquete('-3.000000', '-70.000000')  # ~140 km de los puntos grabados
+        id_cliente = self.recorrido_listo()
+        respuesta = self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertEqual(respuesta.data['codigo'], 'lejos_del_paquete')
+        self.assertIn('km', respuesta.data['detail'])
+        self.assertGreater(respuesta.data['distancia_m'], 100000)
+        self.assertFalse(Recorrido.objects.get(id_cliente=id_cliente).publicado)
+
+    def test_publicar_acepta_un_recorrido_que_pasa_cerca_del_paquete(self):
+        self.ubicar_paquete('-4.220500', '-69.940600')  # a ~50 m del segundo punto
+        id_cliente = self.recorrido_listo()
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 200)
+
+    def test_publicar_no_valida_distancia_si_el_paquete_no_tiene_ubicacion(self):
+        id_cliente = self.recorrido_listo()
+        self.assertEqual(self.client.post(f'/api/recorridos/{id_cliente}/publicar/').status_code, 200)
+
+    def test_listado_informa_si_el_recorrido_coincide_con_el_paquete(self):
+        self.ubicar_paquete('-4.220500', '-69.940600')
+        cerca = self.recorrido_listo()
+        self.ubicar_paquete('-3.000000', '-70.000000')
+        lejos_datos = {str(item['id_cliente']): item for item in self.client.get('/api/recorridos/').data}
+        self.assertFalse(lejos_datos[cerca]['coincide_con_paquete'])
+        self.ubicar_paquete('-4.220500', '-69.940600')
+        cerca_datos = {str(item['id_cliente']): item for item in self.client.get('/api/recorridos/').data}
+        self.assertTrue(cerca_datos[cerca]['coincide_con_paquete'])
+        self.assertLess(cerca_datos[cerca]['distancia_paquete_m'], 100)
+        self.assertEqual(cerca_datos[cerca]['limite_m'], 3000)
+
+    def test_despublicar_retira_el_trazado(self):
+        id_cliente = self.recorrido_listo()
+        self.client.post(f'/api/recorridos/{id_cliente}/publicar/')
+        self.client.delete(f'/api/recorridos/{id_cliente}/publicar/')
+        self.assertEqual(APIClient().get(f'/api/paquetes/{self.paquete.pk}/recorrido/').data, {'disponible': False})
+
+    def test_turista_habilitado_solo_el_dia_de_realizacion(self):
+        self.reserva()
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        habilitados = cliente.get('/api/turista/recorridos-habilitados/').data
+        self.assertEqual([h['paquete'] for h in habilitados], [self.paquete.pk])
+        self.assertEqual(cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').status_code, 200)
+
+    def test_turista_sin_compra_valida_o_fuera_de_fecha_no_accede(self):
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        url = f'/api/turista/paquetes/{self.paquete.pk}/recorrido/'
+        self.assertEqual(cliente.get(url).status_code, 403)
+        self.reserva(fecha=fecha_de_hoy() + timedelta(days=1))
+        self.assertEqual(cliente.get(url).status_code, 403)
+        self.reserva(estado_venta='Pendiente')
+        self.assertEqual(cliente.get(url).status_code, 403)
+        self.reserva(estado_detalle='Cancelado')
+        self.assertEqual(cliente.get(url).status_code, 403)
+        self.assertEqual(cliente.get('/api/turista/recorridos-habilitados/').data, [])
+
+    def test_turista_recibe_el_punto_de_encuentro_aunque_no_haya_recorrido(self):
+        self.ubicar_paquete('-4.215300', '-69.940600')
+        self.reserva()
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        datos = cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').data
+        self.assertFalse(datos['disponible'])
+        self.assertEqual(datos['ubicacion_paquete']['latitud'], -4.2153)
+        self.assertEqual(datos['ubicacion_paquete']['longitud'], -69.9406)
+        self.assertEqual(datos['ubicacion_paquete']['lugar'], 'Leticia')
+
+    def test_turista_sin_ubicacion_del_paquete_recibe_none(self):
+        self.reserva()
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        self.assertIsNone(cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').data['ubicacion_paquete'])
+
+    def test_reserva_de_hoy_no_pasa_a_realizado_por_la_noche_en_colombia(self):
+        # A las 03:00 UTC todavía es la noche del día anterior en Bogotá (22:00): la experiencia de ese día no terminó.
+        # El día de la reserva es «ayer» según el UTC real pero «hoy» en Colombia, así que la prueba solo pasa
+        # si el servidor usa la fecha de Colombia y no la del reloj UTC.
+        hoy_utc = timezone.now().date()
+        ahora = timezone.datetime(hoy_utc.year, hoy_utc.month, hoy_utc.day, 3, 0, tzinfo=timezone.UTC)
+        self.reserva(fecha=hoy_utc - timedelta(days=1))
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        with patch('autenticacion.vistas_recorridos.timezone.now', return_value=ahora):
+            reservas = cliente.get('/api/mis-reservas/').data
+            acceso = cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/')
+        self.assertEqual([r['estado'] for r in reservas], ['Confirmado'])
+        self.assertEqual(Detalles_Venta.objects.get(paquete=self.paquete.pk).estado, 'Confirmado')
+        self.assertEqual(acceso.status_code, 200)
+
+    def test_mis_reservas_incluye_la_ubicacion_del_paquete_para_uso_sin_conexion(self):
+        self.ubicar_paquete('-4.215300', '-69.940600')
+        self.reserva()
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        reserva = cliente.get('/api/mis-reservas/').data[0]
+        self.assertEqual((reserva['latitud'], reserva['longitud']), (-4.2153, -69.9406))
+        self.assertEqual(reserva['paquete_id'], self.paquete.pk)
+        self.assertEqual(reserva['fecha_actividad'], str(fecha_de_hoy()))
+
+    def test_compra_de_otro_turista_no_habilita(self):
+        self.reserva(usuario=self.ajeno)
+        cliente = APIClient()
+        cliente.force_authenticate(self.turista)
+        self.assertEqual(cliente.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').status_code, 403)
+
+    def test_agencia_no_usa_las_vistas_del_turista(self):
+        self.assertEqual(self.client.get(f'/api/turista/paquetes/{self.paquete.pk}/recorrido/').status_code, 403)
+        self.assertEqual(self.client.get('/api/turista/recorridos-habilitados/').status_code, 403)
+
+    def test_la_fecha_de_hoy_usa_la_zona_horaria_de_colombia(self):
+        # 03:00 UTC del 29 de octubre son las 22:00 del 28 en Bogotá.
+        with patch('autenticacion.vistas_recorridos.timezone.now', return_value=timezone.datetime(2026, 10, 29, 3, 0, tzinfo=timezone.UTC)):
+            self.assertEqual(str(fecha_de_hoy()), '2026-10-28')
+
+
+
+class GrupoRecorridoTests(TestCase):
+    """Las personas con reserva confirmada para hoy se ven entre sí, solo si lo deciden."""
+    def setUp(self):
+        agencia = Agencia.objects.create_user(username='ag-grupo', email='ag-grupo@example.test', password='A-safe-pass-938!', nombre_agencia='Agencia Grupo')
+        self.paquete = PaqueteTuristico.objects.create(nombre='Ruta', descripcion='Tour', precio='100', duracion='1 día', capacidad=9, ubicacion='Leticia', agencia=agencia)
+        self.otro_paquete = PaqueteTuristico.objects.create(nombre='Otra ruta', descripcion='Tour', precio='100', duracion='1 día', capacidad=9, ubicacion='Leticia', agencia=agencia)
+        self.ana = self.turista('ana', 'Ana', 'Pérez', '1')
+        self.luis = self.turista('luis', 'Luis', 'Gómez', '2')
+        self.sin_reserva = self.turista('sinreserva', 'Eva', 'Ríos', '3')
+        for usuario in (self.ana, self.luis):
+            self.reservar(usuario, self.paquete)
+
+    def turista(self, usuario, nombre, apellido, documento):
+        return Turista.objects.create_user(
+            username=usuario, email=f'{usuario}@example.test', password='A-safe-pass-938!', first_name=nombre,
+            last_name=apellido, fecha_nacimiento='1990-01-01', numero_identidad=documento * 10,
+        )
+
+    def reservar(self, usuario, paquete):
+        venta = Venta.objects.create(usuario=usuario, total='100', estado='Completado', estado_pago='Pagado')
+        Detalles_Venta.objects.create(venta=venta, producto=0, paquete=paquete.pk, cantidad=1, precio_unitario='100', estado='Confirmado')
+        ReservaFecha.objects.create(paquete=paquete, venta=venta, fecha=fecha_de_hoy(), cantidad=1)
+
+    def cliente(self, usuario):
+        cliente = APIClient()
+        cliente.force_authenticate(usuario)
+        return cliente
+
+    def compartir(self, usuario, lat=-4.2153, lng=-69.9406, paquete=None):
+        return self.cliente(usuario).post(
+            f'/api/turista/paquetes/{(paquete or self.paquete).pk}/grupo/',
+            {'latitud': lat, 'longitud': lng, 'precision_m': 6}, format='json')
+
+    def test_sin_reserva_para_hoy_no_se_puede_compartir(self):
+        self.assertEqual(self.compartir(self.sin_reserva).status_code, 403)
+        self.assertEqual(UbicacionCompartida.objects.count(), 0)
+
+    def test_dos_personas_se_ven_solo_cuando_ambas_comparten(self):
+        self.assertEqual(self.compartir(self.ana).json()['personas'], [])
+        respuesta = self.compartir(self.luis).json()
+        self.assertEqual([p['id'] for p in respuesta['personas']], [self.ana.pk])
+        self.assertEqual(respuesta['personas'][0]['nombre'], 'Ana P.')
+        # Ana vuelve a consultar y ya ve a Luis; nunca se ve a sí misma.
+        UbicacionCompartida.objects.filter(usuario=self.ana).update(actualizado_en=timezone.now() - timedelta(seconds=10))
+        self.assertEqual([p['id'] for p in self.compartir(self.ana).json()['personas']], [self.luis.pk])
+
+    def test_no_expone_datos_privados(self):
+        self.compartir(self.ana)
+        persona = self.compartir(self.luis).json()['personas'][0]
+        self.assertEqual(set(persona), {'id', 'nombre', 'foto', 'latitud', 'longitud', 'precision_m', 'hace_segundos'})
+
+    def test_una_posicion_antigua_deja_de_mostrarse(self):
+        self.compartir(self.ana)
+        with patch('autenticacion.vistas_recorridos.timezone.now', return_value=timezone.now() + timedelta(minutes=6)):
+            self.assertEqual(self.compartir(self.luis).json()['personas'], [])
+
+    def test_no_se_ve_a_quien_va_a_otro_paquete(self):
+        self.reservar(self.ana, self.otro_paquete)
+        self.compartir(self.ana, paquete=self.otro_paquete)
+        self.assertEqual(self.compartir(self.luis).json()['personas'], [])
+
+    def test_dejar_de_compartir_me_oculta(self):
+        self.compartir(self.ana)
+        respuesta = self.cliente(self.ana).delete(f'/api/turista/paquetes/{self.paquete.pk}/grupo/')
+        self.assertEqual(respuesta.status_code, 204)
+        self.assertEqual(self.compartir(self.luis).json()['personas'], [])
+
+    def test_las_posiciones_de_dias_anteriores_se_borran(self):
+        UbicacionCompartida.objects.create(
+            usuario=self.ana, paquete=self.paquete, fecha=fecha_de_hoy() - timedelta(days=1),
+            latitud='-4.2', longitud='-69.9', actualizado_en=timezone.now() - timedelta(days=1))
+        self.compartir(self.luis)
+        self.assertFalse(UbicacionCompartida.objects.filter(fecha__lt=fecha_de_hoy()).exists())
+
+    def test_coordenadas_invalidas_se_rechazan(self):
+        self.assertEqual(self.compartir(self.ana, lat=123).status_code, 400)
+
+    def test_agencia_no_puede_compartir(self):
+        respuesta = self.cliente(self.paquete.agencia).post(
+            f'/api/turista/paquetes/{self.paquete.pk}/grupo/', {'latitud': -4.2, 'longitud': -69.9}, format='json')
+        self.assertEqual(respuesta.status_code, 403)
+
+    def test_perfil_solo_de_quien_comparte_en_mi_paquete(self):
+        url = f'/api/turista/grupo/viajeros/{self.ana.pk}/'
+        # Ana aún no comparte: no se distingue de que no exista.
+        self.assertEqual(self.cliente(self.luis).get(url).status_code, 404)
+        self.compartir(self.ana)
+        respuesta = self.cliente(self.luis).get(url)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(set(respuesta.json()), {'id', 'nombre', 'foto', 'portada', 'miembro_desde', 'viaja_en'})
+        self.assertNotIn('ana@example.test', json.dumps(respuesta.json()))
+        # Quien no tiene reserva en ese paquete no puede verlo.
+        self.assertEqual(self.cliente(self.sin_reserva).get(url).status_code, 404)
+        # Tampoco el propio perfil por esta vía.
+        self.assertEqual(self.cliente(self.ana).get(url).status_code, 404)
+
+
+class ImagenesPerfilTests(TestCase):
+    """Foto de perfil y portada: agregar, reemplazar y eliminar solo en la cuenta propia."""
+    def setUp(self):
+        # Las URL de Cloudinary exigen un nombre de nube; en CI no hay credenciales, así que se usa uno ficticio.
+        anterior = cloudinary.config().cloud_name
+        cloudinary.config(cloud_name='nube-de-prueba')
+        self.addCleanup(lambda: cloudinary.config(cloud_name=anterior))
+        self.turista = Turista.objects.create_user(username='img-tur', email='img-tur@example.test', password='A-safe-pass-938!', fecha_nacimiento='1990-01-01', numero_identidad='5555555555')
+        self.agencia = Agencia.objects.create_user(username='img-ag', email='img-ag@example.test', password='A-safe-pass-938!', nombre_agencia='Agencia Img')
+        self.contador = 0
+
+    def cliente(self, usuario):
+        cliente = APIClient()
+        cliente.force_authenticate(usuario)
+        return cliente
+
+    def imagen(self, tipo='image/png', tamano=100):
+        return SimpleUploadedFile('foto.png', b'x' * tamano, content_type=tipo)
+
+    def subir(self, usuario, tipo='perfil', archivo=None, campo='foto'):
+        def falso_upload(*args, **kwargs):
+            self.contador += 1
+            return CloudinaryResource(public_id=f'prueba/{self.contador}', version='1', format='png', type='upload', resource_type='image')
+        with patch('cloudinary.uploader.upload_resource', side_effect=falso_upload), patch('cloudinary.uploader.destroy') as borrar:
+            respuesta = self.cliente(usuario).post(f'/api/perfil/foto/?tipo={tipo}', {campo: archivo or self.imagen()}, format='multipart')
+        return respuesta, borrar
+
+    def test_agrega_foto_y_portada_del_turista(self):
+        for tipo, campo in (('perfil', 'foto_perfil'), ('portada', 'foto_portada')):
+            respuesta, _ = self.subir(self.turista, tipo)
+            self.assertEqual(respuesta.status_code, 200)
+            self.turista.refresh_from_db()
+            self.assertTrue(getattr(self.turista, campo))
+            self.assertEqual(respuesta.json()['foto_url'], getattr(self.turista, campo).url)
+        perfil = self.cliente(self.turista).get('/api/perfil/').json()
+        self.assertTrue(perfil['foto_url'] and perfil['foto_portada_url'])
+
+    def test_reemplazar_borra_la_imagen_anterior(self):
+        self.subir(self.turista, 'portada')
+        _, borrar = self.subir(self.turista, 'portada')
+        borrar.assert_called_once()
+        self.assertEqual(borrar.call_args.args[0], 'prueba/1')
+
+    def test_eliminar_quita_la_imagen_y_la_borra_de_cloudinary(self):
+        self.subir(self.turista, 'portada')
+        self.subir(self.turista, 'perfil')
+        with patch('cloudinary.uploader.destroy') as borrar:
+            respuesta = self.cliente(self.turista).delete('/api/perfil/foto/?tipo=portada')
+        self.assertEqual((respuesta.status_code, respuesta.json()), (200, {'foto_url': None}))
+        borrar.assert_called_once()
+        self.turista.refresh_from_db()
+        self.assertFalse(self.turista.foto_portada)
+        self.assertTrue(self.turista.foto_perfil)  # la otra imagen no se toca
+
+    def test_eliminar_sin_imagen_no_falla(self):
+        with patch('cloudinary.uploader.destroy') as borrar:
+            respuesta = self.cliente(self.turista).delete('/api/perfil/foto/?tipo=perfil')
+        self.assertEqual(respuesta.status_code, 200)
+        borrar.assert_not_called()
+
+    def test_si_cloudinary_falla_al_borrar_la_imagen_igual_se_quita(self):
+        self.subir(self.turista, 'perfil')
+        with patch('cloudinary.uploader.destroy', side_effect=RuntimeError('sin red')):
+            respuesta = self.cliente(self.turista).delete('/api/perfil/foto/?tipo=perfil')
+        self.assertEqual(respuesta.status_code, 200)
+        self.turista.refresh_from_db()
+        self.assertFalse(self.turista.foto_perfil)
+
+    def test_rechaza_archivos_que_no_son_imagen_o_pesan_demasiado(self):
+        self.assertEqual(self.subir(self.turista, archivo=self.imagen('application/pdf'))[0].status_code, 400)
+        self.assertEqual(self.subir(self.turista, archivo=self.imagen('image/svg+xml'))[0].status_code, 400)
+        self.assertEqual(self.subir(self.turista, archivo=self.imagen(tamano=20 * 1024 * 1024 + 1))[0].status_code, 400)
+        self.turista.refresh_from_db()
+        self.assertFalse(self.turista.foto_perfil)
+
+    def test_tipo_desconocido_se_rechaza(self):
+        self.assertEqual(self.subir(self.turista, 'otra')[0].status_code, 400)
+        self.assertEqual(self.cliente(self.turista).delete('/api/perfil/foto/?tipo=otra').status_code, 400)
+
+    def test_la_agencia_usa_logotipo_y_portada(self):
+        self.assertEqual(self.subir(self.agencia, 'perfil')[0].status_code, 200)
+        self.assertEqual(self.subir(self.agencia, 'portada')[0].status_code, 200)
+        self.agencia.refresh_from_db()
+        self.assertTrue(self.agencia.logotipo and self.agencia.foto_portada)
+        with patch('cloudinary.uploader.destroy'):
+            self.assertEqual(self.cliente(self.agencia).delete('/api/perfil/foto/?tipo=perfil').status_code, 200)
+        self.agencia.refresh_from_db()
+        self.assertFalse(self.agencia.logotipo)
+
+    def test_exige_sesion(self):
+        self.assertEqual(APIClient().delete('/api/perfil/foto/?tipo=perfil').status_code, 401)
+
+
+class ReservarHoyCommandTests(TestCase):
+    def setUp(self):
+        self.agencia, _, self.turista, self.otro, _, self.paquete = fixtures()
+
+    def ejecutar(self, **kwargs):
+        call_command('reservar_hoy', correos=[self.turista.email, self.otro.email], paquete='Selva',
+                     agencia=self.agencia.email, stdout=StringIO(), **kwargs)
+
+    def test_crea_una_reserva_para_hoy_por_turista_y_es_idempotente(self):
+        self.ejecutar()
+        self.ejecutar()
+        reservas = ReservaFecha.objects.filter(paquete=self.paquete, fecha=timezone.localdate())
+        self.assertEqual(reservas.count(), 2)
+        self.assertEqual(Detalles_Venta.objects.filter(paquete=self.paquete.pk, estado='Confirmado').count(), 2)
+
+    def test_dry_run_no_escribe(self):
+        self.ejecutar(dry_run=True)
+        self.assertFalse(ReservaFecha.objects.exists())
+
+    def test_falla_si_un_correo_no_es_turista(self):
+        with self.assertRaises(CommandError):
+            call_command('reservar_hoy', correos=['nadie@example.test'], paquete='Selva', agencia=self.agencia.email)
+        self.assertFalse(ReservaFecha.objects.exists())

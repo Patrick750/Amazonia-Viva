@@ -32,6 +32,7 @@ from django.db import transaction, models
 from django.core.mail import send_mail
 from .serializers import calcular_cupos_disponibles
 import logging
+import cloudinary.uploader
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 
@@ -139,8 +140,28 @@ class Actividades(APIView):
             return Response(serializer.data)
         except (Http404, APIException):
             raise
-        except Exception as e:
-            return Response({'mensaje':'Hubo un error con la DB'})
+        except Exception:
+            logger.exception('No se pudo consultar el catálogo de actividades')
+            return Response(
+                {'mensaje': 'No se pudo consultar el catálogo de actividades.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class EstandarPaquetesView(APIView):
+    """Expone la versión y las fuentes que usa la ficha técnica de MEJ-003."""
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from .estandar_turistico import construir_resumen_estandar
+
+        resumen = construir_resumen_estandar()
+        resumen['actividades_reguladas'] = SerializersActividades(
+            Actividad.objects.filter(es_turismo_aventura=True).order_by('nombre'),
+            many=True,
+        ).data
+        return Response(resumen)
 
 class NewPack(APIView):
     permission_classes = [IsAgencia]
@@ -178,7 +199,10 @@ class UpdatePack(APIView):
             return Response({"error": "Paquete no encontrado"}, status=status.HTTP_404_NOT_FOUND)
 
         nombre = request.data.get('nombre')
-        if nombre and PaqueteTuristico.objects.filter(agencia_id=request.user.pk, nombre__iexact=nombre).exclude(pk=pk).exists():
+        # Solo se exige un nombre único cuando se cambia: hay paquetes anteriores con nombres repetidos
+        # y no deben quedar imposibles de editar por ello.
+        cambia_nombre = bool(nombre) and str(nombre).strip().lower() != paquete.nombre.strip().lower()
+        if cambia_nombre and PaqueteTuristico.objects.filter(agencia_id=request.user.pk, nombre__iexact=nombre).exclude(pk=pk).exists():
             return Response({"nombre": ["Ya tienes un paquete con este nombre."]}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = SerializersCreateNewPack(paquete, data=request.data, partial=True)
@@ -230,9 +254,13 @@ class PaquetesTuristicos(APIView):
                 cursor.execute("""
                     SELECT 
                         p.id, p.activo, p.nombre, p.descripcion, p.precio, 
-                        p.duracion, p.capacidad, p.ubicacion, p.itinerario, 
+                        p.duracion, p.capacidad, p.ubicacion, p.latitud, p.longitud, p.itinerario,
                         p.incluido, p.rating, p.agencia_id, p.categoria_paquete_id,
                         p.fecha_realizacion, p.tipo_paquete,
+                        p.modalidades_turismo, p.clasificacion_actividades,
+                        p.requisitos_participantes, p.condiciones_operacion,
+                        p.medidas_seguridad, p.informacion_sostenibilidad,
+                        p.certificacion_aventura,
                         c.nombre AS categoria_nombre,
                         (SELECT COALESCE(SUM(dv.cantidad), 0) 
                          FROM autenticacion_detalles_venta dv 
@@ -262,6 +290,16 @@ class PaquetesTuristicos(APIView):
             paquetes_list = []
             for row in rows:
                 item = dict(zip(columns, row))
+                for campo_json, valor_predeterminado in (
+                    ('itinerario', []), ('incluido', []),
+                    ('modalidades_turismo', []), ('clasificacion_actividades', []),
+                    ('certificacion_aventura', {}),
+                ):
+                    if isinstance(item.get(campo_json), str):
+                        try:
+                            item[campo_json] = json.loads(item[campo_json])
+                        except (TypeError, ValueError):
+                            item[campo_json] = valor_predeterminado
                 capacidad = item['capacidad'] or 0
                 reservas_comp = item['reservas_completadas'] or 0
                 
@@ -270,7 +308,6 @@ class PaquetesTuristicos(APIView):
                 else:
                     item['cupos_disponibles'] = capacidad
 
-                # Actividades vacías por defecto o estructuradas
                 item['actividades'] = []
                 item['categoria_paquete'] = item['categoria_paquete_id']
                 item['agencia'] = item['agencia_id']
@@ -287,10 +324,20 @@ class PaquetesTuristicos(APIView):
                         img_map[img.paquete_id] = []
                     img_map[img.paquete_id].append({
                         'id': img.id,
-                        'imagen': img.imagen.url if img.imagen else None
+                        'url': img.imagen.url if img.imagen else None,
+                        'es_portada': img.es_portada,
                     })
                 for p in paquetes_list:
                     p['imagen_paquete'] = img_map.get(p['id'], [])
+
+                actividades_por_paquete = {}
+                relaciones = PaqueteTuristico.actividades.through.objects.filter(
+                    paqueteturistico_id__in=p_ids
+                ).values_list('paqueteturistico_id', 'actividad_id')
+                for paquete_id, actividad_id in relaciones:
+                    actividades_por_paquete.setdefault(paquete_id, []).append(actividad_id)
+                for p in paquetes_list:
+                    p['actividades'] = actividades_por_paquete.get(p['id'], [])
 
             return Response(paquetes_list)
         except (Http404, APIException):
@@ -1378,75 +1425,92 @@ class PerfilView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+IMAGEN_PERFIL_MAX_BYTES = 20 * 1024 * 1024
+IMAGEN_PERFIL_FORMATOS = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+
+
+def _borrar_imagen_remota(recurso):
+    """Libera la imagen anterior en Cloudinary. Si falla, la foto del perfil ya cambió: solo se avisa en el registro."""
+    public_id = getattr(recurso, 'public_id', None)
+    if not public_id:
+        return
+    try:
+        cloudinary.uploader.destroy(public_id, invalidate=True)
+    except Exception:
+        logger.warning('No se pudo borrar una imagen anterior de Cloudinary.')
+
+
 class PerfilFotoView(APIView):
     """
-    POST /api/perfil/foto/ → Sube una imagen a Cloudinary.
-    - query param ?tipo=portada  → Sube a foto_portada
-    - default o ?tipo=perfil     → Sube a logotipo / foto_perfil
+    Foto de perfil (logotipo en las agencias) y portada de la cuenta de quien tiene la sesión abierta.
+    - POST   /api/perfil/foto/?tipo=perfil|portada → agrega o reemplaza la imagen.
+    - DELETE /api/perfil/foto/?tipo=perfil|portada → la elimina.
+    Solo se modifica la cuenta autenticada; el servidor valida el formato y el tamaño.
     """
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
+    @staticmethod
+    def _cuenta(usuario):
+        for relacion in ('agencia', 'proveedor', 'turista'):
+            if hasattr(usuario, relacion):
+                return getattr(usuario, relacion)
+        return None
+
+    @staticmethod
+    def _campo(cuenta, tipo):
+        if tipo == 'portada':
+            return 'foto_portada' if hasattr(cuenta, 'foto_portada') else None
+        if hasattr(cuenta, 'logotipo'):  # Agencia
+            return 'logotipo'
+        return 'foto_perfil' if hasattr(cuenta, 'foto_perfil') else None  # Proveedor / Turista
+
+    def _preparar(self, request):
+        """Devuelve (cuenta, campo, error): la cuenta y el campo a modificar, o la respuesta de error."""
+        tipo = request.query_params.get('tipo', 'perfil')
+        if tipo not in ('perfil', 'portada'):
+            return None, None, Response({'error': 'El tipo debe ser «perfil» o «portada».'}, status=status.HTTP_400_BAD_REQUEST)
+        cuenta = self._cuenta(request.user)
+        if cuenta is None:
+            return None, None, Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        campo = self._campo(cuenta, tipo)
+        if campo is None:
+            return None, None, Response({'error': 'Este tipo de perfil no admite esa imagen.'}, status=status.HTTP_400_BAD_REQUEST)
+        return cuenta, campo, None
+
     def post(self, request):
+        cuenta, campo, error = self._preparar(request)
+        if error:
+            return error
+        archivo = request.FILES.get('foto') or request.FILES.get('portada')
+        if not archivo:
+            return Response({'error': 'No se proporcionó ningún archivo. Usa el campo "foto" o "portada".'}, status=status.HTTP_400_BAD_REQUEST)
+        if archivo.content_type not in IMAGEN_PERFIL_FORMATOS:
+            return Response({'error': 'Solo se permiten imágenes JPG, PNG, WEBP o GIF.'}, status=status.HTTP_400_BAD_REQUEST)
+        if archivo.size > IMAGEN_PERFIL_MAX_BYTES:
+            return Response({'error': f'La imagen no puede superar los {IMAGEN_PERFIL_MAX_BYTES // (1024 * 1024)} MB.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        anterior = getattr(cuenta, campo)
         try:
-            tipo = request.query_params.get('tipo', 'perfil')
-            archivo = request.FILES.get('foto') or request.FILES.get('portada')
-            
-            logger.debug(f"DEBUG: Intento de carga de imagen - Tipo: {tipo}, Usuario: {request.user.email}")
-            
-            if not archivo:
-                return Response(
-                    {'error': 'No se proporcionó ningún archivo. Usa el campo "foto" o "portada".'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Identificar la instancia del perfil
-            instance = None
-            if hasattr(request.user, 'agencia'):
-                instance = request.user.agencia
-            elif hasattr(request.user, 'proveedor'):
-                instance = request.user.proveedor
-            elif hasattr(request.user, 'turista'):
-                instance = request.user.turista
-
-            if not instance:
-                logger.error('Error interno de operación')
-                return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-            # Decidir qué campo actualizar
-            if tipo == 'portada':
-                if hasattr(instance, 'foto_portada'):
-                    instance.foto_portada = archivo
-                    instance.save(update_fields=['foto_portada'])
-                    # Refetch to ensure we have the processed Cloudinary URL
-                    instance.refresh_from_db()
-                    return Response({'foto_url': instance.foto_portada.url}, status=status.HTTP_200_OK)
-                else:
-                    return Response({'error': 'Este tipo de perfil no admite fotos de portada.'}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                # Perfil / Logotipo
-                if hasattr(instance, 'logotipo'): # Agencia
-                    instance.logotipo = archivo
-                    instance.save(update_fields=['logotipo'])
-                    instance.refresh_from_db()
-                    return Response({'foto_url': instance.logotipo.url}, status=status.HTTP_200_OK)
-                elif hasattr(instance, 'foto_perfil'): # Proveedor / Turista
-                    instance.foto_perfil = archivo
-                    instance.save(update_fields=['foto_perfil'])
-                    instance.refresh_from_db()
-                    return Response({'foto_url': instance.foto_perfil.url}, status=status.HTTP_200_OK)
-                
-            return Response({'error': 'No se pudo determinar el campo de imagen para este perfil.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        except (Http404, APIException):
-            raise
-        except Exception as e:
-            msg_error = 'Error interno; contacte al soporte.'
+            setattr(cuenta, campo, archivo)
+            cuenta.save(update_fields=[campo])
+            cuenta.refresh_from_db()
+        except Exception:
             logger.error('Error interno de operación')
-            return Response({
-                'error': 'Error interno al procesar la imagen.',
-                'detalle': msg_error
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Error interno al procesar la imagen.', 'detalle': 'Error interno; contacte al soporte.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        _borrar_imagen_remota(anterior)
+        return Response({'foto_url': getattr(cuenta, campo).url}, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        cuenta, campo, error = self._preparar(request)
+        if error:
+            return error
+        anterior = getattr(cuenta, campo)
+        if anterior:
+            setattr(cuenta, campo, None)
+            cuenta.save(update_fields=[campo])
+            _borrar_imagen_remota(anterior)
+        return Response({'foto_url': None}, status=status.HTTP_200_OK)
 
 # --- VISTA MOCK PARA VALIDACIÓN DE CREDENCIALES LEGALES ---
 class VerificarCredenciales(APIView):
@@ -1609,7 +1673,10 @@ class MisReservasView(APIView):
                     }
 
             resultado = []
-            hoy = date_type.today()
+            # La fecha de la experiencia es un día de Colombia: con la fecha UTC, una reserva de hoy pasaba a
+            # «Realizado» desde las 7 p. m. y el turista perdía el acceso al mapa el mismo día.
+            from .vistas_recorridos import fecha_de_hoy
+            hoy = fecha_de_hoy()
             detalles_a_actualizar = []
 
             for detalle in detalles:
@@ -1680,6 +1747,9 @@ class MisReservasView(APIView):
                     'imagen': imagen_portada,
                     'agencia': paquete.agencia.nombre_agencia if (paquete.agencia and hasattr(paquete.agencia, 'nombre_agencia')) else '',
                     'ubicacion': paquete.ubicacion,
+                    # Punto de encuentro, para guardar el mapa del recorrido y usarlo sin conexión.
+                    'latitud': float(paquete.latitud) if paquete.latitud is not None else None,
+                    'longitud': float(paquete.longitud) if paquete.longitud is not None else None,
                     'fecha_actividad': fecha_actividad,
                     'cantidad': cant,
                     'precio_unitario': str(p_unit),

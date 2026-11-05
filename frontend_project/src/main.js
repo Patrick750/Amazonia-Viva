@@ -3,6 +3,10 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import { iniciarCapturaInstalacion } from './composables/useInstalarPwa'
+
+// Debe registrarse antes de montar: el navegador puede avisar de que la app es instalable muy pronto.
+iniciarCapturaInstalacion()
 
 const app = createApp(App)
 
@@ -14,3 +18,13 @@ if ('scrollRestoration' in window.history) {
 }
 
 app.mount('#app')
+
+// PWA: guarda la carcasa de la aplicación para abrirla sin conexión. Solo en producción,
+// porque en desarrollo el servicio de Vite cambia constantemente sus archivos.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    // Se registra enseguida y no al terminar de cargar la página: con imágenes lentas el evento `load` tarda
+    // y, si la persona cambia de pantalla antes, el service worker nunca llegaría a instalarse.
+    setTimeout(() => {
+        navigator.serviceWorker.register('/sw.js').catch((error) => console.error('No se pudo registrar el service worker', error))
+    }, 500)
+}

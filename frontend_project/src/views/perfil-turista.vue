@@ -2,62 +2,38 @@
   <div class="min-h-screen bg-slate-50 font-sans">
 
     <!-- ═══ HEADER ═══ -->
-    <div class="bg-gradient-to-r from-emerald-900 to-emerald-700 pt-10 pb-20 px-4">
-      <div class="max-w-2xl mx-auto flex flex-col sm:flex-row items-center gap-6">
+    <div class="relative overflow-hidden bg-gradient-to-r from-emerald-900 to-emerald-700 pt-10 pb-20 px-4">
+      <!-- Portada: se ve aquí desde el primer momento; tócala para verla en grande o usa la cámara para cambiarla o eliminarla -->
+      <div class="absolute inset-0 z-0">
+        <img v-if="perfil.foto_portada_url" :src="perfil.foto_portada_url" alt="Portada" class="h-full w-full object-cover" />
+        <div v-if="perfil.foto_portada_url" class="pointer-events-none absolute inset-0 bg-black/35"></div>
+        <ControlesImagen tipo="portada" :url="perfil.foto_portada_url" editable posicion-boton="top-3 right-3" @cambio="perfil.foto_portada_url = $event" />
+      </div>
+      <!-- El contenido deja pasar los toques a la portada salvo en la foto y los textos -->
+      <div class="relative z-10 pointer-events-none max-w-2xl mx-auto flex flex-col sm:flex-row items-center gap-6">
 
-        <!-- Avatar clickeable para subir foto -->
-        <div class="relative shrink-0 group">
-          <div
-            @click="triggerFotoInput"
-            class="w-20 h-20 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shadow-xl cursor-pointer overflow-hidden"
-            title="Haz clic para cambiar tu foto de perfil"
-          >
-            <!-- Spinner durante upload -->
-            <div v-if="subiendoFoto" class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center z-10">
-              <svg class="w-7 h-7 text-white animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-            </div>
-            <!-- Overlay de edición -->
-            <div class="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 gap-1">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-              <span class="text-white text-[10px] font-semibold">Cambiar</span>
-            </div>
-            <!-- Foto o iniciales -->
-            <img v-if="fotoPreview || perfil.foto_url" :src="fotoPreview || perfil.foto_url" alt="Foto de perfil" class="w-full h-full object-cover" />
+        <!-- Foto de perfil: tocarla la abre en grande; el botón de cámara permite agregarla, cambiarla o eliminarla -->
+        <div class="pointer-events-auto relative shrink-0">
+          <div class="relative w-20 h-20 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center shadow-xl overflow-hidden">
+            <img v-if="perfil.foto_url" :src="perfil.foto_url" alt="Foto de perfil" class="w-full h-full object-cover" />
             <span v-else class="text-2xl font-bold text-white select-none">{{ iniciales }}</span>
           </div>
-
-          <!-- Input file oculto -->
-          <input
-            ref="fotoInputRef"
-            id="input-foto-turista"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            @change="onFotoSeleccionada"
-          />
+          <ControlesImagen tipo="perfil" :url="perfil.foto_url" editable redondeo="rounded-full" posicion-boton="-bottom-1 -right-1" @cambio="perfil.foto_url = $event" />
         </div>
 
-        <div class="text-center sm:text-left">
+        <div class="pointer-events-auto text-center sm:text-left">
           <h1 class="text-2xl font-bold text-white">{{ perfil.first_name }} {{ perfil.last_name }}</h1>
           <p class="text-emerald-200 text-sm mt-1">{{ perfil.email }}</p>
           <span class="inline-flex items-center gap-1 mt-2 bg-emerald-600/60 border border-emerald-400/40 text-emerald-100 text-xs px-2.5 py-1 rounded-full">
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
             Viajero Verificado
           </span>
-          <!-- Mensajes de foto -->
-          <transition name="fade">
-            <p v-if="fotoMsg" class="text-emerald-300 text-xs mt-2 font-medium">✓ {{ fotoMsg }}</p>
-            <p v-else-if="fotoError" class="text-red-300 text-xs mt-2">{{ fotoError }}</p>
-          </transition>
         </div>
       </div>
     </div>
 
     <!-- ═══ LAYOUT CON SIDEBAR ═══ -->
-    <div class="max-w-5xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
+    <div class="relative z-10 max-w-5xl mx-auto px-4 -mt-10 pb-16 flex flex-col lg:flex-row gap-8">
       
       <!-- Menú Lateral -->
       <MenuLateralPerfil v-model="currentView" />
@@ -166,6 +142,7 @@
             key="view" 
             :perfil="perfil" 
             rol-label="Turista" 
+            @imagen-cambiada="({ tipo, url }) => perfil[tipo === 'perfil' ? 'foto_url' : 'foto_portada_url'] = url"
           />
         </transition>
       </div>
@@ -178,23 +155,17 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import clienteAxios from '@/api/axios.js'
 import MenuLateralPerfil from '@/components/perfil/MenuLateralPerfil.vue'
 import VistaPerfilPublico from '@/components/perfil/VistaPerfilPublico.vue'
+import ControlesImagen from '@/components/perfil/ControlesImagen.vue'
 
 const currentView = ref('info')
 const isLoading  = ref(false)
 const successMsg = ref(false)
 const errorMsg   = ref('')
 
-// Foto
-const fotoInputRef = ref(null)
-const fotoPreview  = ref(null)
-const subiendoFoto = ref(false)
-const fotoMsg      = ref('')
-const fotoError    = ref('')
-
 const perfil = reactive({
   first_name: '', last_name: '',
   email: '', fecha_nacimiento: '',
-  numero_identidad: '', foto_url: null,
+  numero_identidad: '', foto_url: null, foto_portada_url: null,
   numero_telefonico: '',
 })
 
@@ -225,56 +196,6 @@ onMounted(async () => {
     console.error('Error cargando perfil:', err)
   }
 })
-
-// ─── Upload de foto ────────────────────────────────────────
-function triggerFotoInput() {
-  fotoInputRef.value?.click()
-}
-
-async function onFotoSeleccionada(event) {
-  const archivo = event.target.files[0]
-  if (!archivo) return
-
-  if (!archivo.type.startsWith('image/')) {
-    fotoError.value = 'Solo se permiten archivos de imagen.'
-    setTimeout(() => { fotoError.value = '' }, 4000)
-    return
-  }
-  if (archivo.size > 5 * 1024 * 1024) {
-    fotoError.value = 'La imagen no puede superar los 5 MB.'
-    setTimeout(() => { fotoError.value = '' }, 4000)
-    return
-  }
-
-  fotoPreview.value = URL.createObjectURL(archivo)
-  subiendoFoto.value = true
-  fotoMsg.value = ''
-  fotoError.value = ''
-
-  try {
-    const fd = new FormData()
-    fd.append('foto', archivo)
-    const { data } = await clienteAxios.post('api/perfil/foto/', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    perfil.foto_url = data.foto_url
-    // ── Actualizar header en tiempo real ──
-    localStorage.setItem('foto_url', data.foto_url)
-    window.dispatchEvent(new CustomEvent('perfil:foto-actualizada', {
-      detail: { foto_url: data.foto_url }
-    }))
-    fotoMsg.value = 'Foto actualizada correctamente'
-    setTimeout(() => { fotoMsg.value = '' }, 4000)
-  } catch (err) {
-    console.error('Error subiendo foto:', err)
-    fotoPreview.value = null
-    fotoError.value = 'Error al subir la imagen. Inténtalo de nuevo.'
-    setTimeout(() => { fotoError.value = '' }, 5000)
-  } finally {
-    subiendoFoto.value = false
-    event.target.value = ''
-  }
-}
 
 // ─── Guardar datos ─────────────────────────────────────────
 async function guardar() {

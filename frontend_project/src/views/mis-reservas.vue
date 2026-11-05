@@ -1,6 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import axios from '@/api/axios';
+import { useInstalarPwa } from '@/composables/useInstalarPwa';
+import { guardadosParaHoy, hoyEnColombia, obtenerGuardado, prepararMapaOffline } from '@/composables/recorridos/almacenOffline';
 
 // ── Estado ──────────────────────────────────────────────────────────────────
 const reservas        = ref([]);
@@ -12,6 +14,57 @@ const reservaACanc    = ref(null);
 const cancelando      = ref(false);
 const mensajeExito    = ref('');
 const viajeroAbierto  = ref({}); // { [reserva.id]: boolean }
+
+// Paquetes cuyo recorrido está habilitado hoy para este turista (la validación real ocurre en el servidor).
+const recorridosHoy = ref([]);
+onMounted(() => {
+  axios.get('api/turista/recorridos-habilitados/')
+    .then(({ data }) => { recorridosHoy.value = data; })
+    .catch(() => { recorridosHoy.value = []; });
+});
+
+// El servidor decide qué reservas tienen el mapa habilitado hoy; aquí solo se usa su respuesta.
+const habilitadoHoy = (r) => r.estado === 'Confirmado' && recorridosHoy.value.some(h => h.paquete === r.paquete_id);
+// Aviso informativo para las reservas futuras (la habilitación real la valida el servidor).
+const fechaLocalHoy = () => new Date().toLocaleDateString('en-CA');
+const habilitaDespues = (r) => r.estado === 'Confirmado' && !!r.fecha_actividad && r.fecha_actividad > fechaLocalHoy();
+const { puedeInstalar, instalar } = useInstalarPwa();
+
+// Mapa del recorrido para usar sin conexión. Se guarda ahora, con internet, porque el día de la experiencia
+// puede no haber señal: datos del recorrido, punto de encuentro, mosaicos de la zona y la pantalla del mapa.
+const enLinea = ref(navigator.onLine);
+const alCambiarConexion = () => { enLinea.value = navigator.onLine; };
+window.addEventListener('online', alCambiarConexion);
+window.addEventListener('offline', alCambiarConexion);
+onBeforeUnmount(() => {
+  window.removeEventListener('online', alCambiarConexion);
+  window.removeEventListener('offline', alCambiarConexion);
+});
+// Mapas guardados para hoy: sin conexión no se pueden listar las reservas, pero sí abrir estos.
+const guardadosHoy = guardadosParaHoy();
+const estadoOffline = ref({});
+const aptaParaOffline = (r) => r.estado === 'Confirmado' && !!r.fecha_actividad && r.fecha_actividad >= hoyEnColombia();
+const estadoDe = (r) => estadoOffline.value[r.paquete_id]?.estado || (obtenerGuardado(r.paquete_id) ? 'listo' : null);
+const ponerEstado = (r, estado) => { estadoOffline.value = { ...estadoOffline.value, [r.paquete_id]: estado }; };
+const prepararReserva = async (r) => {
+  ponerEstado(r, { estado: 'preparando', progreso: '' });
+  try {
+    const resultado = await prepararMapaOffline(r, (hechos, total) => ponerEstado(r, { estado: 'preparando', progreso: `${hechos}/${total}` }));
+    ponerEstado(r, { estado: resultado.guardado ? 'listo' : 'error', fallidos: resultado.fallidos });
+  } catch {
+    ponerEstado(r, { estado: 'error' });
+  }
+};
+const preparadas = new Set();
+watch(reservas, async (lista) => {
+  if (!navigator.onLine) return;
+  // Primero la experiencia más próxima: es la que se necesita antes.
+  for (const r of lista.filter(aptaParaOffline).sort((a, b) => a.fecha_actividad.localeCompare(b.fecha_actividad))) {
+    if (preparadas.has(r.paquete_id)) continue;
+    preparadas.add(r.paquete_id);
+    await prepararReserva(r);
+  }
+});
 
 // ── Estado Calificación ─────────────────────────────────────────────────────
 const showRatingModal = ref(false);
@@ -160,6 +213,21 @@ async function submitRating() {
       <div class="absolute bottom-0 right-1/4 w-72 h-72 rounded-full bg-teal-400/4 blur-3xl pointer-events-none"></div>
 
       <div class="relative z-10 max-w-5xl mx-auto px-6">
+        <div v-if="!enLinea && guardadosHoy.length" class="mb-6 rounded-2xl border border-sky-300/30 bg-sky-400/10 p-4" role="status">
+          <p class="text-sm font-bold text-sky-100">Sin conexión · tu mapa de hoy está guardado</p>
+          <p class="mt-1 text-xs text-sky-100/70">Funciona sin internet: el GPS de tu teléfono sigue marcando dónde estás.</p>
+          <router-link v-for="guardado in guardadosHoy" :key="guardado.paquete" :to="{ path: '/panel/mi-recorrido', query: { paquete: guardado.paquete } }"
+            class="mt-3 flex min-h-12 items-center gap-2 rounded-xl bg-sky-500 px-5 text-xs font-black uppercase tracking-widest text-white outline-none transition hover:bg-sky-400 focus-visible:ring-2 focus-visible:ring-white">
+            Ir al mapa: {{ guardado.nombre }}
+          </router-link>
+        </div>
+
+        <router-link v-if="recorridosHoy.length" :to="{ path: '/panel/mi-recorrido', query: { paquete: recorridosHoy[0].paquete } }"
+          class="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-5 py-4 text-emerald-100 transition hover:bg-emerald-400/15 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+          <span class="text-sm font-bold">Hoy es el día de tu experiencia: consulta el recorrido en el mapa.</span>
+          <span class="text-xs font-black uppercase tracking-widest">Ver recorrido →</span>
+        </router-link>
+
         <!-- Breadcrumb etiqueta -->
         <div class="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-400/20 text-emerald-300 text-[11px] font-bold uppercase tracking-widest px-4 py-1.5 rounded-full mb-6">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -362,6 +430,29 @@ async function submitRating() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <!-- Mapa del recorrido: se habilita el día de la experiencia -->
+              <div v-if="habilitadoHoy(r)" class="rounded-2xl border border-sky-300/30 bg-sky-400/10 p-4">
+                <p class="text-sm font-bold text-sky-100">¡Hoy es el día de tu experiencia!</p>
+                <p class="mt-1 text-xs text-sky-100/70">Abre el mapa para ver el recorrido y dónde estás, en tiempo real.</p>
+                <router-link :to="{ path: '/panel/mi-recorrido', query: { paquete: r.paquete_id } }"
+                  class="mt-3 inline-flex min-h-12 items-center gap-2 rounded-xl bg-sky-500 px-5 text-xs font-black uppercase tracking-widest text-white outline-none transition hover:bg-sky-400 focus-visible:ring-2 focus-visible:ring-white">
+                  <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20 3 17V4l6 3m0 13 6-3m-6 3V7m6 10 6 3V7l-6-3m0 13V4"/></svg>
+                  Ir al mapa del recorrido
+                </router-link>
+                <button v-if="puedeInstalar" type="button" class="mt-3 block text-xs font-bold text-sky-200 underline underline-offset-2" @click="instalar">Instalar la app para usarlo durante el recorrido</button>
+              </div>
+              <p v-else-if="habilitaDespues(r)" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/60">El mapa del recorrido se habilita el día de tu experiencia ({{ formatFecha(r.fecha_actividad) }}).</p>
+
+              <!-- Estado del mapa guardado para uso sin conexión -->
+              <div v-if="aptaParaOffline(r)" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" role="status">
+                <span v-if="estadoDe(r) === 'preparando'" class="font-semibold text-amber-200">Guardando el mapa para usarlo sin conexión… {{ estadoOffline[r.paquete_id]?.progreso }}</span>
+                <span v-else-if="estadoDe(r) === 'listo'" class="font-semibold text-emerald-300">✓ Mapa guardado para usarlo sin conexión{{ estadoOffline[r.paquete_id]?.fallidos ? ' (algunos mosaicos no se guardaron)' : '' }}</span>
+                <template v-else>
+                  <span class="text-white/60">{{ enLinea ? 'No se pudo guardar el mapa sin conexión.' : 'Conéctate a internet para guardar el mapa sin conexión.' }}</span>
+                  <button v-if="enLinea" type="button" class="font-bold text-emerald-300 underline underline-offset-2" @click="prepararReserva(r)">Guardar ahora</button>
+                </template>
               </div>
 
               <!-- Footer: precio + acción -->

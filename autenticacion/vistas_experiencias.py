@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .permissions import IsAgencia, IsTurista
+from .vistas_recorridos import fecha_de_hoy
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import MultiPartParser
 from django.shortcuts import get_object_or_404
@@ -23,8 +24,7 @@ class ExperienciasDashboardView(APIView):
         mis_paquetes_ids = PaqueteTuristico.objects.filter(agencia_id=user.id).values_list('id', flat=True)
         
         # Automatización: Finalizar tours cuya fecha haya pasado
-        from datetime import date
-        hoy = date.today()
+        hoy = fecha_de_hoy()  # día de Colombia, no el UTC del servidor
         from .models import ReservaFecha
         
         pendientes_actualizar = Detalles_Venta.objects.filter(
@@ -218,9 +218,8 @@ class MisExperienciasTuristaView(APIView):
 
     def get(self, request):
         from .models import ReservaFecha
-        from datetime import date
         user = request.user
-        hoy = date.today()
+        hoy = fecha_de_hoy()  # día de Colombia, no el UTC del servidor
         
         # 1. Automatización: Marcar como 'Realizado' si la fecha ya pasó
         pendientes = Detalles_Venta.objects.filter(

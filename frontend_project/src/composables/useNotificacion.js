@@ -3,13 +3,13 @@ import { reactive } from 'vue';
 const notificacionState = reactive({
     mostrar: false,
     mensaje: '',
-    tipo: 'exito' // 'exito' o 'error'
+    tipo: 'exito' // 'exito', 'aviso' (o 'warning') o 'error'
 });
 
 let timeoutId = null;
 
 export function useNotificacion() {
-    const mostrarNotificacion = (mensaje, tipo = 'exito') => {
+    const mostrarNotificacion = (mensaje, tipo = 'exito', duracion = 4000) => {
         notificacionState.mensaje = mensaje;
         notificacionState.tipo = tipo;
         notificacionState.mostrar = true;
@@ -20,7 +20,7 @@ export function useNotificacion() {
         
         timeoutId = setTimeout(() => {
             notificacionState.mostrar = false;
-        }, 4000);
+        }, duracion);
     };
 
     const cerrarNotificacion = () => {

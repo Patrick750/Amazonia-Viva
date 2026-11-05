@@ -96,6 +96,26 @@ class Actividad(models.Model):
         related_name="actividades", # Esto es clave para la API
         verbose_name="Categoría"
     )
+    es_turismo_aventura = models.BooleanField(
+        default=False,
+        verbose_name="Actividad de turismo de aventura"
+    )
+    norma_tecnica = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name="Norma técnica aplicable"
+    )
+    sistema_dificultad = models.CharField(
+        max_length=120,
+        blank=True,
+        verbose_name="Sistema de clasificación técnica"
+    )
+    opciones_dificultad = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Opciones de dificultad",
+        help_text="Opciones propias de la actividad; no se comparan entre normas distintas."
+    )
 
     class Meta:
         verbose_name = "Actividad"
@@ -116,6 +136,106 @@ class CategoriaPaquete(models.Model):
 
     def __str__(self):
         return f"{self.grupo} — {self.nombre}"
+
+
+class EstandarPaquete(models.Model):
+    clave = models.SlugField(max_length=40, unique=True)
+    version = models.CharField(max_length=20)
+    nombre = models.CharField(max_length=180)
+    proposito = models.TextField()
+    activo = models.BooleanField(default=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Estándar de paquetes"
+        verbose_name_plural = "Estándares de paquetes"
+        ordering = ['clave']
+
+    def __str__(self):
+        return f"{self.nombre} ({self.version})"
+
+
+class ModalidadTurismo(models.Model):
+    estandar = models.ForeignKey(
+        EstandarPaquete,
+        on_delete=models.CASCADE,
+        related_name='modalidades',
+    )
+    codigo = models.SlugField(max_length=40)
+    nombre = models.CharField(max_length=120)
+    descripcion = models.TextField(blank=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Modalidad de turismo"
+        verbose_name_plural = "Modalidades de turismo"
+        ordering = ['orden', 'nombre']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['estandar', 'codigo'],
+                name='modalidad_codigo_unico_por_estandar',
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class PrincipioEstandarPaquete(models.Model):
+    estandar = models.ForeignKey(
+        EstandarPaquete,
+        on_delete=models.CASCADE,
+        related_name='principios',
+    )
+    codigo = models.SlugField(max_length=50)
+    descripcion = models.TextField()
+    orden = models.PositiveSmallIntegerField(default=0)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Principio del estándar"
+        verbose_name_plural = "Principios del estándar"
+        ordering = ['orden', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['estandar', 'codigo'],
+                name='principio_codigo_unico_por_estandar',
+            ),
+        ]
+
+    def __str__(self):
+        return self.descripcion
+
+
+class FuenteEstandarPaquete(models.Model):
+    estandar = models.ForeignKey(
+        EstandarPaquete,
+        on_delete=models.CASCADE,
+        related_name='fuentes',
+    )
+    codigo = models.SlugField(max_length=60)
+    titulo = models.CharField(max_length=180)
+    entidad = models.CharField(max_length=180)
+    alcance = models.TextField()
+    url = models.URLField(blank=True, max_length=500)
+    verificada = models.BooleanField(default=False)
+    orden = models.PositiveSmallIntegerField(default=0)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Fuente del estándar"
+        verbose_name_plural = "Fuentes del estándar"
+        ordering = ['orden', 'titulo']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['estandar', 'codigo'],
+                name='fuente_codigo_unico_por_estandar',
+            ),
+        ]
+
+    def __str__(self):
+        return self.titulo
 
 
 class PaqueteTuristico(models.Model):
@@ -185,6 +305,40 @@ class PaqueteTuristico(models.Model):
         default=list, 
         verbose_name="Qué incluye",
         help_text="Formato esperado: [{'item': 'Transporte'}]"
+    )
+
+    # --- Ficha técnica y de seguridad MEJ-003 ---
+    modalidades_turismo = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Modalidades de turismo"
+    )
+    clasificacion_actividades = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Clasificación técnica por actividad",
+        help_text="Cada elemento identifica la actividad, su sistema y el nivel o descripción aplicable."
+    )
+    requisitos_participantes = models.TextField(
+        blank=True,
+        verbose_name="Requisitos y restricciones para participantes"
+    )
+    condiciones_operacion = models.TextField(
+        blank=True,
+        verbose_name="Condiciones de operación"
+    )
+    medidas_seguridad = models.TextField(
+        blank=True,
+        verbose_name="Medidas de seguridad y respuesta"
+    )
+    informacion_sostenibilidad = models.TextField(
+        blank=True,
+        verbose_name="Información de sostenibilidad"
+    )
+    certificacion_aventura = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Soporte de certificación para turismo de aventura"
     )
     
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
@@ -390,3 +544,68 @@ class EventoPago(models.Model):
     moneda = models.CharField(max_length=3)
     resultado = models.CharField(max_length=30)
     recibido_en = models.DateTimeField(auto_now_add=True)
+
+
+class Recorrido(models.Model):
+    """Trazado GPS grabado por una agencia y asociado a un paquete turístico.
+
+    ``id_cliente`` lo genera el dispositivo para que un recorrido registrado sin conexión
+    pueda reenviarse sin duplicarse. Solo un recorrido por paquete puede estar publicado.
+    """
+    id_cliente = models.UUIDField(unique=True, editable=False)
+    paquete = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE, related_name='recorridos')
+    nombre = models.CharField(max_length=120, blank=True)
+    iniciado_en = models.DateTimeField()
+    finalizado_en = models.DateTimeField(null=True, blank=True)
+    publicado = models.BooleanField(default=False)
+    publicado_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-iniciado_en']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['paquete'],
+                condition=models.Q(publicado=True),
+                name='recorrido_publicado_unico_por_paquete',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Recorrido {self.id_cliente} de {self.paquete_id}"
+
+
+class PuntoRecorrido(models.Model):
+    """Punto GPS de un recorrido. ``secuencia`` la asigna el dispositivo y evita duplicados al reintentar."""
+    recorrido = models.ForeignKey(Recorrido, on_delete=models.CASCADE, related_name='puntos')
+    secuencia = models.PositiveIntegerField()
+    latitud = models.DecimalField(max_digits=9, decimal_places=6)
+    longitud = models.DecimalField(max_digits=9, decimal_places=6)
+    precision_m = models.FloatField(null=True, blank=True)
+    capturado_en = models.DateTimeField()
+
+    class Meta:
+        ordering = ['secuencia']
+        constraints = [
+            models.UniqueConstraint(fields=['recorrido', 'secuencia'], name='punto_recorrido_secuencia_unica'),
+        ]
+
+
+class UbicacionCompartida(models.Model):
+    """Última posición que una persona comparte con quienes hacen el mismo paquete el mismo día.
+
+    Es efímera a propósito: solo se conserva la más reciente, se considera vigente unos minutos y se
+    borra al terminar el día. Se crea únicamente si la persona decide compartirla.
+    """
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='ubicaciones_compartidas')
+    paquete = models.ForeignKey(PaqueteTuristico, on_delete=models.CASCADE, related_name='ubicaciones_compartidas')
+    fecha = models.DateField()
+    latitud = models.DecimalField(max_digits=9, decimal_places=6)
+    longitud = models.DecimalField(max_digits=9, decimal_places=6)
+    precision_m = models.FloatField(null=True, blank=True)
+    actualizado_en = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['usuario', 'paquete', 'fecha'], name='ubicacion_compartida_unica'),
+        ]
