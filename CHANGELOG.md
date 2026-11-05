@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.8.0 — 2026-11-04 — feat(auth): low [0.1.0] rediseñar inicio de sesión y registro
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `0ced272dd2e650ffc5402a032169fab8a0e701b9`. Versión calculada automáticamente desde VERSION.
+
 ### 5.7.7 — 2026-11-04 — docs(plan): parch [0.0.1] actualizar estado de MEJ-003 y renumerar requisitos de MEJ-004
 
 - Autor del commit: AI Bot.
