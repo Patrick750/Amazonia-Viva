@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.2.0 — 2026-11-04 — feat(paquetes): low [0.1.0] implementar MEJ-003 y despliegue por rama
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `52618880125b8fa5035dd491c4e9b010f0820c37`. Versión calculada automáticamente desde VERSION.
+
 ### 5.1.2 — 2026-10-16 — fix(deploy): parch [0.0.1] activar despliegue de rama MEJ-004 por push
 
 - Autor del commit: AI Bot.
