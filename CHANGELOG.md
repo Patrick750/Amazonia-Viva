@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.23.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar la ubicación compartida en el mapa del día
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `252ea11c8da18ecb406371b5175c9df1285db538`. Versión calculada automáticamente desde VERSION.
+
 ### 5.23.0 — 2026-11-04 — feat(recorridos): low [0.1.0] ver a las demás personas en el mapa y su perfil mínimo
 
 - Autor del commit: AI Bot.
