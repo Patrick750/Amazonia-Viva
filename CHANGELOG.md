@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.17.4 — 2026-11-04 — fix(paquetes): parch [0.0.1] diagnosticar y reintentar cuando falla el permiso de ubicación
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `7b032332d3637a5d91808a8b605c0d879a41095e`. Versión calculada automáticamente desde VERSION.
+
 ### 5.17.3 — 2026-11-04 — docs(plan): parch [0.0.1] corregir descripción del botón Mi ubicación
 
 - Autor del commit: AI Bot.
