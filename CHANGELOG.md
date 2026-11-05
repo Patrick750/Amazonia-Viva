@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.20.1 — 2026-11-04 — fix(config): parch [0.0.1] permitir el origen del build de pruebas local en CORS
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `082982af8674454a61c5e1d70edf55a6d475a5a8`. Versión calculada automáticamente desde VERSION.
+
 ### 5.20.0 — 2026-11-04 — feat(recorridos): low [0.1.0] ubicación del paquete en las reservas para el mapa sin conexión
 
 - Autor del commit: AI Bot.
