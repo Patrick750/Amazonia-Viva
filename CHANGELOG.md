@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.13.0 — 2026-11-04 — feat(recorridos): low [0.1.0] mapa a pantalla completa con seguimiento y trazo visible
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `3c98dbafe6d3dfe95d142fdf5228617c1f3511d6`. Versión calculada automáticamente desde VERSION.
+
 ### 5.12.2 — 2026-11-04 — fix(recorridos): parch [0.0.1] mostrar la ubicación en vivo en el mapa de grabación
 
 - Autor del commit: AI Bot.
