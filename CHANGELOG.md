@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.3.0 — 2026-11-04 — feat(paquetes): low [0.1.0] mejorar UX de ficha técnica
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `8e787bd5a50a2b43d2f8d3f4327d29638dc59e4e`. Versión calculada automáticamente desde VERSION.
+
 ### 5.2.2 — 2026-11-04 — fix(migrations): parch [0.0.1] sincronizar secuencia de actividades
 
 - Autor del commit: AI Bot.
