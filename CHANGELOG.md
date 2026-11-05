@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.27.2 — 2026-11-04 — fix(perfil): parch [0.0.1] pruebas de imágenes sin credenciales de Cloudinary
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `37a65c6f968c0efe6200529b7a788b3309d330ab`. Versión calculada automáticamente desde VERSION.
+
 ### 5.27.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar la portada del encabezado y el catálogo propio
 
 - Autor del commit: AI Bot.
