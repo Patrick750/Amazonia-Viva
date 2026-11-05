@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.17.2 — 2026-11-04 — fix(paquetes): parch [0.0.1] botón Mi ubicación sobre el mapa del formulario
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `6dd61a2078b1f921ffac6f4abf3c1e71f6e007ce`. Versión calculada automáticamente desde VERSION.
+
 ### 5.17.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar ubicación actual en el formulario de paquetes
 
 - Autor del commit: AI Bot.
