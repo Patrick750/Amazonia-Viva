@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.4.0 — 2026-11-04 — feat(paquetes): low [0.1.0] rediseñar formulario y dificultades
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `f7a70dd82c6fa9df7fc6d264318225e37f8867a7`. Versión calculada automáticamente desde VERSION.
+
 ### 5.3.0 — 2026-11-04 — feat(paquetes): low [0.1.0] mejorar UX de ficha técnica
 
 - Autor del commit: AI Bot.
