@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.14.0 — 2026-11-04 — feat(recorridos): low [0.1.0] eliminar recorridos desde mis recorridos
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `47898174ba0b60c1d5e2f14745c361542ddbdac9`. Versión calculada automáticamente desde VERSION.
+
 ### 5.13.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar mapa de grabación a pantalla completa
 
 - Autor del commit: AI Bot.
