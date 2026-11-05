@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.16.0 — 2026-11-04 — feat(recorridos): low [0.1.0] alertas y trazo a la primera en el mapa del catálogo
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `5563c5e6b84e1b75620412f8f88fbc619da6e9da`. Versión calculada automáticamente desde VERSION.
+
 ### 5.15.0 — 2026-11-04 — feat(recorridos): low [0.1.0] exigir que el recorrido coincida con la ubicación del paquete
 
 - Autor del commit: AI Bot.
