@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.7.2 — 2026-11-04 — fix(paquetes): parch [0.0.1] interfaz ajustada
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `10fb5d12c90a5a55292c409ef5620267a7664b33`. Versión calculada automáticamente desde VERSION.
+
 ### 5.7.1 — 2026-11-04 — chore(ecc): patch [0.0.1] automatizar seleccion de skills
 
 - Autor del commit: AI Bot.
