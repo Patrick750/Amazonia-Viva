@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.10.0 — 2026-11-04 — feat(recorridos): low [0.1.0] pwa y grabación GPS sin conexión para agencias
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `4232a924b6b706f9a7157989499a288b2934ab31`. Versión calculada automáticamente desde VERSION.
+
 ### 5.9.0 — 2026-11-04 — feat(recorridos): low [0.1.0] api de recorridos GPS con sincronización idempotente
 
 - Autor del commit: AI Bot.
