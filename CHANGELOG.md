@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.20.0 — 2026-11-04 — feat(recorridos): low [0.1.0] ubicación del paquete en las reservas para el mapa sin conexión
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `f6e68a0bc81fbeca1441432b08023bd7a637e3fb`. Versión calculada automáticamente desde VERSION.
+
 ### 5.19.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar el día de la reserva del turista
 
 - Autor del commit: AI Bot.

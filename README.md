@@ -1,6 +1,6 @@
 # 🌿 Amazonia Viva
 
-Versión: **5.19.1**
+Versión: **5.20.0**
 
 Plataforma web para la gestión y oferta de turismo amazónico. Conecta agencias, proveedores y turistas mediante una interfaz multi-rol con autenticación, paquetes turísticos y gestión de ventas.
 
