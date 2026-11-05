@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.26.0 — 2026-11-04 — feat(perfil): low [0.1.0] ver, agregar, cambiar y eliminar foto y portada en mi perfil
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `2192ebb5b41a5d667f2f8f5ac7b695a663a4471d`. Versión calculada automáticamente desde VERSION.
+
 ### 5.25.0 — 2026-11-04 — feat(perfil): low [0.1.0] eliminar foto y portada y mostrar la portada del turista
 
 - Autor del commit: AI Bot.
