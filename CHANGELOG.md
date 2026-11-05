@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.2.2 — 2026-11-04 — fix(migrations): parch [0.0.1] sincronizar secuencia de actividades
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `7ef366d186d541a28eb9ddf6d0f8ea443d6bc7ed`. Versión calculada automáticamente desde VERSION.
+
 ### 5.2.1 — 2026-11-04 — fix(deploy): parch [0.0.1] migrar DB antes de actualizar servicios
 
 - Autor del commit: AI Bot.
