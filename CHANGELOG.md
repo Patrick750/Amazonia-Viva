@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.18.2 — 2026-11-04 — fix(recorridos): parch [0.0.1] usar la fecha de Colombia en reservas y enviar el punto de encuentro al turista
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `e92ef27944517c66140e0c9231a2c459ae7fb869`. Versión calculada automáticamente desde VERSION.
+
 ### 5.18.1 — 2026-11-04 — fix(paquetes): parch [0.0.1] corregir nombre del paquete en reservar_hoy
 
 - Autor del commit: AI Bot.
