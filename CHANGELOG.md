@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.9.0 — 2026-11-04 — feat(recorridos): low [0.1.0] api de recorridos GPS con sincronización idempotente
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `f1f36cbbe43f5fa419a8641f4e4216c11a804796`. Versión calculada automáticamente desde VERSION.
+
 ### 5.8.2 — 2026-11-04 — chore(repo): parch [0.0.1] eliminar output.txt suelto
 
 - Autor del commit: AI Bot.
