@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.7.7 — 2026-11-04 — docs(plan): parch [0.0.1] actualizar estado de MEJ-003 y renumerar requisitos de MEJ-004
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `b8f1479d73f271a887e269eba05afd503828e82d`. Versión calculada automáticamente desde VERSION.
+
 ### 5.7.6 — 2026-11-04 — fix(paquetes): parch [0.0.1] permitir editar paquetes anteriores al estandar
 
 - Autor del commit: AI Bot.
