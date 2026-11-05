@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.12.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar instalación de la PWA
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `c27a5fcec8eecc0ab6394982967cab234f511196`. Versión calculada automáticamente desde VERSION.
+
 ### 5.12.0 — 2026-11-04 — feat(pwa): low [0.1.0] botón de instalación para turistas y agencias
 
 - Autor del commit: AI Bot.
