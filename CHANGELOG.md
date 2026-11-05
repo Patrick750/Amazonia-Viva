@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.16.2 — 2026-11-04 — fix(recorridos): parch [0.0.1] quitar el campo nombre y usar el del paquete
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `c0ddb29144c1d8c44fd2306242648c2849955c73`. Versión calculada automáticamente desde VERSION.
+
 ### 5.16.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar coincidencia con el paquete y alertas
 
 - Autor del commit: AI Bot.
