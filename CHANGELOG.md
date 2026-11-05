@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.15.0 — 2026-11-04 — feat(recorridos): low [0.1.0] exigir que el recorrido coincida con la ubicación del paquete
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `e4219c9186be24c63e879e6fcd913908cebc7741`. Versión calculada automáticamente desde VERSION.
+
 ### 5.14.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar eliminación de recorridos y corregir nota de mosaicos
 
 - Autor del commit: AI Bot.
