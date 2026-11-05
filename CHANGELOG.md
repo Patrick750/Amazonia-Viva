@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.16.4 — 2026-11-04 — fix(paquetes): parch [0.0.1] mostrar qué falta y navegar por pasos en móvil
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `fcc4b5acd1f7dd9f938153c97528e95ece7abf11`. Versión calculada automáticamente desde VERSION.
+
 ### 5.16.3 — 2026-11-04 — fix(paquetes): parch [0.0.1] no exigir cambiar el nombre repetido al editar
 
 - Autor del commit: AI Bot.
