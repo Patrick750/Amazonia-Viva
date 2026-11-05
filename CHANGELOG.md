@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.21.0 — 2026-11-04 — feat(recorridos): low [0.1.0] mapa del turista sin conexión en la PWA
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `9903aafc6791721cea979ca6a8a7430ecba8ebba`. Versión calculada automáticamente desde VERSION.
+
 ### 5.20.1 — 2026-11-04 — fix(config): parch [0.0.1] permitir el origen del build de pruebas local en CORS
 
 - Autor del commit: AI Bot.
