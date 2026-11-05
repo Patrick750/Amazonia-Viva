@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.27.0 — 2026-11-04 — feat(perfil): low [0.1.0] portada en el encabezado y sección de paquetes o productos propios
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `6005e01d2b38baff10bbb0dc0afeb10f5bc7d1be`. Versión calculada automáticamente desde VERSION.
+
 ### 5.26.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar la foto y la portada del perfil
 
 - Autor del commit: AI Bot.
