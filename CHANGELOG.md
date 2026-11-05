@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.21.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar el mapa del turista sin conexión
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `5ead24c05ec0a75b83c58d40e028405d57c04dc2`. Versión calculada automáticamente desde VERSION.
+
 ### 5.21.0 — 2026-11-04 — feat(recorridos): low [0.1.0] mapa del turista sin conexión en la PWA
 
 - Autor del commit: AI Bot.
