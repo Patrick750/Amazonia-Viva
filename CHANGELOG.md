@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.7.5 — 2026-11-04 — fix(config): parch [0.0.1] corregir origenes CORS locales
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `31d62c9d15728ba4f36c89cf2bf9d9e4247e65a7`. Versión calculada automáticamente desde VERSION.
+
 ### 5.7.4 — 2026-11-04 — fix(paquetes): parch [0.0.1] completar estándar MEJ-003 en seed_paquetes
 
 - Autor del commit: AI Bot.
