@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.17.5 — 2026-11-04 — docs(plan): parch [0.0.1] registrar diagnóstico de permisos de ubicación
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `9bbfdc620318ab0ba32e9c3b33fc23ba8561c871`. Versión calculada automáticamente desde VERSION.
+
 ### 5.17.4 — 2026-11-04 — fix(paquetes): parch [0.0.1] diagnosticar y reintentar cuando falla el permiso de ubicación
 
 - Autor del commit: AI Bot.
