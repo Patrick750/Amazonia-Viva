@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from '@/api/axios';
 
 const metrics = ref({ total: 0, completadas: 0, pendientes: 0 });
@@ -8,9 +8,30 @@ const isLoading = ref(true);
 const isUploading = ref(false);
 const selectedDetalle = ref(null);
 const fileInput = ref(null);
-const uploadProgress = ref(0);
-const currentFileIndex = ref(0);
-const totalFilesCount = ref(0);
+
+// Cola de evidencias: cada foto se sube por separado y, si la conexión falla, la subida se pausa sola y
+// conserva las fotos pendientes para continuar cuando vuelva la señal.
+const MAX_INTENTOS_SERVIDOR = 3;
+const TIEMPO_MAX_MS = 120000;
+const cola = ref([]); // { archivo, estado: 'pendiente' | 'subiendo' | 'ok' | 'error', detalle }
+const pausado = ref(false);
+const pausaAutomatica = ref(false);
+const sinConexion = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false);
+const resumenSubida = ref('');
+const fraccionArchivo = ref(0);
+let detalleSubida = null;
+let controlador = null;
+let procesando = false;
+let cancelado = false;
+
+const totalFilesCount = computed(() => cola.value.length);
+const subidas = computed(() => cola.value.filter(item => item.estado === 'ok').length);
+const fallidas = computed(() => cola.value.filter(item => item.estado === 'error').length);
+const currentFileIndex = computed(() => Math.min(subidas.value + 1, totalFilesCount.value));
+const uploadProgress = computed(() => totalFilesCount.value
+    ? Math.min(99, Math.round(((subidas.value + fraccionArchivo.value) / totalFilesCount.value) * 100))
+    : 0);
+const mostrarPanelSubida = computed(() => isUploading.value || cola.value.length > 0 || !!resumenSubida.value);
 
 const mostrarModalTuristas = ref(false);
 const selectedTour = ref(null);
@@ -48,68 +69,155 @@ const verTuristas = (tour) => {
 };
 
 const openUpload = (tour) => {
+    if (isUploading.value) return; // hay una subida en curso o en pausa
     // Usamos el ID del líder del grupo para asociar las fotos
     selectedDetalle.value = { id: tour.leader_id };
     fileInput.value.click();
 };
 
-const handleFileUpload = async (event) => {
-    const files = event.target.files;
-    if (!files || files.length === 0 || !selectedDetalle.value) return;
+const esperar = (ms) => new Promise(resolver => setTimeout(resolver, ms));
 
+const pausar = (automatica = false) => {
+    pausado.value = true;
+    pausaAutomatica.value = automatica;
+    controlador?.abort(); // la foto en curso se reintenta completa al reanudar
+};
+
+const reanudar = () => {
+    pausado.value = false;
+    pausaAutomatica.value = false;
+    resumenSubida.value = '';
+    if (!procesando) procesarCola();
+};
+
+const cancelarSubida = () => {
+    cancelado = true;
+    pausado.value = false;
+    controlador?.abort();
+};
+
+const alVolverConexion = () => {
+    sinConexion.value = false;
+    // Solo se reanuda sola si fue la propia app quien pausó; una pausa manual se respeta.
+    if (pausado.value && pausaAutomatica.value) reanudar();
+};
+const alPerderConexion = () => {
+    sinConexion.value = true;
+    if (isUploading.value && !pausado.value) {
+        pausar(true);
+        resumenSubida.value = 'Sin conexión: la subida quedó en pausa y continuará sola cuando vuelva internet.';
+    }
+};
+
+const subirUna = async (item) => {
+    controlador = new AbortController();
+    fraccionArchivo.value = 0;
+    const formData = new FormData();
+    formData.append('imagenes', item.archivo);
+    await axios.post(`api/experiencias/${detalleSubida}/evidencia/`, formData, {
+        signal: controlador.signal,
+        timeout: TIEMPO_MAX_MS,
+        onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) fraccionArchivo.value = (progressEvent.loaded / progressEvent.total) * 0.5; // el resto es el procesamiento en el servidor
+        },
+    });
+};
+
+const procesarCola = async () => {
+    if (procesando) return;
+    procesando = true;
+    cancelado = false;
     isUploading.value = true;
-    uploadProgress.value = 0;
-    
     try {
-        totalFilesCount.value = files.length;
-        currentFileIndex.value = 1;
-
-        for (let i = 0; i < totalFilesCount.value; i++) {
-            currentFileIndex.value = i + 1;
-            const formData = new FormData();
-            formData.append('imagenes', files[i]);
-
-            await axios.post(`api/experiencias/${selectedDetalle.value.id}/evidencia/`, formData, {
-                onUploadProgress: (progressEvent) => {
-                    const total = progressEvent.total;
-                    if (total) {
-                        const fileProgress = progressEvent.loaded / total;
-                        const baseProgress = (i / totalFilesCount.value) * 100;
-                        // Reservamos un 50% del progreso de este archivo para la subida de red,
-                        // y el otro 50% para el procesamiento del servidor (Cloudinary)
-                        const currentFileSlice = (fileProgress * 0.5) * (100 / totalFilesCount.value);
-                        uploadProgress.value = Math.min(99, Math.round(baseProgress + currentFileSlice));
+        for (const item of cola.value) {
+            let intentos = 0;
+            while (item.estado !== 'ok' && item.estado !== 'error' && !cancelado) {
+                if (pausado.value || sinConexion.value) {
+                    await esperar(400);
+                    continue;
+                }
+                item.estado = 'subiendo';
+                try {
+                    await subirUna(item);
+                    item.estado = 'ok';
+                } catch (error) {
+                    item.estado = 'pendiente';
+                    if (cancelado) break;
+                    if (axios.isCancel?.(error) || error.code === 'ERR_CANCELED') continue; // pausa manual
+                    if (!error.response) {
+                        // Sin respuesta: red caída o demasiado lenta. Se pausa en vez de perder las fotos.
+                        pausar(true);
+                        resumenSubida.value = 'La conexión es inestable: la subida quedó en pausa. Se reanuda sola al volver la señal o puedes pulsar «Reanudar».';
+                    } else if (error.response.status >= 500 && ++intentos < MAX_INTENTOS_SERVIDOR) {
+                        await esperar(1500 * intentos);
+                    } else {
+                        item.estado = 'error';
+                        item.detalle = error.response.data?.error || error.response.data?.detail || `Error ${error.response.status}`;
                     }
                 }
-            });
-            
-            // Al terminar la petición, el archivo está completamente procesado (100% de su porción)
-            uploadProgress.value = Math.round(((i + 1) / totalFilesCount.value) * 100);
+            }
+            if (cancelado) break;
         }
-
+    } finally {
+        const total = cola.value.length;
+        const ok = subidas.value;
+        const malas = fallidas.value;
+        if (cancelado) {
+            resumenSubida.value = `Subida cancelada: ${ok} de ${total} fotos se guardaron.`;
+            cola.value = [];
+        } else if (malas) {
+            resumenSubida.value = `${ok} de ${total} fotos subidas. ${malas} no se pudieron subir: pulsa «Reintentar» para volver a intentarlo.`;
+            cola.value = cola.value.filter(item => item.estado === 'error');
+            cola.value.forEach(item => { item.estado = 'error'; });
+        } else {
+            resumenSubida.value = `${ok} ${ok === 1 ? 'foto subida' : 'fotos subidas'} correctamente.`;
+            cola.value = [];
+        }
+        procesando = false;
+        isUploading.value = false;
+        pausado.value = false;
+        pausaAutomatica.value = false;
+        fraccionArchivo.value = 0;
+        selectedDetalle.value = null;
         await fetchData();
         // Si el modal está abierto, actualizar el selectedTour para reflejar las nuevas fotos
         if (mostrarModalTuristas.value && selectedTour.value) {
             const updated = registro.value.find(g => g.id === selectedTour.value.id);
             if (updated) selectedTour.value = updated;
         }
-    } catch (error) {
-        console.error('Error uploading evidence:', error);
-    } finally {
-        isUploading.value = false;
-        uploadProgress.value = 0;
-        currentFileIndex.value = 0;
-        totalFilesCount.value = 0;
-        selectedDetalle.value = null;
-        if (fileInput.value) {
-            fileInput.value.value = '';
-        }
     }
 };
 
+const reintentarFallidas = () => {
+    cola.value.forEach(item => { if (item.estado === 'error') item.estado = 'pendiente'; });
+    resumenSubida.value = '';
+    procesarCola();
+};
+
+const handleFileUpload = (event) => {
+    const archivos = Array.from(event.target.files || []);
+    // Se copia la lista y se libera el input para poder elegir de nuevo las mismas fotos.
+    if (fileInput.value) fileInput.value.value = '';
+    if (!archivos.length || !selectedDetalle.value) return;
+
+    detalleSubida = selectedDetalle.value.id;
+    cola.value = archivos.map(archivo => ({ archivo, estado: 'pendiente', detalle: '' }));
+    resumenSubida.value = '';
+    pausado.value = false;
+    procesarCola();
+};
 
 onMounted(() => {
     fetchData();
+    window.addEventListener('online', alVolverConexion);
+    window.addEventListener('offline', alPerderConexion);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('online', alVolverConexion);
+    window.removeEventListener('offline', alPerderConexion);
+    cancelado = true;
+    controlador?.abort();
 });
 </script>
 
@@ -156,14 +264,30 @@ onMounted(() => {
               <p class="text-sm text-gray-400">Listado de salidas programadas y gestión masiva</p>
             </div>
             
-            <div v-if="isUploading" class="flex flex-col items-end gap-1 w-full lg:w-auto">
-              <div class="flex items-center gap-3 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20 w-full lg:w-auto justify-center lg:justify-start">
-                <svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-                <span class="text-[10px] font-black uppercase tracking-widest" v-if="totalFilesCount > 1">Subiendo {{ currentFileIndex }} de {{ totalFilesCount }} ({{ uploadProgress }}%)</span>
-                <span class="text-[10px] font-black uppercase tracking-widest" v-else>Subiendo {{ uploadProgress }}%</span>
+            <div v-if="mostrarPanelSubida" class="flex flex-col items-end gap-2 w-full lg:w-96" role="status" aria-live="polite">
+              <div v-if="isUploading" class="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-2" :class="pausado ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'">
+                <div class="flex items-center gap-3">
+                  <svg v-if="pausado" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+                  <svg v-else class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                  <span class="text-[10px] font-black uppercase tracking-widest">
+                    {{ pausado ? 'En pausa' : (sinConexion ? 'Esperando conexión' : 'Subiendo') }} · {{ subidas }} de {{ totalFilesCount }} ({{ uploadProgress }}%)
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button v-if="!pausado" type="button" @click="pausar(false)" class="rounded-lg border border-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10">Pausar</button>
+                  <button v-else type="button" @click="reanudar" class="rounded-lg bg-emerald-500 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-black hover:bg-emerald-400">Reanudar</button>
+                  <button type="button" @click="cancelarSubida" class="rounded-lg border border-red-500/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-500/10">Cancelar</button>
+                </div>
               </div>
-              <div class="w-full lg:w-48 h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                <div class="h-full bg-emerald-500 transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]" :style="{ width: uploadProgress + '%' }"></div>
+              <div v-if="isUploading" class="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div class="h-full transition-all duration-300" :class="pausado ? 'bg-amber-400' : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'" :style="{ width: uploadProgress + '%' }"></div>
+              </div>
+              <div v-if="resumenSubida" class="flex w-full items-start justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-gray-300">
+                <p>{{ resumenSubida }}</p>
+                <div v-if="!isUploading" class="flex shrink-0 items-center gap-2">
+                  <button v-if="fallidas" type="button" @click="reintentarFallidas" class="rounded-lg bg-emerald-500 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-black hover:bg-emerald-400">Reintentar</button>
+                  <button type="button" @click="resumenSubida = ''; cola = []" class="text-gray-500 hover:text-white" aria-label="Cerrar aviso">✕</button>
+                </div>
               </div>
             </div>
           </div>
