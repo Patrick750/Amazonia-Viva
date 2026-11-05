@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.19.0 — 2026-11-04 — feat(recorridos): low [0.1.0] ir al mapa desde la reserva con la ubicación del turista
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `c00d1704b5ef0b5c9ed65618cf6788b696db8412`. Versión calculada automáticamente desde VERSION.
+
 ### 5.18.2 — 2026-11-04 — fix(recorridos): parch [0.0.1] usar la fecha de Colombia en reservas y enviar el punto de encuentro al turista
 
 - Autor del commit: AI Bot.
