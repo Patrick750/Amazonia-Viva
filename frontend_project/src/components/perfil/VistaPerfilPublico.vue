@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import tarjetaTour from '@/components/catalogo/tarjeta-tour.vue'
 import tarjetaProducto from '@/components/catalogo/tarjeta-producto.vue'
 import ControlesImagen from './ControlesImagen.vue'
@@ -51,23 +51,26 @@ const formatearMoneda = (valor) => {
 
 import clienteAxios from '@/api/axios.js'
 
-onMounted(async () => {
+const cargarCatalogo = async () => {
+  cargando.value = true
   try {
     const rol = (props.rolLabel || '').toLowerCase()
     let dataFetch = []
     
-    // Fetch only the authenticated user's products/packages 
-    // depending on their role context
+    // Solo lo publicado por esta cuenta, igual que en el catálogo. La API responde una lista
+    // o un objeto paginado { results }, según el endpoint.
+    const lista = (data) => (Array.isArray(data) ? data : (data?.results || []))
+    if (!props.perfil.id) { cargando.value = false; return }
     if (rol === 'agencia') {
-      const res = await clienteAxios.get(`api/catalogo/tours/?agencia_id=${props.perfil.id}`)
-      dataFetch = res.data.map(p => ({
+      const res = await clienteAxios.get(`api/catalogo/tours/?agencia_id=${props.perfil.id}&page_size=200`)
+      dataFetch = lista(res.data).map(p => ({
         ...p,
         tipo: 'tour',
         categoria_unificada: p.categoria_paquete_nombre || p.categoria_nombre || 'Tours Selváticos'
       }))
     } else if (rol === 'proveedor') {
       const res = await clienteAxios.get(`api/catalogo/productos/?proveedor_id=${props.perfil.id}`)
-      dataFetch = res.data.map(p => ({
+      dataFetch = lista(res.data).map(p => ({
         ...p,
         tipo: 'producto',
         categoria_unificada: p.nombre_categoria || 'Equipamiento'
@@ -85,7 +88,9 @@ onMounted(async () => {
   } finally {
     cargando.value = false
   }
-})
+}
+// En el perfil propio el id llega cuando termina de cargar el perfil.
+watch(() => props.perfil.id, cargarCatalogo, { immediate: true })
 
 const itemsFiltrados = computed(() => {
   let list = items.value
