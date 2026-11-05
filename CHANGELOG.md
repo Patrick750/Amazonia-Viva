@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.16.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar coincidencia con el paquete y alertas
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `cc2190b70d30089d00484e6015250734ec399dc2`. Versión calculada automáticamente desde VERSION.
+
 ### 5.16.0 — 2026-11-04 — feat(recorridos): low [0.1.0] alertas y trazo a la primera en el mapa del catálogo
 
 - Autor del commit: AI Bot.
