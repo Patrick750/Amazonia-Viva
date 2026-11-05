@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.24.1 — 2026-11-04 — docs(plan): parch [0.0.1] actualizar el registro del pin y el perfil del viajero
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `8d449f3105d214b2a13cb4807e8b5435373c9071`. Versión calculada automáticamente desde VERSION.
+
 ### 5.24.0 — 2026-11-04 — feat(recorridos): low [0.1.0] pin con la foto al tocar a otra persona y enlace a su perfil real
 
 - Autor del commit: AI Bot.
