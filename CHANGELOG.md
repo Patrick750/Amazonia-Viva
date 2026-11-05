@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.17.6 — 2026-11-04 — fix(paquetes): parch [0.0.1] instrucciones de ubicación para Android e iPhone
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `0a0434c5d7f96557cdc19650f17768a009d87c55`. Versión calculada automáticamente desde VERSION.
+
 ### 5.17.5 — 2026-11-04 — docs(plan): parch [0.0.1] registrar diagnóstico de permisos de ubicación
 
 - Autor del commit: AI Bot.
