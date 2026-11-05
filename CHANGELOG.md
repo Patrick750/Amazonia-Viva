@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.8.2 — 2026-11-04 — chore(repo): parch [0.0.1] eliminar output.txt suelto
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `5b0b27337c57a7c6b67d8145ba0684e982b24a0a`. Versión calculada automáticamente desde VERSION.
+
 ### 5.8.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar implementación de MEJ-004
 
 - Autor del commit: AI Bot.
