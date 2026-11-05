@@ -92,17 +92,89 @@ const cargarCatalogo = async () => {
 // En el perfil propio el id llega cuando termina de cargar el perfil.
 watch(() => props.perfil.id, cargarCatalogo, { immediate: true })
 
+// Mismos filtros que el catálogo; los de tipo, duración y ciudad solo aplican a paquetes.
+const mostrarFiltros = ref(false)
+const orden = ref('')
+const filtroRating = ref(0)
+const filtroTipo = ref('') // 'fijo' | 'flexible' | ''
+const filtroDuracion = ref('')
+const filtroCiudad = ref('')
+const opcionesOrden = [
+  { value: '', label: 'Relevancia' },
+  { value: 'precio_asc', label: 'Precio: menor a mayor' },
+  { value: 'precio_desc', label: 'Precio: mayor a menor' },
+  { value: 'rating_desc', label: 'Mejor calificados' },
+  { value: 'ventas_desc', label: 'Más vendidos' },
+]
+const opcionesDuracion = [
+  { value: 'menos4', label: 'Menos de 4h' },
+  { value: '4a8', label: '4h – 8h' },
+  { value: 'mas8', label: 'Más de 8h' },
+  { value: 'mas1dia', label: 'Más de 1 día' },
+]
+const esAgenciaVista = computed(() => (props.rolLabel || '').toLowerCase() === 'agencia')
+
+const parsearHoras = (duracion) => {
+  if (!duracion) return null
+  const str = String(duracion).toLowerCase()
+  const dias = str.match(/(\d+(?:\.\d+)?)\s*día/)
+  if (dias) return parseFloat(dias[1]) * 24
+  const horas = str.match(/(\d+(?:\.\d+)?)/)
+  return horas ? parseFloat(horas[1]) : null
+}
+
+const hayFiltros = computed(() => !!(filtroBusqueda.value || categoriaActiva.value !== 'Todos' || orden.value ||
+  filtroRating.value || filtroTipo.value || filtroDuracion.value || filtroCiudad.value.trim()))
+const filtrosAvanzadosActivos = computed(() => [orden.value, filtroRating.value, filtroTipo.value, filtroDuracion.value, filtroCiudad.value.trim()].filter(Boolean).length)
+
+const limpiarFiltros = () => {
+  filtroBusqueda.value = ''
+  categoriaActiva.value = 'Todos'
+  orden.value = ''
+  filtroRating.value = 0
+  filtroTipo.value = ''
+  filtroDuracion.value = ''
+  filtroCiudad.value = ''
+}
+
 const itemsFiltrados = computed(() => {
-  let list = items.value
+  let list = [...items.value]
 
   if (categoriaActiva.value !== 'Todos') {
     list = list.filter(item => item.categoria_unificada === categoriaActiva.value)
   }
 
   if (filtroBusqueda.value) {
-    const term = filtroBusqueda.value.toLowerCase()
-    list = list.filter(item => (item.nombre || item.titulo || '').toLowerCase().includes(term))
+    const terms = filtroBusqueda.value.trim().toLowerCase().split(/\s+/)
+    list = list.filter(item => {
+      const texto = `${item.nombre || item.titulo || ''} ${item.ciudad || ''} ${item.marca || ''} ${item.modelo || ''} ${item.categoria_unificada || ''}`.toLowerCase()
+      return terms.every(term => texto.includes(term))
+    })
   }
+  if (filtroRating.value) list = list.filter(item => (item.rating || 0) >= filtroRating.value)
+  if (esAgenciaVista.value) {
+    if (filtroTipo.value) list = list.filter(item => item.tipo_paquete === filtroTipo.value)
+    if (filtroCiudad.value.trim()) {
+      const ciudad = filtroCiudad.value.trim().toLowerCase()
+      list = list.filter(item => item.ciudad && item.ciudad.toLowerCase().includes(ciudad))
+    }
+    if (filtroDuracion.value) {
+      list = list.filter(item => {
+        const h = parsearHoras(item.duracion)
+        if (h === null) return false
+        if (filtroDuracion.value === 'menos4') return h < 4
+        if (filtroDuracion.value === '4a8') return h >= 4 && h <= 8
+        if (filtroDuracion.value === 'mas8') return h > 8 && h < 24
+        return h >= 24
+      })
+    }
+  }
+
+  const ventas = (item) => item.reservas_totales ?? item.ventas_totales ?? 0
+  if (orden.value === 'precio_asc') list.sort((a, b) => a.precio - b.precio)
+  else if (orden.value === 'precio_desc') list.sort((a, b) => b.precio - a.precio)
+  else if (orden.value === 'rating_desc') list.sort((a, b) => (b.rating || 0) - (a.rating || 0))
+  else if (orden.value === 'ventas_desc') list.sort((a, b) => ventas(b) - ventas(a))
   return list
 })
 
@@ -244,9 +316,44 @@ const tagUsuario = computed(() => {
           >
         </div>
         <!-- Botón Filtros Avanzados -->
-        <button class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+        <button type="button" @click="mostrarFiltros = !mostrarFiltros" :aria-expanded="mostrarFiltros" aria-label="Filtros"
+          :class="['relative w-10 h-10 rounded-full flex items-center justify-center shrink-0 border transition-colors', mostrarFiltros || filtrosAvanzadosActivos ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-100 border-slate-200']">
           <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+          <span v-if="filtrosAvanzadosActivos" class="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-emerald-600 text-white text-[9px] font-black flex items-center justify-center">{{ filtrosAvanzadosActivos }}</span>
         </button>
+        <button v-if="hayFiltros" type="button" @click="limpiarFiltros" class="shrink-0 text-xs font-bold text-rose-500 hover:text-rose-600 px-2">Limpiar</button>
+      </div>
+
+
+      <!-- Panel de filtros (los mismos del catálogo) -->
+      <div v-if="mostrarFiltros" class="mt-3 mx-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <label for="orden-perfil" class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-1">Ordenar:</label>
+          <select id="orden-perfil" v-model="orden" class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/30">
+            <option v-for="op in opcionesOrden" :key="op.value" :value="op.value">{{ op.label }}</option>
+          </select>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-1">Calificación:</span>
+          <button v-for="estrella in [4, 3, 2]" :key="estrella" type="button" @click="filtroRating = filtroRating === estrella ? 0 : estrella"
+            :class="['px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors', filtroRating === estrella ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-white text-slate-500 border-slate-200 hover:border-amber-300']">{{ estrella }}+ ★</button>
+        </div>
+        <template v-if="esAgenciaVista">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-1">Tipo:</span>
+            <button v-for="op in [{ v: '', l: 'Todos' }, { v: 'fijo', l: 'Fijo' }, { v: 'flexible', l: 'Flexible' }]" :key="op.v" type="button" @click="filtroTipo = op.v"
+              :class="['px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors', filtroTipo === op.v ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400']">{{ op.l }}</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-1">Duración:</span>
+            <button v-for="op in opcionesDuracion" :key="op.value" type="button" @click="filtroDuracion = filtroDuracion === op.value ? '' : op.value"
+              :class="['px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors', filtroDuracion === op.value ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-white text-slate-500 border-slate-200 hover:border-emerald-300']">{{ op.label }}</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <label for="ciudad-perfil" class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-1">Ciudad:</label>
+            <input id="ciudad-perfil" v-model="filtroCiudad" type="text" placeholder="Escribe una ciudad..." class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500/30">
+          </div>
+        </template>
       </div>
 
       <!-- Fila de Chips (Overflow horizontal) -->
