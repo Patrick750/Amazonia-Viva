@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.7.0 — 2026-11-04 — chore(ecc): low [0.1.0] integrar flujos de trabajo
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `8f3caab0f2707a1bd69de09688284fc85ab75f73`. Versión calculada automáticamente desde VERSION.
+
 ### 5.6.0 — 2026-11-04 — feat(paquetes): low [0.1.0] persistir catalogo del estandar
 
 - Autor del commit: AI Bot.
