@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from '@/api/axios';
+import { guardarPendientes, eliminarPendientes, listarPendientes } from '@/composables/colaEvidencias';
 
 const metrics = ref({ total: 0, completadas: 0, pendientes: 0 });
 const registro = ref([]);
@@ -13,13 +14,15 @@ const fileInput = ref(null);
 // conserva las fotos pendientes para continuar cuando vuelva la señal.
 const MAX_INTENTOS_SERVIDOR = 3;
 const TIEMPO_MAX_MS = 120000;
-const cola = ref([]); // { archivo, estado: 'pendiente' | 'subiendo' | 'ok' | 'error', detalle }
+// Las fotos también se guardan en IndexedDB (colaEvidencias.js): si se recarga la página, la subida continúa.
+const cola = ref([]); // { id, detalle, archivo, estado: 'pendiente' | 'subiendo' | 'ok' | 'error', motivo }
+const usuarioActual = () => localStorage.getItem('nombre_usuario') || '';
+const guardarSeguro = (fn, ...args) => fn(...args).catch((e) => console.warn('No se pudo usar el almacenamiento local de evidencias', e));
 const pausado = ref(false);
 const pausaAutomatica = ref(false);
 const sinConexion = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false);
 const resumenSubida = ref('');
 const fraccionArchivo = ref(0);
-let detalleSubida = null;
 let controlador = null;
 let procesando = false;
 let cancelado = false;
@@ -114,7 +117,7 @@ const subirUna = async (item) => {
     fraccionArchivo.value = 0;
     const formData = new FormData();
     formData.append('imagenes', item.archivo);
-    await axios.post(`api/experiencias/${detalleSubida}/evidencia/`, formData, {
+    await axios.post(`api/experiencias/${item.detalle}/evidencia/`, formData, {
         signal: controlador.signal,
         timeout: TIEMPO_MAX_MS,
         onUploadProgress: (progressEvent) => {
@@ -140,6 +143,7 @@ const procesarCola = async () => {
                 try {
                     await subirUna(item);
                     item.estado = 'ok';
+                    guardarSeguro(eliminarPendientes, [item.id]);
                 } catch (error) {
                     item.estado = 'pendiente';
                     if (cancelado) break;
@@ -152,7 +156,7 @@ const procesarCola = async () => {
                         await esperar(1500 * intentos);
                     } else {
                         item.estado = 'error';
-                        item.detalle = error.response.data?.error || error.response.data?.detail || `Error ${error.response.status}`;
+                        item.motivo = error.response.data?.error || error.response.data?.detail || `Error ${error.response.status}`;
                     }
                 }
             }
@@ -164,6 +168,7 @@ const procesarCola = async () => {
         const malas = fallidas.value;
         if (cancelado) {
             resumenSubida.value = `Subida cancelada: ${ok} de ${total} fotos se guardaron.`;
+            guardarSeguro(eliminarPendientes, cola.value.filter(item => item.estado !== 'ok').map(item => item.id));
             cola.value = [];
         } else if (malas) {
             resumenSubida.value = `${ok} de ${total} fotos subidas. ${malas} no se pudieron subir: pulsa «Reintentar» para volver a intentarlo.`;
@@ -188,6 +193,25 @@ const procesarCola = async () => {
     }
 };
 
+const descartarAviso = () => {
+    guardarSeguro(eliminarPendientes, cola.value.map(item => item.id));
+    resumenSubida.value = '';
+    cola.value = [];
+};
+
+// Fotos que quedaron a medias antes de recargar o cerrar la página: se retoma su subida.
+const retomarPendientes = async () => {
+    try {
+        const guardadas = await listarPendientes(usuarioActual());
+        if (!guardadas.length || procesando) return;
+        cola.value = guardadas.map(r => ({ id: r.id, detalle: r.detalle, archivo: r.archivo, estado: 'pendiente', motivo: '' }));
+        resumenSubida.value = `Se retomó la subida de ${guardadas.length} ${guardadas.length === 1 ? 'foto pendiente' : 'fotos pendientes'} de la sesión anterior.`;
+        procesarCola();
+    } catch (e) {
+        console.warn('No se pudieron leer las evidencias pendientes', e);
+    }
+};
+
 const reintentarFallidas = () => {
     cola.value.forEach(item => { if (item.estado === 'error') item.estado = 'pendiente'; });
     resumenSubida.value = '';
@@ -200,15 +224,25 @@ const handleFileUpload = (event) => {
     if (fileInput.value) fileInput.value.value = '';
     if (!archivos.length || !selectedDetalle.value) return;
 
-    detalleSubida = selectedDetalle.value.id;
-    cola.value = archivos.map(archivo => ({ archivo, estado: 'pendiente', detalle: '' }));
+    cola.value = archivos.map(archivo => ({
+        id: crypto.randomUUID(),
+        detalle: selectedDetalle.value.id,
+        archivo,
+        estado: 'pendiente',
+        motivo: '',
+    }));
     resumenSubida.value = '';
     pausado.value = false;
+    // Se guardan primero en el navegador y después se suben: si se recarga la página no se pierden.
+    guardarSeguro(guardarPendientes, cola.value.map(item => ({
+        id: item.id, usuario: usuarioActual(), detalle: item.detalle, archivo: item.archivo, creado: Date.now(),
+    })));
     procesarCola();
 };
 
 onMounted(() => {
     fetchData();
+    retomarPendientes();
     window.addEventListener('online', alVolverConexion);
     window.addEventListener('offline', alPerderConexion);
 });
@@ -286,7 +320,7 @@ onUnmounted(() => {
                 <p>{{ resumenSubida }}</p>
                 <div v-if="!isUploading" class="flex shrink-0 items-center gap-2">
                   <button v-if="fallidas" type="button" @click="reintentarFallidas" class="rounded-lg bg-emerald-500 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-black hover:bg-emerald-400">Reintentar</button>
-                  <button type="button" @click="resumenSubida = ''; cola = []" class="text-gray-500 hover:text-white" aria-label="Cerrar aviso">✕</button>
+                  <button type="button" @click="descartarAviso" class="text-gray-500 hover:text-white" aria-label="Cerrar aviso">✕</button>
                 </div>
               </div>
             </div>
