@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.7.3 — 2026-11-04 — fix(paquetes): parch [0.0.1] devolver coordenadas al editar paquete
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `c14d437800135840dccb3aa7e4e33dee0717b37f`. Versión calculada automáticamente desde VERSION.
+
 ### 5.7.2 — 2026-11-04 — fix(paquetes): parch [0.0.1] interfaz ajustada
 
 - Autor del commit: AI Bot.
