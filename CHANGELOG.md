@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.22.0 — 2026-11-04 — feat(recorridos): low [0.1.0] compartir la ubicación entre quienes hacen el mismo paquete hoy
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `eff17fb7bc236f3562a898ca6d1423817204f994`. Versión calculada automáticamente desde VERSION.
+
 ### 5.21.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar el mapa del turista sin conexión
 
 - Autor del commit: AI Bot.
