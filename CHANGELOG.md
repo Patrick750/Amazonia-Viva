@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.7.4 — 2026-11-04 — fix(paquetes): parch [0.0.1] completar estándar MEJ-003 en seed_paquetes
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `9229d4ea50b142c50a7381a6937f23a3c09849c3`. Versión calculada automáticamente desde VERSION.
+
 ### 5.7.3 — 2026-11-04 — fix(paquetes): parch [0.0.1] devolver coordenadas al editar paquete
 
 - Autor del commit: AI Bot.
