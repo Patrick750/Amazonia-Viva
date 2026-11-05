@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.18.1 — 2026-11-04 — fix(paquetes): parch [0.0.1] corregir nombre del paquete en reservar_hoy
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `ce5205864b22735afb80a12d4c8aeb3900b5ee69`. Versión calculada automáticamente desde VERSION.
+
 ### 5.18.0 — 2026-11-04 — feat(paquetes): low [0.1.0] comando reservar_hoy para registrar reservas del día
 
 - Autor del commit: AI Bot.
