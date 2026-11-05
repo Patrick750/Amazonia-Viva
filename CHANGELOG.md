@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.2.1 — 2026-11-04 — fix(deploy): parch [0.0.1] migrar DB antes de actualizar servicios
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `6c4dfa226e43ec30eab84292cea07ced10f43925`. Versión calculada automáticamente desde VERSION.
+
 ### 5.2.0 — 2026-11-04 — feat(paquetes): low [0.1.0] implementar MEJ-003 y despliegue por rama
 
 - Autor del commit: AI Bot.
