@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.7.6 — 2026-11-04 — fix(paquetes): parch [0.0.1] permitir editar paquetes anteriores al estandar
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `381382d4e17d5264a3be99c91423444bb550e7f4`. Versión calculada automáticamente desde VERSION.
+
 ### 5.7.5 — 2026-11-04 — fix(config): parch [0.0.1] corregir origenes CORS locales
 
 - Autor del commit: AI Bot.
