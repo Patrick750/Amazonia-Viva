@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.8.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar implementación de MEJ-004
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `75ab82a896a7a9772ac75645ce3880b7e7f9fc7f`. Versión calculada automáticamente desde VERSION.
+
 ### 5.8.0 — 2026-11-04 — feat(auth): low [0.1.0] rediseñar inicio de sesión y registro
 
 - Autor del commit: AI Bot.
