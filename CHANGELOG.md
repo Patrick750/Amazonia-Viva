@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.12.0 — 2026-11-04 — feat(pwa): low [0.1.0] botón de instalación para turistas y agencias
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `76fd3a6becac1636245a8004a995650369d2015c`. Versión calculada automáticamente desde VERSION.
+
 ### 5.11.2 — 2026-11-04 — fix(paquetes): parch [0.0.1] corregir diseño móvil de gestión de tours
 
 - Autor del commit: AI Bot.
