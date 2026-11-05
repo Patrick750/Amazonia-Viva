@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.16.3 — 2026-11-04 — fix(paquetes): parch [0.0.1] no exigir cambiar el nombre repetido al editar
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `1f5803884bfda5f8939acdce60969b030daf2244`. Versión calculada automáticamente desde VERSION.
+
 ### 5.16.2 — 2026-11-04 — fix(recorridos): parch [0.0.1] quitar el campo nombre y usar el del paquete
 
 - Autor del commit: AI Bot.
