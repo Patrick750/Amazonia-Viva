@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.13.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar mapa de grabación a pantalla completa
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `d909a660e787d59edd2142592ea0004832246abf`. Versión calculada automáticamente desde VERSION.
+
 ### 5.13.0 — 2026-11-04 — feat(recorridos): low [0.1.0] mapa a pantalla completa con seguimiento y trazo visible
 
 - Autor del commit: AI Bot.
