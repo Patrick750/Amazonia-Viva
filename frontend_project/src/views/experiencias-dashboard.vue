@@ -147,6 +147,7 @@ const procesarCola = async () => {
                 } catch (error) {
                     item.estado = 'pendiente';
                     if (cancelado) break;
+                    console.error('Fallo al subir una evidencia', item.archivo?.name, error.code, error.response?.status, error.response?.data);
                     if (axios.isCancel?.(error) || error.code === 'ERR_CANCELED') continue; // pausa manual
                     if (!error.response) {
                         // Sin respuesta: red caída o demasiado lenta. Se pausa en vez de perder las fotos.
@@ -156,7 +157,8 @@ const procesarCola = async () => {
                         await esperar(1500 * intentos);
                     } else {
                         item.estado = 'error';
-                        item.motivo = error.response.data?.error || error.response.data?.detail || `Error ${error.response.status}`;
+                        const detalleError = error.response.data?.error || error.response.data?.detail;
+                        item.motivo = `${error.response.status}${detalleError ? ' · ' + detalleError : ''}`;
                     }
                 }
             }
@@ -171,7 +173,7 @@ const procesarCola = async () => {
             guardarSeguro(eliminarPendientes, cola.value.filter(item => item.estado !== 'ok').map(item => item.id));
             cola.value = [];
         } else if (malas) {
-            resumenSubida.value = `${ok} de ${total} fotos subidas. ${malas} no se pudieron subir: pulsa «Reintentar» para volver a intentarlo.`;
+            resumenSubida.value = `${ok} de ${total} fotos subidas. ${malas} no se pudieron subir (el servidor respondió ${[...new Set(cola.value.filter(item => item.estado === 'error').map(item => item.motivo))].join(' / ')}). Pulsa «Reintentar» para volver a intentarlo.`;
             cola.value = cola.value.filter(item => item.estado === 'error');
             cola.value.forEach(item => { item.estado = 'error'; });
         } else {
