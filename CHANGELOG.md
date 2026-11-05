@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.17.7 — 2026-11-04 — docs(plan): parch [0.0.1] registrar instrucciones de ubicación en móvil
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `296a6a725fc27ee12dd0c31eeabc7b6bdf40f8ad`. Versión calculada automáticamente desde VERSION.
+
 ### 5.17.6 — 2026-11-04 — fix(paquetes): parch [0.0.1] instrucciones de ubicación para Android e iPhone
 
 - Autor del commit: AI Bot.
