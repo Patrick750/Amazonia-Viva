@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.23.0 — 2026-11-04 — feat(recorridos): low [0.1.0] ver a las demás personas en el mapa y su perfil mínimo
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `f93b23dd3eaccd01944a2a3479257c23408ae774`. Versión calculada automáticamente desde VERSION.
+
 ### 5.22.0 — 2026-11-04 — feat(recorridos): low [0.1.0] compartir la ubicación entre quienes hacen el mismo paquete hoy
 
 - Autor del commit: AI Bot.
