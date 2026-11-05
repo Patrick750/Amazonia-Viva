@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.24.0 — 2026-11-04 — feat(recorridos): low [0.1.0] pin con la foto al tocar a otra persona y enlace a su perfil real
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `4ffa1157410b9f0295c819fb968071dde08c3d4f`. Versión calculada automáticamente desde VERSION.
+
 ### 5.23.2 — 2026-11-04 — fix(recorridos): parch [0.0.1] incluir la portada en el perfil del viajero del mapa
 
 - Autor del commit: AI Bot.
