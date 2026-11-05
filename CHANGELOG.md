@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.18.0 — 2026-11-04 — feat(paquetes): low [0.1.0] comando reservar_hoy para registrar reservas del día
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `f18640940ee8f774753c7c859887aef3a55aa9fc`. Versión calculada automáticamente desde VERSION.
+
 ### 5.17.7 — 2026-11-04 — docs(plan): parch [0.0.1] registrar instrucciones de ubicación en móvil
 
 - Autor del commit: AI Bot.
