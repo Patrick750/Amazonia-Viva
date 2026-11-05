@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.16.5 — 2026-11-04 — docs(plan): parch [0.0.1] registrar mejoras del formulario de paquetes en móvil
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `02548bcc24ba8741996b73228cdb345589d79d2f`. Versión calculada automáticamente desde VERSION.
+
 ### 5.16.4 — 2026-11-04 — fix(paquetes): parch [0.0.1] mostrar qué falta y navegar por pasos en móvil
 
 - Autor del commit: AI Bot.
