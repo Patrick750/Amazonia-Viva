@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.17.3 — 2026-11-04 — docs(plan): parch [0.0.1] corregir descripción del botón Mi ubicación
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `5db9a8c9fe4a70b2b06bd13c2536fb117505bfae`. Versión calculada automáticamente desde VERSION.
+
 ### 5.17.2 — 2026-11-04 — fix(paquetes): parch [0.0.1] botón Mi ubicación sobre el mapa del formulario
 
 - Autor del commit: AI Bot.
