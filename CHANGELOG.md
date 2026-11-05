@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.28.1 — 2026-11-04 — chore(repo): parch [0.0.1] fusionar main en la rama MEJ-003 y resolver conflictos
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `dec85d60c13e372123099170daf44bfc0b450b9b`. Versión calculada automáticamente desde VERSION.
+
 ### 5.28.0 — 2026-11-04 — feat(perfil): low [0.1.0] ampliar a 20 MB el tamaño de la foto y la portada
 
 - Autor del commit: AI Bot.
