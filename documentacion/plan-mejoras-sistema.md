@@ -11,7 +11,7 @@ Documento de trabajo que se actualizará con las necesidades indicadas por el us
 | MEJ-001 | PWA con registro GPS sin conexión, trazado asociado al paquete y acceso al recorrido para turistas con compra | Primera versión implementada en `codex/mej-003-estandar-paquetes`; supuestos y pruebas en dispositivo pendientes | En ejecución |
 | MEJ-002 | Mejora UX del catálogo de paquetes y productos, onboarding por rol y recomendaciones personalizadas | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
 | MEJ-003 | Actualizar el registro de paquetes turísticos conforme al documento de referencia y mejorar su interfaz visual y de uso | Implementada en `codex/mej-003-estandar-paquetes`; pendiente de revisión e integración | En ejecución |
-| MEJ-004 | Rediseño UX de inicio de sesión y creación de cuenta utilizando la skill diseno-ux-web | Implementada en `codex/mej-003-estandar-paquetes`; pendiente de revisión e integración | En ejecución |
+| MEJ-004 | Rediseño UX de inicio de sesión y creación de cuenta utilizando la skill diseno-ux-web | Integrado en `main` mediante la PR #6 (rama `codex/mej-004-auth-ux`); esta rama conserva esa versión | Prioridad ejecutada |
 
 ## MEJ-001. Recorridos GPS vinculados a paquetes turísticos
 
@@ -368,7 +368,7 @@ La definición de estos datos es una dependencia propuesta para la parte de MEJ-
 
 ### Objetivo y alcance confirmado
 
-Rediseñar la experiencia de inicio de sesión y creación de cuenta utilizando la skill [diseno-ux-web](/home/patrickortiz/.codex/skills/diseno-ux-web/SKILL.md). Se registra como parte de la planificación; todavía no se implementan cambios en las pantallas.
+Rediseñar la experiencia de inicio de sesión y creación de cuenta utilizando la skill [diseno-ux-web](/home/patrickortiz/.codex/skills/diseno-ux-web/SKILL.md). El rediseño quedó implementado en la rama `codex/mej-004-auth-ux` para su revisión e integración.
 
 | ID | Actor o contexto | Requisito |
 | --- | --- | --- |
@@ -401,44 +401,27 @@ La creación de cuenta debe enlazar con el onboarding correspondiente al rol seg
 3. Implementar el rediseño con los componentes y estilos apropiados del proyecto.
 4. Comprobar inicio de sesión, registro por rol, recuperación de errores y resultado visual en móvil y escritorio.
 
-### Decisiones pendientes
+### Decisiones de implementación y pendientes
 
-- Definir la dirección visual concreta y los componentes compartidos entre ambas pantallas.
-- Evaluar si el registro se beneficia de pasos y cómo se comporta al cambiar de rol.
+- Se adoptó un contenedor visual compartido, con una composición enfocada para autenticación y sin el encabezado ni el pie globales en esas dos rutas.
+- El registro se mantiene en una página y agrupa los datos en secciones. El selector accesible de rol cambia los campos específicos sin eliminar los valores ya diligenciados.
+- Se conservaron los endpoints, roles y campos existentes. Se añadieron estados visibles, ayudas, atributos de autocompletado y controles para mostrar las contraseñas.
 - Definir el destino posterior al registro y la transición al onboarding de MEJ-002.
 - Determinar si recuperación de contraseña o verificación de cuenta requieren una mejora separada; no se incorporan como funciones nuevas confirmadas en esta solicitud.
 
-### Estado de implementación — 28 de octubre de 2026
+### Validación realizada y pendiente
 
-Revisión inicial, con evidencia, de `login.vue` y `signup.vue`:
-
-- **Bloqueante:** el registro ocultaba los errores del servidor (solo los registraba en consola), y el fondo del login usaba una ruta `/src/...` que no existe en el build de producción.
-- **Dificultad importante:** el ejemplo de teléfono del proveedor no pasaba su propia validación; las etiquetas no estaban asociadas a los campos; faltaban `autocomplete`; los errores del registro aparecían de uno en uno; cualquier fallo del login se mostraba como credenciales incorrectas; el registro no guardaba `refresh_token`.
-- **Contraste medido:** el botón blanco sobre teal/emerald-500 daba 2.49:1 y 2.54:1; con emerald-700 es 5.48:1.
-
-Cambios aplicados, sin modificar endpoints, cuerpos de petición ni permisos:
-
-- Componentes compartidos `components/auth/auth-layout.vue` y `campo-auth.vue`, y `composables/auth/useSesion.js` (sesión común y mensajes de conexión).
-- Inicio de sesión: título que describe la tarea, etiquetas asociadas, `autocomplete`, mostrar/ocultar contraseña, validación local, mensajes diferenciados (credenciales, límite de intentos, red, servicio) y aviso tras crear una cuenta.
-- Registro: selector de rol accesible (grupo de opciones), campos agrupados en «Tus datos» y «Acceso a tu cuenta», validación al salir del campo, todos los errores a la vez, errores del servidor visibles junto al campo, datos conservados al fallar y sin modificar lo que la persona ve. El teléfono se normaliza sin espacios también para proveedor.
-- Si el acceso automático falla tras registrar, se envía al login con el aviso de cuenta creada.
-
-Verificación realizada en el navegador (entorno local, Postgres del contenedor): login vacío, con credenciales incorrectas y correcto (con `refresh_token`); registro vacío, cambio de rol, correo duplicado y registro exitoso de un proveedor (usuario de prueba eliminado después); escritorio y móvil de 375 px sin desborde horizontal. `npm run build` compila.
-
-No comprobado: lectores de pantalla, dispositivos físicos ni los estados de red caída o límite de intentos en pantalla. No hay pruebas automáticas de frontend. El destino posterior al registro sigue siendo `/` hasta definir el onboarding de MEJ-002; recuperación de contraseña y verificación de cuenta no se incorporaron.
-
-### Validación propuesta
-
-- Las personas distinguen iniciar sesión de crear una cuenta y pueden navegar entre ambos flujos.
-- Los tres roles existentes presentan los campos y las validaciones que correspondan.
-- Los estados de envío, error y éxito son visibles y permiten continuar sin perder innecesariamente el trabajo.
-- Los flujos principales se comprueban con teclado y en móvil y escritorio, además de revisar el resultado renderizado.
-- El registro se integra con el onboarding conforme a las reglas que se definan para MEJ-002.
+- La compilación de producción del frontend finaliza correctamente con `npm run build`.
+- Se revisaron las pantallas renderizadas de inicio de sesión y registro en escritorio y en un viewport móvil de 390 × 844 píxeles.
+- Se comprobó en el navegador el cambio de turista a agencia y la actualización de sus campos y acción principal.
+- La estructura expone etiquetas, grupos, encabezados y controles de contraseña en el árbol de accesibilidad; queda pendiente una prueba formal con lector de pantalla.
+- Queda pendiente validar el registro e inicio de sesión completos contra el backend con cuentas de prueba, y conectar el registro con el onboarding cuando se implemente MEJ-002.
 
 ## Registro de decisiones
 
 | Fecha      | Registro                                                                          | Estado                          |
 | ---------- | --------------------------------------------------------------------------------- | ------------------------------- |
+| 2026-10-16 | Se implementa MEJ-004 en `codex/mej-004-auth-ux`: contenedor compartido, formularios rediseñados, selector por rol, estados de error y carga, mejoras de accesibilidad y adaptación móvil. | Implementado; pendiente de revisión e integración |
 | 2026-10-16 | Se registra MEJ-004: rediseño UX de inicio de sesión y creación de cuenta usando diseno-ux-web. Se documenta un brief inicial y su relación con el onboarding. | Necesidad confirmada; diseño propuesto por concretar |
 | 2026-10-16 | Se registra MEJ-001 a partir de la descripción del usuario.                      | Confirmado como necesidad       |
 | 2026-10-16 | Se propone un orden interno y se identifican preguntas para concretar el alcance. | Propuesta pendiente de precisar |
@@ -459,6 +442,7 @@ No comprobado: lectores de pantalla, dispositivos físicos ni los estados de red
 | 2026-11-03 | Ver a las demás personas en el mapa del día: en `/panel/mi-recorrido` hay una casilla «Ver y compartir mi ubicación con quienes hacen este paquete hoy», apagada por defecto y que recuerda lo elegido ese día. Es voluntaria y recíproca: quien no comparte no ve a nadie. Quien comparte envía su posición cada 10 s (`POST api/turista/paquetes/<id>/grupo/`, solo con reserva confirmada para hoy) y recibe a los demás como círculos morados; al tocar uno aparece un pin de ubicación con su foto (o su inicial) y una tarjeta con su nombre (nombre e inicial del apellido), cuándo se actualizó y «Ver perfil», que abre su perfil en `/perfil/<id>?tipo=turista` con la misma vista del perfil público que ya usan agencias y proveedores. Los turistas no tenían perfil público: el servidor entrega uno mínimo (foto, portada, nombre, año de ingreso y el paquete que hacen hoy) que solo se puede ver si esa persona comparte hoy en un paquete que tú también haces; nunca se exponen correo, teléfono ni documento. Privacidad: el servidor borra la posición al dejar de compartir, al pasar 5 minutos sin actualizarse (deja de mostrarse) y al cambiar el día; el modelo `UbicacionCompartida` guarda una sola fila por persona, paquete y día. Límites: requiere internet (sin conexión el mapa funciona pero no muestra a nadie); no hay chat; con la app en segundo plano el navegador pausa el GPS y la persona deja de actualizarse. Cubierto con 10 pruebas de la API y verificado en Chrome con dos turistas (uno simulado) sobre el build local; no se probó con dos teléfonos reales. | Implementado; pendiente de revisión y de prueba con dos dispositivos |
 | 2026-11-03 | Foto de perfil y portada en «Mi perfil» (turista, agencia y proveedor): ahora se pueden agregar, cambiar y eliminar, y al tocar cualquiera de las dos se ve en grande a pantalla completa (cierra con ✕, Escape o tocando fuera), también en el perfil de otra persona. El botón de cámara abre un menú con ver, subir otra imagen y eliminar (con confirmación) y funciona en móvil. Causas del problema: el perfil del turista nunca devolvía la portada (se guardaba pero no se mostraba al recargar), la portada solo se podía editar en la pestaña «Vista perfil» y no actualizaba el estado de la página, y no existía eliminar. El servidor ahora ofrece `DELETE /api/perfil/foto/?tipo=perfil|portada`, valida formato (JPG, PNG, WEBP o GIF; no SVG) y tamaño (20 MB, ampliado desde 5 MB porque las fotos de un móvil suelen pesar más; el plan gratuito de Cloudinary puede rechazar archivos de más de 10 MB) también en el servidor, rechaza tipos desconocidos y borra de Cloudinary la imagen anterior al reemplazar o eliminar (si Cloudinary falla, la imagen se quita igual y solo se registra una advertencia). Cubierto con 9 pruebas del API con Cloudinary simulado; la interfaz se verificó en Chrome con las respuestas de imágenes simuladas para no subir archivos a la cuenta real de Cloudinary, por lo que falta probar una subida real. | Implementado; pendiente de revisión y de una prueba de subida real |
 | 2026-11-04 | «Mi perfil» (turista, agencia y proveedor): la portada ahora se muestra en el propio encabezado de la página, desde la primera pestaña, con su botón de cámara (antes solo existía en «Vista perfil», donde además el filtro de mezcla `mix-blend-overlay` la oscurecía hasta no reconocerse). Agencias y proveedores tienen una sección nueva, «Mis paquetes» o «Mis productos», con todo lo suyo, incluidos los paquetes inactivos y los productos agotados o no disponibles que el catálogo público no muestra (estado, precio, reservas o stock) y un botón «Administrar» que lleva al panel. Es de solo lectura: crear y editar sigue en `/panel/gestion-paquetes` y `/panel/productos`. Verificado en Chrome con un proveedor de prueba (ya borrado) y la portada simulada; la sección de agencias usa `api/pack/`, que ya existía, pero no se recorrió en el navegador. Si «Mi perfil» sigue sin mostrar estos cambios, es porque el sitio publicado aún no tiene esta rama: todo esto está en `codex/mej-003-estandar-paquetes` y no en `main`. | Implementado; pendiente de revisión |
+| 2026-11-04 | Se fusiona `main` en `codex/mej-003-estandar-paquetes`. En `login.vue` y `signup.vue` se conserva la versión de `main` (PR #6, MEJ-004 integrada) y se retiran los componentes propios que quedaban sin uso (`auth-layout.vue`, `campo-auth.vue`, `useSesion.js`) del rediseño del 2026-10-28, que queda reemplazado; el detalle de validaciones y el mensaje por campo de esa versión ya no aplican. En `deploy.yml` se unen ambos flujos: el despliegue de la rama MEJ-003 por push (con lista de ramas autorizadas, migraciones y carga del estándar antes de levantar los servicios) y de `main` tras el versionado, más `workflow_dispatch`, la cola `queue: max` del grupo `deployment-main` y `--fail-level WARNING` en la revisión de seguridad que ya traía `main`. | Resuelto; pendiente de revisión |
 | 2026-11-02 | Ubicación del dispositivo: cuando el navegador responde «denegado» aunque se haya dado el permiso, el mensaje ahora distingue la causa (permiso bloqueado en el navegador para esa dirección exacta, bloqueo del sistema operativo con el permiso del navegador concedido, o permiso aún sin responder), muestra el sitio exacto y el detalle técnico del navegador, y se reintenta una vez con menor precisión cuando el permiso figura concedido. Se aplica al botón del formulario de paquetes y a la pantalla de grabación. En móvil las instrucciones son específicas de Android (ubicación del sistema y permiso de Chrome o de la app instalada) y de iPhone/iPad (Localización y Safari). No se pudo reproducir el caso real del usuario: se simularon las causas. | Implementado; causa real pendiente de confirmar en el equipo del usuario |
 | 2026-11-02 | Formulario de crear y editar paquetes, paso «Ubicación»: el mapa tiene un botón flotante «Mi ubicación» (solo el icono en móvil). Al pulsarlo se pide la ubicación del dispositivo y se marca el pin en ella, se acerca el mapa, se muestra un punto azul con la precisión y se completa el nombre del lugar (servicio de nombres de OpenStreetMap, con tope de 4 s y las coordenadas como respaldo); no se activa el GPS ni se marca nada hasta pulsarlo, en paquetes nuevos y ya guardados por igual. Sin permiso o GPS se explica cómo activarlo y hay aviso si la precisión es baja. Verificado con Chrome y ubicaciones simuladas, no con un GPS real. | Implementado; pendiente de revisión e integración |
 | 2026-10-30 | Formulario de paquetes en móvil: el resumen de errores ahora lista cada dato que falta con su paso y lleva al campo; los errores devueltos por el servidor también llevan al paso correspondiente (antes el formulario se quedaba en otro paso sin mostrarlos); se añade una fila numerada para saltar a cualquier paso, con marca roja en los pasos con errores. Al editar, el nombre del paquete solo se valida como único si se cambia, porque hay paquetes con nombres repetidos que quedaban imposibles de guardar («Ya tienes un paquete con este nombre»). | Implementado; pendiente de revisión e integración |

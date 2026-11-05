@@ -8,6 +8,24 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.1.2 — 2026-10-16 — fix(deploy): parch [0.0.1] activar despliegue de rama MEJ-004 por push
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `f08cb3cdb8c033ce991a0fedf548a2d78428a0ba`. Versión calculada automáticamente desde VERSION.
+
+### 5.1.1 — 2026-10-16 — chore(deploy): parch [0.0.1] apuntar despliegue a rama MEJ-004
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `2f56d7850ccb459d55a73ce55cc0a4c06acc6451`. Versión calculada automáticamente desde VERSION.
+
+### 5.1.0 — 2026-10-16 — feat(auth): low [0.1.0] rediseñar inicio de sesión y registro
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `5bd723962d902f8a9c45c0cfbee1704adc8206ff`. Versión calculada automáticamente desde VERSION.
+
 ### 5.0.8 — 2026-10-10 — fix(merge): parch [0.0.1] arreglo de conflicto
 
 - Autor del commit: AI Bot.

@@ -10,21 +10,22 @@ on:
     workflows: ['Version Bump on Merge']
     types: [completed]
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: deployment-amazonia-viva
+  group: deployment-main
   cancel-in-progress: false
+  queue: max
 
 jobs:
   verify:
     if: >-
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository)
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}
@@ -65,7 +66,7 @@ jobs:
           PUSH_SHA: ${{ github.sha }}
           PUSH_BRANCH: ${{ github.ref_name }}
         run: |
-          if [ "$EVENT_NAME" = "push" ]; then
+          if [ "$EVENT_NAME" != "workflow_run" ]; then
             VERSIONED_SHA="$PUSH_SHA"
             DEPLOY_BRANCH="$PUSH_BRANCH"
           else
@@ -165,5 +166,5 @@ jobs:
 
           echo "Actualizando servicios de aplicacion"
           docker compose up -d --build
-          docker compose exec -T backend python manage.py check --deploy --tag security
+          docker compose exec -T backend python manage.py check --deploy --tag security --fail-level WARNING
           docker image prune -f

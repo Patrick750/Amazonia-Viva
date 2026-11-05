@@ -31,7 +31,7 @@ Todas las rutas de esta tabla son relativas a la raíz del proyecto.
 | `frontend_project/package.json` | Recibe la versión calculada. |
 | `frontend_project/package-lock.json` | Recibe la versión calculada en el nivel superior y en el paquete raíz. |
 | `README.md` | Actualiza la línea `Versión: **X.Y.Z**`. |
-| `.github/workflows/deploy.yml` | Espera al versionamiento y despliega el SHA publicado, únicamente para `main`. |
+| `.github/workflows/deploy.yml` | En `main`, espera al versionamiento y despliega el SHA publicado. La rama activa de trabajo puede tener un disparador directo y manual para validar su despliegue antes de integrarla. |
 | `tests/test_versionamiento.py` | Comprueba el comportamiento con repositorios y remotos temporales. |
 
 ## 3. Cómo escribir los commits
@@ -208,6 +208,8 @@ La publicación usa `git push --atomic`: los commits de la rama y los tags reci�
 El bot utiliza `GITHUB_TOKEN`. Los pushes normales realizados con ese token no desencadenan otro workflow de push; por eso el despliegue se encadena con `workflow_run`, según el [comportamiento documentado por GitHub](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow).
 
 Cuando el versionamiento termina bien, guarda `versioned-reference`, un artifact con el SHA final. El despliegue de `main` descarga esa referencia, verifica ese código y construye/publica las imágenes antes de actualizar el VPS. Un fallo de las verificaciones puede impedir el despliegue aunque el versionamiento ya haya publicado sus commits y tags. En `master` se generan versiones, pero este workflow de despliegue no se activa.
+
+Para validar temporalmente la rama `codex/mej-004-auth-ux`, el workflow también responde a sus eventos `push` y admite `workflow_dispatch`. En esos eventos no existe el artifact de versionamiento: se verifica y despliega directamente `github.sha`. Cambiar únicamente el filtro `branches` de `workflow_run` no activa una rama, porque ese filtro corresponde a la rama donde se ejecutó el workflow anterior y `Version Bump on Merge` solo escucha `main` y `master`. Además, GitHub exige que el archivo que recibe `workflow_run` exista en la rama predeterminada.
 
 Evita integrar varios PR simultáneamente: los workflows se serializan por rama, pero un push concurrente puede provocar rechazo de la publicación. Ante ese caso, revisa el estado remoto antes de reejecutar; no publiques los commits del bot con force-push.
 
