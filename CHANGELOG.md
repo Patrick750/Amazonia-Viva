@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.25.0 — 2026-11-04 — feat(perfil): low [0.1.0] eliminar foto y portada y mostrar la portada del turista
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `c3a4af3c688704ca220679548b3dcb5426fed81c`. Versión calculada automáticamente desde VERSION.
+
 ### 5.24.1 — 2026-11-04 — docs(plan): parch [0.0.1] actualizar el registro del pin y el perfil del viajero
 
 - Autor del commit: AI Bot.
