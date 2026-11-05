@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.6.0 — 2026-11-04 — feat(paquetes): low [0.1.0] persistir catalogo del estandar
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `37db23a3a8b12ec290b8196b4213050c2d2e5f09`. Versión calculada automáticamente desde VERSION.
+
 ### 5.5.0 — 2026-11-04 — feat(paquetes): low [0.1.0] pulir formulario completo
 
 - Autor del commit: AI Bot.
