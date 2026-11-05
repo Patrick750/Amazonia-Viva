@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.12.2 — 2026-11-04 — fix(recorridos): parch [0.0.1] mostrar la ubicación en vivo en el mapa de grabación
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `cfd40673557ec6b362601086f19810e85b36d735`. Versión calculada automáticamente desde VERSION.
+
 ### 5.12.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar instalación de la PWA
 
 - Autor del commit: AI Bot.
