@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.27.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar la portada del encabezado y el catálogo propio
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `b1b69f00922ea0b87f5a72cf4ae89215df4b3fe5`. Versión calculada automáticamente desde VERSION.
+
 ### 5.27.0 — 2026-11-04 — feat(perfil): low [0.1.0] portada en el encabezado y sección de paquetes o productos propios
 
 - Autor del commit: AI Bot.
