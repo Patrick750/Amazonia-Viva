@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.5.0 — 2026-11-04 — feat(paquetes): low [0.1.0] pulir formulario completo
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `752563851961494987662712f4ec08bd8345edb2`. Versión calculada automáticamente desde VERSION.
+
 ### 5.4.0 — 2026-11-04 — feat(paquetes): low [0.1.0] rediseñar formulario y dificultades
 
 - Autor del commit: AI Bot.
