@@ -8,6 +8,12 @@
 > - **MENOR** — nueva funcionalidad añadida
 > - **PARCHE** — correcciones, ajustes menores o refactorizaciones
  
+### 5.23.2 — 2026-11-04 — fix(recorridos): parch [0.0.1] incluir la portada en el perfil del viajero del mapa
+
+- Autor del commit: AI Bot.
+- Usuario de GitHub que inició el versionamiento: @Patrick750.
+- Commit de origen: `1874a3cc9b2cbe9666e00647e5f5f10b7be38f34`. Versión calculada automáticamente desde VERSION.
+
 ### 5.23.1 — 2026-11-04 — docs(plan): parch [0.0.1] registrar la ubicación compartida en el mapa del día
 
 - Autor del commit: AI Bot.
