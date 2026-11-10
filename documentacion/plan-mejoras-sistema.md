@@ -12,6 +12,7 @@ Documento de trabajo que se actualizará con las necesidades indicadas por el us
 | MEJ-002 | Mejora UX del catálogo de paquetes y productos, onboarding por rol y recomendaciones personalizadas | Necesidad registrada; alcance por precisar | Pendiente de comparar con las demás mejoras |
 | MEJ-003 | Actualizar el registro de paquetes turísticos conforme al documento de referencia y mejorar su interfaz visual y de uso | Implementada en `codex/mej-003-estandar-paquetes`; pendiente de revisión e integración | En ejecución |
 | MEJ-004 | Rediseño UX de inicio de sesión y creación de cuenta utilizando la skill diseno-ux-web | Integrado en `main` mediante la PR #6 (rama `codex/mej-004-auth-ux`); esta rama conserva esa versión | Prioridad ejecutada |
+| MEJ-005 | Métodos de pago guardados para compradores, cuentas de cobro vinculadas para agencias y proveedores, y dispersión automática de sus ventas mediante una pasarela | Necesidad registrada; investigación inicial de pasarelas documentada; alcance y proveedor por confirmar | Pendiente de comparar con las demás mejoras |
 
 ## MEJ-001. Recorridos GPS vinculados a paquetes turísticos
 
@@ -417,10 +418,69 @@ La creación de cuenta debe enlazar con el onboarding correspondiente al rol seg
 - La estructura expone etiquetas, grupos, encabezados y controles de contraseña en el árbol de accesibilidad; queda pendiente una prueba formal con lector de pantalla.
 - Queda pendiente validar el registro e inicio de sesión completos contra el backend con cuentas de prueba, y conectar el registro con el onboarding cuando se implemente MEJ-002.
 
+## MEJ-005. Métodos de pago guardados, cuentas de cobro y dispersión a agencias y proveedores
+
+### Objetivo
+
+Permitir que los compradores guarden su método de pago para compras futuras, de forma similar a las tiendas en línea grandes, y que las agencias y los proveedores vinculen la cuenta donde reciben el dinero de sus ventas. Evaluar pasarelas de pago con división de pagos (*split*) o dispersión a terceros que se adapten a un carrito con artículos de varios vendedores.
+
+### Requisitos expresados por el usuario
+
+| ID | Actor o contexto | Requisito |
+| --- | --- | --- |
+| RF-021 | Turista (y agencia cuando compra) | Guardar un método de pago para usarlo en compras futuras. |
+| RF-022 | Agencia y proveedor | Vincular una cuenta bancaria o billetera para recibir el dinero de sus ventas. |
+| RF-023 | Plataforma | Investigar pasarelas de pago con *split* que se adapten al proyecto. |
+
+### Situación actual del sistema (10 de noviembre de 2026)
+
+- **Compradores:** el pago se realiza en el checkout alojado de Wompi (`autenticacion/wompi.py`, `frontend_project/src/views/pago.vue`). No existe un método de pago guardado y el sistema no recibe datos de tarjetas. Las compras están deshabilitadas por defecto (`CHECKOUT_MODE=disabled`).
+- **Agencias y proveedores:** `frontend_project/src/views/liquidacion.vue` solicita un retiro con los datos del destino escritos en cada solicitud (Nequi, Daviplata o transferencia bancaria). Se guardan en `SolicitudRetiro`, no como una cuenta vinculada al perfil. Un operador cambia el estado con `cambiar_estado_retiro` y realiza la transferencia por fuera del sistema. Comisión de la plataforma: 8 %. Retiros bloqueados por defecto (`ALLOW_WITHDRAWALS=false`).
+- **Inconsistencia detectada:** `_get_metodos_default()` en `autenticacion/vistas_liquidacion.py` ofrece PSE como método de retiro, pero el serializador lo rechaza. PSE es un medio de pago, no de recepción de fondos.
+
+### Investigación de pasarelas (10 de noviembre de 2026)
+
+Fuentes consultadas en la documentación pública de cada proveedor. Las condiciones comerciales, tarifas y disponibilidad deben confirmarse con cada pasarela antes de decidir.
+
+| Pasarela | *Split* en el cobro | Método guardado del comprador | Pago a agencias y proveedores | Encaje con el proyecto |
+| --- | --- | --- | --- | --- |
+| Wompi (Bancolombia, ya integrada) | No nativo, según su soporte (artículo de 2020, posiblemente desactualizado). | Sí: fuentes de pago para tarjeta, Nequi, Daviplata y Bancolombia (`POST /v1/payment_sources`, con tokens de aceptación). | Sí: producto Pagos a Terceros hacia cualquier banco, Nequi, Daviplata o llave Bre-B, por API, con webhooks firmados, idempotencia y sandbox. Tarifa publicada: $1.849 + 0,4 % + IVA por pago exitoso. Requiere activación. | Alto |
+| Mercado Pago | Sí, modelo 1:1 (un vendedor más la comisión de la plataforma por pago, con `marketplace_fee` o `application_fee`). El modelo 1:N solo con su equipo comercial. | No documentado junto con el *split*. | Automático al cobrar, pero cada vendedor necesita cuenta de Mercado Pago (KYC nivel 6) vinculada por OAuth, con credenciales que vencen a los 6 meses. La documentación indica que solo admite dinero en cuenta entre cuentas de Mercado Pago; falta confirmar PSE y Nequi. | Medio |
+| ePayco (ahora Davipay) | Anunciado como «Pagos divididos», uno a uno o uno a muchos; el SDK muestra parámetros `split_receivers`. | El SDK permite tokens de tarjeta y clientes guardados. | Los receptores aparentan requerir cuenta ePayco. | Por confirmar: la documentación oficial de *split* no estuvo disponible (dominio sin respuesta y página 404). |
+| PayU | No encontrado. | — | Producto Payouts disponible en Colombia. | Bajo |
+
+### Propuesta inicial
+
+Por tratarse de un carrito con artículos de varios vendedores, se propone continuar con Wompi y separar el cobro de la dispersión:
+
+1. **Cobro y método guardado:** mantener el checkout de Wompi y, con consentimiento del comprador, crear una fuente de pago reutilizable. El sistema guarda solo el identificador de la fuente, nunca datos de tarjeta.
+2. **Cuenta de cobro vinculada:** modelo por agencia o proveedor con el destino (banco, Nequi, Daviplata o llave Bre-B), confirmación del titular y registro de cambios. Reemplaza la captura de datos en cada solicitud.
+3. **Dispersión:** usar el saldo liquidable que ya calcula la billetera (ventas Pagado con artículos entregados o realizados, menos la comisión) para crear pagos con la API de Pagos a Terceros, conservando las reservas de saldo, la idempotencia y la auditoría actuales. El webhook de dispersión actualiza el estado de cada retiro.
+
+Esta propuesta reutiliza el cálculo de saldo, los bloqueos y la verificación de webhooks existentes. No es una decisión aprobada.
+
+### Decisiones pendientes
+
+- **Proveedor:** confirmar con Wompi si hoy ofrece *split* nativo y pedir a Davipay la documentación vigente de «Pagos divididos» antes de elegir.
+- **Modelo de recaudo:** con dispersión, el dinero pasa por la cuenta de Amazonía Viva; con *split* nativo llega directo a cada vendedor. Revisar con asesoría contable y jurídica las implicaciones de facturación, retenciones y cumplimiento.
+- **Momento de la dispersión:** automática al cumplirse la entrega o realización, programada (semanal o quincenal) o a solicitud de la agencia o el proveedor.
+- **Métodos guardados:** qué medios se ofrecen (tarjeta, Nequi), si aplican también a agencias compradoras, y cómo se eliminan o reemplazan.
+- **Cambios de cuenta:** verificación requerida al cambiar la cuenta de cobro y período de espera antes de dispersar a una cuenta nueva.
+- **Corrección menor:** retirar PSE del listado de métodos de retiro.
+
+### Validación funcional propuesta
+
+- Un comprador guarda un método, lo usa en una compra posterior y puede eliminarlo; el sistema no almacena datos de tarjeta.
+- Una agencia o un proveedor vincula, cambia y consulta su cuenta de cobro con confirmación del titular.
+- Una dispersión no supera el saldo liquidable, no se duplica ante reintentos y su estado se actualiza solo con eventos verificados.
+- Un fallo o rechazo de la dispersión libera el saldo reservado.
+- El flujo completo se prueba en sandbox antes de habilitar `ALLOW_WITHDRAWALS`.
+
 ## Registro de decisiones
 
 | Fecha      | Registro                                                                          | Estado                          |
 | ---------- | --------------------------------------------------------------------------------- | ------------------------------- |
+| 2026-11-10 | Se registra MEJ-005: métodos de pago guardados, cuentas de cobro vinculadas y dispersión a agencias y proveedores. Se documentan la situación actual (checkout alojado de Wompi, retiros con datos escritos en cada solicitud y transferencia manual), la comparación de Wompi, Mercado Pago, ePayco/Davipay y PayU, y una propuesta inicial con fuentes de pago y Pagos a Terceros de Wompi. | Necesidad confirmada; proveedor y modelo de recaudo por decidir |
 | 2026-10-16 | Se implementa MEJ-004 en `codex/mej-004-auth-ux`: contenedor compartido, formularios rediseñados, selector por rol, estados de error y carga, mejoras de accesibilidad y adaptación móvil. | Implementado; pendiente de revisión e integración |
 | 2026-10-16 | Se registra MEJ-004: rediseño UX de inicio de sesión y creación de cuenta usando diseno-ux-web. Se documenta un brief inicial y su relación con el onboarding. | Necesidad confirmada; diseño propuesto por concretar |
 | 2026-10-16 | Se registra MEJ-001 a partir de la descripción del usuario.                      | Confirmado como necesidad       |
